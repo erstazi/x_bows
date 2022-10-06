@@ -11,5 +11,6 @@ read_globals = {
 	'armor',
 	'playerphysics',
 	'hb',
-	'mesecon'
+	'mesecon',
+	'player_monoids'
 }

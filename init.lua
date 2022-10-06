@@ -6,6 +6,8 @@ x_bows = {
 	creative = minetest.settings:get_bool('creative_mode') or false,
 	mesecons = minetest.get_modpath('mesecons'),
 	hbhunger = minetest.get_modpath('hbhunger'),
+	playerphysics = minetest.get_modpath('playerphysics'),
+	player_monoids = minetest.get_modpath('player_monoids'),
 	registered_arrows = {},
 	registered_bows = {},
 	player_bow_sneak = {},
@@ -339,15 +341,19 @@ minetest.register_globalstep(function(dtime)
 			end
 
 			if item == 'x_bows:bow_wood_charged' and not x_bows.player_bow_sneak[name].sneak then
-				if minetest.get_modpath('playerphysics') then
+				if x_bows.playerphysics then
 					playerphysics.add_physics_factor(player, 'speed', 'x_bows:bow_wood_charged', 0.25)
+				elseif x_bows.player_monoids then
+					player_monoids.speed:add_change(player, 0.25, 'x_bows:bow_wood_charged')
 				end
 
 				x_bows.player_bow_sneak[name].sneak = true
 				player:set_fov(0.9, true, 0.4)
 			elseif item ~= 'x_bows:bow_wood_charged' and x_bows.player_bow_sneak[name].sneak then
-				if minetest.get_modpath('playerphysics') then
+				if x_bows.playerphysics then
 					playerphysics.remove_physics_factor(player, 'speed', 'x_bows:bow_wood_charged')
+				elseif x_bows.player_monoids then
+					player_monoids.speed:del_change(player, 'x_bows:bow_wood_charged')
 				end
 
 				x_bows.player_bow_sneak[name].sneak = false
