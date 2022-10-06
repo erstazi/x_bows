@@ -1,12 +1,10 @@
-image: python:3.8
+image: atlassian/default-image:3
 
 pipelines:
   pull-requests:
     "**":
       - step:
           name: Lint code
-          caches:
-            - pip
           script:
             - sudo apt install luarocks
             - sudo apt install lua5.1
