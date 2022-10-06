@@ -1,1 +1,1 @@
-luarocks
+luarocks>=3.9.1
