@@ -32,7 +32,7 @@ minetest.register_node('x_bows:target', {
 	groups = {snappy=3, flammable=4, fall_damage_add_percent=-30},
 	sounds = default.node_sound_leaves_defaults(),
 	mesecons = {receptor = {state = 'off'}},
-	on_timer = function (pos, elapsed) --luacheck:ignore
+	on_timer = function (pos, elapsed)
 		mesecon.receptor_off(pos)
 		return false
 	end,

@@ -1,3 +1,6 @@
+unused_args = false
+allow_defined_top = true
+
 globals = {
 	'x_bows'
 }
@@ -12,5 +15,6 @@ read_globals = {
 	'playerphysics',
 	'hb',
 	'mesecon',
+	'dump',
 	'player_monoids'
 }

@@ -160,7 +160,7 @@ function x_bows.load(itemstack, user, pointed_thing)
 	end
 end
 
-function x_bows.shoot(itemstack, user, pointed_thing) --luacheck:ignore
+function x_bows.shoot(itemstack, user, pointed_thing)
 	local time_shoot = minetest.get_us_time();
 	local meta = itemstack:get_meta()
 	local meta_arrow = meta:get_string('arrow')

@@ -145,7 +145,7 @@ minetest.register_entity('x_bows:arrow_entity', {
 		})
 	end,
 
-	on_death = function(self, killer) --luacheck:ignore
+	on_death = function(self, killer)
 		if not self._old_pos then
 			self.object:remove()
 			return
@@ -457,9 +457,15 @@ minetest.register_entity('x_bows:arrow_entity', {
 				self._attached_to.type = pointed_thing.type
 				self._attached_to.pos = position
 
-				local children = pointed_thing.ref:get_children()
-
 				-- remove last arrow when too many already attached
+				local children = {}
+
+				for _, object in ipairs(pointed_thing.ref:get_children()) do
+					if object:get_luaentity() and object:get_luaentity().name == 'x_bows:arrow_entity' then
+						table.insert(children, object)
+					end
+				end
+
 				if #children >= 5 then
 					children[1]:remove()
 				end
@@ -520,7 +526,7 @@ minetest.register_entity('x_bows:arrow_entity', {
 
 					for _, object in ipairs(minetest.get_objects_inside_radius(pointed_thing.under, 1)) do
 						if not object:is_player() and object:get_luaentity() and object:get_luaentity().name == 'x_bows:arrow_entity' then
-							table.insert(children ,object)
+							table.insert(children, object)
 						end
 					end
 
