@@ -6,7 +6,7 @@ pipelines:
       - step:
           name: Lint code
           script:
-            - sudo apt install luarocks
-            - sudo apt install lua5.1
+            - apt install luarocks
+            - apt install lua5.1
             - luarocks install luacheck
             - luacheck .
