@@ -40,7 +40,17 @@ function x_bows.poison_effect(tick, time, time_left, arrow_obj, target_obj, old_
 	time_left = time_left + tick
 
 	if time_left <= time then
-		minetest.after(tick, x_bows.poison_effect, tick, time, time_left, arrow_obj, target_obj, old_damage_texture_modifier, punch_def)
+		minetest.after(
+			tick,
+			x_bows.poison_effect,
+			tick,
+			time,
+			time_left,
+			arrow_obj,
+			target_obj,
+			old_damage_texture_modifier,
+			punch_def
+		)
 	elseif target_obj:is_player() then
 		if x_bows.hbhunger then
 			-- Reset HUD bar color
@@ -135,7 +145,7 @@ minetest.register_entity('x_bows:arrow_entity', {
 		})
 	end,
 
-	on_death = function(self, killer)
+	on_death = function(self, killer) --luacheck:ignore
 		if not self._old_pos then
 			self.object:remove()
 			return
@@ -221,7 +231,14 @@ minetest.register_entity('x_bows:arrow_entity', {
 			if pointed_thing.type == 'object'
 				and pointed_thing.ref ~= self.object
 				and pointed_thing.ref:get_hp() > 0
-				and ((pointed_thing.ref:is_player() and pointed_thing.ref:get_player_name() ~= self.user:get_player_name()) or (pointed_thing.ref:get_luaentity() and pointed_thing.ref:get_luaentity().physical and pointed_thing.ref:get_luaentity().name ~= '__builtin:item'))
+				and (
+					(pointed_thing.ref:is_player() and pointed_thing.ref:get_player_name() ~= self.user:get_player_name())
+					or (
+						pointed_thing.ref:get_luaentity()
+						and pointed_thing.ref:get_luaentity().physical
+						and pointed_thing.ref:get_luaentity().name ~= '__builtin:item'
+					)
+				)
 				and self.object:get_attach() == nil
 			then
 				if pointed_thing.ref:is_player() then
@@ -402,12 +419,20 @@ minetest.register_entity('x_bows:arrow_entity', {
 						-- @TODO missing `active` posion arrow check for player (see lua_ent below)
 						if x_bows.hbhunger then
 							-- Set poison bar
-							hb.change_hudbar(pointed_thing.ref, 'health', nil, nil, 'hbhunger_icon_health_poison.png', nil, 'hbhunger_bar_health_poison.png')
+							hb.change_hudbar(
+								pointed_thing.ref,
+								'health',
+								nil,
+								nil,
+								'hbhunger_icon_health_poison.png',
+								nil,
+								'hbhunger_bar_health_poison.png'
+							)
 						end
 
 						x_bows.poison_effect(1, 5, 0, self, pointed_thing.ref, old_damage_texture_modifier, punch_def)
 					else
-						local lua_ent = pointed_thing.ref:get_luaentity()
+						-- local lua_ent = pointed_thing.ref:get_luaentity()
 						-- if not lua_ent[self.arrow .. '_active'] or lua_ent[self.arrow .. '_active'] == 'false' then
 							-- lua_ent[self.arrow .. '_active'] = true
 							x_bows.poison_effect(1, 5, 0, self, pointed_thing.ref, old_damage_texture_modifier, punch_def)
@@ -493,7 +518,7 @@ minetest.register_entity('x_bows:arrow_entity', {
 					-- remove last arrow when too many already attached
 					local children = {}
 
-					for k, object in ipairs(minetest.get_objects_inside_radius(pointed_thing.under, 1)) do
+					for _, object in ipairs(minetest.get_objects_inside_radius(pointed_thing.under, 1)) do
 						if not object:is_player() and object:get_luaentity() and object:get_luaentity().name == 'x_bows:arrow_entity' then
 							table.insert(children ,object)
 						end

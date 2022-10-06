@@ -6,6 +6,8 @@ x_bows = {
 	creative = minetest.settings:get_bool('creative_mode') or false,
 	mesecons = minetest.get_modpath('mesecons'),
 	hbhunger = minetest.get_modpath('hbhunger'),
+	playerphysics = minetest.get_modpath('playerphysics'),
+	player_monoids = minetest.get_modpath('player_monoids'),
 	registered_arrows = {},
 	registered_bows = {},
 	player_bow_sneak = {},
@@ -32,7 +34,8 @@ function x_bows.register_bow(name, def)
 
 	-- not charged bow
 	minetest.register_tool(def.name, {
-		description = def.description .. '\n' .. minetest.colorize('#00FF00', 'Critical Arrow Chance: ' .. (1 / def.crit_chance) * 100 .. '%'),
+		description = def.description .. '\n' .. minetest.colorize('#00FF00', 'Critical Arrow Chance: '
+			.. (1 / def.crit_chance) * 100 .. '%'),
 		inventory_image = def.inventory_image or 'x_bows_bow_wood.png',
 		-- on_use = function(itemstack, user, pointed_thing)
 		-- end,
@@ -44,7 +47,8 @@ function x_bows.register_bow(name, def)
 
 	-- charged bow
 	minetest.register_tool(def.name_charged, {
-		description = def.description .. '\n' .. minetest.colorize('#00FF00', 'Critical Arrow Chance: ' .. (1 / def.crit_chance) * 100 .. '%'),
+		description = def.description .. '\n' .. minetest.colorize('#00FF00', 'Critical Arrow Chance: '
+			.. (1 / def.crit_chance) * 100 .. '%'),
 		inventory_image = def.inventory_image_charged or 'x_bows_bow_wood_charged.png',
 		on_use = x_bows.shoot,
 		groups = {bow = 1, flammable = 1, not_in_creative_inventory = 1},
@@ -70,7 +74,9 @@ function x_bows.register_arrow(name, def)
 	x_bows.registered_arrows[def.name] = def
 
 	minetest.register_craftitem('x_bows:' .. name, {
-		description = def.description .. '\n' .. minetest.colorize('#00FF00', 'Damage: ' .. def.tool_capabilities.damage_groups.fleshy) .. '\n' .. minetest.colorize('#00BFFF', 'Charge Time: ' .. def.tool_capabilities.full_punch_interval .. 's'),
+		description = def.description .. '\n' .. minetest.colorize('#00FF00', 'Damage: '
+			.. def.tool_capabilities.damage_groups.fleshy) .. '\n' .. minetest.colorize('#00BFFF', 'Charge Time: '
+			.. def.tool_capabilities.full_punch_interval .. 's'),
 		inventory_image = def.inventory_image,
 		groups = {arrow = 1, flammable = 1}
 	})
@@ -101,7 +107,7 @@ function x_bows.load(itemstack, user, pointed_thing)
 		end
 	end
 
-	for k, st in ipairs(inv_list) do
+	for _, st in ipairs(inv_list) do
 		if not st:is_empty() and x_bows.registered_arrows[st:get_name()] then
 			table.insert(itemstack_arrows, st)
 		end
@@ -154,7 +160,7 @@ function x_bows.load(itemstack, user, pointed_thing)
 	end
 end
 
-function x_bows.shoot(itemstack, user, pointed_thing)
+function x_bows.shoot(itemstack, user, pointed_thing) --luacheck:ignore
 	local time_shoot = minetest.get_us_time();
 	local meta = itemstack:get_meta()
 	local meta_arrow = meta:get_string('arrow')
@@ -196,13 +202,20 @@ function x_bows.shoot(itemstack, user, pointed_thing)
 
 	local pos = user:get_pos()
 	local dir = user:get_look_dir()
-	local obj = minetest.add_entity({x = pos.x, y = pos.y + 1.5, z = pos.z}, 'x_bows:arrow_entity', minetest.serialize(staticdata))
+	local obj = minetest.add_entity(
+		{
+			x = pos.x,
+			y = pos.y + 1.5,
+			z = pos.z
+		},
+		'x_bows:arrow_entity',
+		minetest.serialize(staticdata)
+	)
 
 	if not obj then
 		return itemstack
 	end
 
-	local lua_ent = obj:get_luaentity()
 	local strength_multiplier = tflp
 
 	if strength_multiplier > _tool_capabilities.full_punch_interval then
@@ -328,15 +341,19 @@ minetest.register_globalstep(function(dtime)
 			end
 
 			if item == 'x_bows:bow_wood_charged' and not x_bows.player_bow_sneak[name].sneak then
-				if minetest.get_modpath('playerphysics') then
+				if x_bows.playerphysics then
 					playerphysics.add_physics_factor(player, 'speed', 'x_bows:bow_wood_charged', 0.25)
+				elseif x_bows.player_monoids then
+					player_monoids.speed:add_change(player, 0.25, 'x_bows:bow_wood_charged')
 				end
 
 				x_bows.player_bow_sneak[name].sneak = true
 				player:set_fov(0.9, true, 0.4)
 			elseif item ~= 'x_bows:bow_wood_charged' and x_bows.player_bow_sneak[name].sneak then
-				if minetest.get_modpath('playerphysics') then
+				if x_bows.playerphysics then
 					playerphysics.remove_physics_factor(player, 'speed', 'x_bows:bow_wood_charged')
+				elseif x_bows.player_monoids then
+					player_monoids.speed:del_change(player, 'x_bows:bow_wood_charged')
 				end
 
 				x_bows.player_bow_sneak[name].sneak = false
