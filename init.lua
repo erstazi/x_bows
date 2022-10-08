@@ -20,6 +20,28 @@ function x_bows.is_creative(name)
 	return x_bows.creative or minetest.check_player_privs(name, {creative = true})
 end
 
+local function reset_charged_bow(player)
+	local inv = player:get_inventory()
+
+	if inv:contains_item('main', 'x_bows:bow_wood_charged') then
+		local inv_list = inv:get_list('main')
+
+		for i, st in ipairs(inv_list) do
+			if not st:is_empty() and x_bows.registered_bows[st:get_name()] and player:get_wield_index() ~= i then
+				inv:set_stack('main', i, ItemStack({
+					name=x_bows.registered_bows[st:get_name()].name,
+					count=st:get_count(),
+					wear=st:get_wear()
+				}))
+			end
+		end
+	end
+end
+
+minetest.register_on_joinplayer(function(player)
+	reset_charged_bow(player)
+end)
+
 function x_bows.register_bow(name, def)
 	if name == nil or name == '' then
 		return false
@@ -52,6 +74,11 @@ function x_bows.register_bow(name, def)
 		inventory_image = def.inventory_image_charged or 'x_bows_bow_wood_charged.png',
 		on_use = x_bows.shoot,
 		groups = {bow = 1, flammable = 1, not_in_creative_inventory = 1},
+		on_drop = function(itemstack, dropper, pos)
+			itemstack:set_name(def.name)
+			-- returns leftover itemstack
+			return minetest.item_drop(itemstack, dropper, pos)
+		end
 	})
 
 	-- recipes
@@ -359,6 +386,8 @@ minetest.register_globalstep(function(dtime)
 				x_bows.player_bow_sneak[name].sneak = false
 				player:set_fov(0, true, 0.4)
 			end
+
+			reset_charged_bow(player)
 		end
 
 		bow_charged_timer = 0
