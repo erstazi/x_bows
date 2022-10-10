@@ -25,6 +25,28 @@ Video: https://youtu.be/pItpltmUoa8
 * (experimental) poison arrow - dealing damage for 5s but will not kill the target
 * target block reduces fall damage by -30
 
+## How To
+
+With the bow selected in hotbar and in your hand, press right click on mouse (PC) or the same action as when placing blocks, to load the bow.
+For bow to be loaded you have to have arrows in the main invetory. Charging bow will have slight sound effect and can be fired at any time with left click (PC)
+or the same action as when you are digging a block. Waiting for full charge of the bow is recommended
+as it will give the arrow full speed (maximum shooting distance) and chance for critical arrow (double damage).
+
+There are few indications on how to know when the bow is fully charged:
+
+* there is a distinct "click" sound
+* each arrow has "charge time" in the description
+* after shooting, arrow will have particle trail
+
+There are few indications on how to know when the arrow is a critical arrow:
+
+* there is a distinct arrow flying sound
+* after shooting, arrow will have red particle trail
+
+If you shoot the arrow before the bow is fully charged the speed/distance will be lower and no arrow particle trail will be shown (also no chance for critical arrow).
+Changing the selection in hotbar will unload the bow and give you back arrow from the unloaded bow - this applies also when login in to the game (bow will be discharged and arrow will be returned to inventory) and also when you drop the charged arrow (discharged bow will be dropped with arrow item).
+If you have `playerphysics` or `player_monoids` mod installed, charged bow will slow you down until you release the arrow.
+
 ## Dependencies
 
 - none
