@@ -12,7 +12,7 @@ x_bows = {
 	registered_bows = {},
 	player_bow_sneak = {},
 	settings = {
-		x_bows_attach_arrows_to_entities = minetest.settings:get_bool("x_bows_attach_arrows_to_entities", false)
+		x_bows_attach_arrows_to_entities = minetest.settings:get_bool('x_bows_attach_arrows_to_entities', false)
 	}
 }
 
@@ -20,14 +20,35 @@ function x_bows.is_creative(name)
 	return x_bows.creative or minetest.check_player_privs(name, {creative = true})
 end
 
-local function reset_charged_bow(player)
+---Reset charged bow to uncharged bow, this will return the arrow item to the inventory also
+---@param player ObjectRef Player Ref
+---@param includeWielded? boolean Will include reset for wielded bow also
+---@return nil
+local function reset_charged_bow(player, includeWielded)
+	local _includeWielded = includeWielded or false
 	local inv = player:get_inventory()
 
+	---@cast inv InvRef
 	if inv:contains_item('main', 'x_bows:bow_wood_charged') then
 		local inv_list = inv:get_list('main')
 
 		for i, st in ipairs(inv_list) do
-			if not st:is_empty() and x_bows.registered_bows[st:get_name()] and player:get_wield_index() ~= i then
+			local reset = _includeWielded or player:get_wield_index() ~= i
+
+			if not st:is_empty() and x_bows.registered_bows[st:get_name()] and reset then
+				local item_meta = st:get_meta()
+				local arrow = item_meta:get_string('arrow')
+
+				-- return arrow
+				if arrow ~= '' then
+					if inv:room_for_item('main', {name=arrow}) then
+						inv:add_item('main', arrow)
+					else
+						minetest.item_drop(ItemStack({name=arrow, count=1}), player, player:get_pos())
+					end
+				end
+
+				-- reset bow to uncharged bow
 				inv:set_stack('main', i, ItemStack({
 					name=x_bows.registered_bows[st:get_name()].name,
 					count=st:get_count(),
@@ -39,7 +60,7 @@ local function reset_charged_bow(player)
 end
 
 minetest.register_on_joinplayer(function(player)
-	reset_charged_bow(player)
+	reset_charged_bow(player, true)
 end)
 
 function x_bows.register_bow(name, def)
@@ -75,6 +96,15 @@ function x_bows.register_bow(name, def)
 		on_use = x_bows.shoot,
 		groups = {bow = 1, flammable = 1, not_in_creative_inventory = 1},
 		on_drop = function(itemstack, dropper, pos)
+			local item_meta = itemstack:get_meta()
+			local arrow = item_meta:get_string('arrow')
+
+			-- return arrow
+			if arrow ~= '' then
+				minetest.item_drop(ItemStack({name=arrow, count=1}), dropper, {x=pos.x + 0.5, y=pos.y + 0.5, z=pos.z + 0.5})
+			end
+
+
 			itemstack:set_name(def.name)
 			-- returns leftover itemstack
 			return minetest.item_drop(itemstack, dropper, pos)
