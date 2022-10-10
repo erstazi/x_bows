@@ -33,11 +33,13 @@ or the same action as when you are digging a block. Waiting for full charge of t
 as it will give the arrow full speed (maximum shooting distance) and chance for critical arrow (double damage).
 
 There are few indications no how to know when the bow is fully charged:
+
 * there is a distinct "click" sound
 * each arrow has "charge time" in the description
 * after shooting, arrow will have particle trail
 
 There are few indications no how to know when the arrow is a critical arrow:
+
 * there is a distinct arrow flying sound
 * after shooting, arrow will have red particle trail
 
