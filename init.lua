@@ -45,7 +45,7 @@ local function reset_charged_bow(player, includeWielded)
 				local arrow = item_meta:get_string('arrow')
 
 				-- return arrow
-				if arrow ~= '' then
+				if arrow ~= '' and not x_bows.is_creative(player:get_player_name()) then
 					if inv:room_for_item('main', {name=arrow}) then
 						inv:add_item('main', arrow)
 					else
@@ -105,10 +105,9 @@ function x_bows.register_bow(name, def)
 			local arrow = item_meta:get_string('arrow')
 
 			-- return arrow
-			if arrow ~= '' then
+			if arrow ~= '' and not x_bows.is_creative(dropper:get_player_name()) then
 				minetest.item_drop(ItemStack({name=arrow, count=1}), dropper, {x=pos.x + 0.5, y=pos.y + 0.5, z=pos.z + 0.5})
 			end
-
 
 			itemstack:set_name(def.name)
 			-- returns leftover itemstack
