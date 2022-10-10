@@ -1,0 +1,361 @@
+---https://github.com/sumneko/lua-language-server/wiki
+
+------All `vector.*` functions allow vectors `{x = X, y = Y, z = Z}` without metatables. Returned vectors always have a metatable set.
+---@class Vector
+---@field x integer|number Pitch
+---@field y integer|number Yaw
+---@field z integer|number Roll
+---@field multiply fun(v: Vector, s: number|integer): Vector Returns a scaled vector. Deprecated: If `s` is a vector: Returns the Schur product.
+---@field subtract fun(v: Vector, x: number|integer|Vector): Vector Returns a vector. If `x` is a vector: Returns the difference of `v` subtracted by `x`. If `x` is a number: Subtracts `x` from each component of `v`.
+---@field add fun(v: Vector, x: number|integer|Vector): Vector Returns a vector. If `x` is a vector: Returns the sum of `v` and `x`. If `x` is a number: Adds `x` to each component of `v`.
+---@field normalize fun(v: Vector): Vector Returns a vector of length 1 with direction of vector `v`. If `v` has zero length, returns `(0, 0, 0)`.
+---@field distance fun(p1: Vector, p2: Vector): number|integer Returns zero or a positive number, the distance between `p1` and `p2`.
+---@field round fun(v: Vector): Vector Returns a vector, each dimension rounded to nearest integer. At a multiple of 0.5, rounds away from zero.
+
+---Moving things in the game are generally these.
+---This is basically a reference to a C++ `ServerActiveObject`.
+---@class ObjectRef
+---@field get_pos fun(): Vector Position of player
+---@field get_inventory fun(): InvRef|nil Returns an `InvRef` for players, otherwise returns `nil`
+---@field get_wield_index fun(): integer Returns the index of the wielded item
+---@field get_wielded_item fun(): ItemStack Returns an `ItemStack`
+---@field set_velocity fun(self: ObjectRef, vel: Vector): nil
+---@field set_acceleration fun(self: ObjectRef, acc: Vector): nil
+---@field set_yaw fun(self: ObjectRef, yaw: integer|number): nil Sets the yaw in radians (heading).
+---@field get_player_name fun(self: ObjectRef): string Returns `""` if is not a player.
+---@field set_fov fun(self: ObjectRef, fov: number|integer, is_multiplier: boolean, transition_time: number|integer): nil Sets player's FOV. `fov`: FOV value. `is_multiplier`: Set to `true` if the FOV value is a multiplier. Defaults to `false`. `transition_time`: If defined, enables smooth FOV transition. Interpreted as the time (in seconds) to reach target FOV. If set to 0, FOV change is instantaneous. Defaults to 0. Set `fov` to 0 to clear FOV override.
+---@field get_hp fun(self: ObjectRef): number|integer Returns number of health points
+---@field is_player fun(self: ObjectRef): boolean returns true for players, false otherwise
+---@field get_luaentity fun(self: ObjectRef): table
+---@field get_armor_groups fun(self: ObjectRef): ObjectRefArmorGroups returns a table with the armor group ratings
+---@field punch fun(self: ObjectRef, puncher: ObjectRef, time_from_last_punch: integer|number, tool_capabilities: ToolCapabilitiesDef, direction: Vector|nil): nil
+---@field add_velocity fun(self: ObjectRef, vel: Vector): nil `vel` is a vector, e.g. `{x=0.0, y=2.3, z=1.0}`. In comparison to using get_velocity, adding the velocity and then using set_velocity, add_velocity is supposed to avoid synchronization problems. Additionally, players also do not support set_velocity. If a player: Does not apply during free_move. Note that since the player speed is normalized at each move step, increasing e.g. Y velocity beyond what would usually be achieved (see: physics overrides) will cause existing X/Z velocity to be reduced. Example: `add_velocity({x=0, y=6.5, z=0})` is equivalent to pressing the jump key (assuming default settings)
+---@field get_properties fun(self: ObjectRef): table Returns object property table
+---@field get_children fun(self: ObjectRef): ObjectRef[] Returns a list of ObjectRefs that are attached to the object.
+
+---`ObjectRef` armor groups
+---@class ObjectRefArmorGroups
+---@field immortal number|integer Skips all damage and breath handling for an object. This group will also hide the integrated HUD status bars for players. It is automatically set to all players when damage is disabled on the server and cannot be reset (subject to change).
+---@field fall_damage_add_percent number|integer Modifies the fall damage suffered by players when they hit the ground. It is analog to the node group with the same name. See the node group above for the exact calculation.
+---@field punch_operable number|integer For entities; disables the regular damage mechanism for players punching it by hand or a non-tool item, so that it can do something else than take damage.
+
+---A native C++ format with many helper methods. Useful for converting between formats.
+---An `ItemStack` is a stack of items.
+---It can be created via `ItemStack(x)`, where x is an `ItemStack`, an itemstring, a table or `nil`.
+---@class ItemStack
+---@field is_empty fun(): boolean Returns `true` if stack is empty.
+---@field get_name fun(): string returns item name (e.g. `"default:stone"`).
+---@field set_name fun(self: ItemStack, item_name: string): boolean Returns a boolean indicating whether the item was cleared.
+---@field get_count fun(): integer Returns number of items on the stack.
+---@field set_count fun(self: ItemStack, count: integer): boolean Returns a boolean indicating whether the item was cleared
+---@field get_wear fun(): integer Returns tool wear (`0`-`65535`), `0` for non-tools.
+---@field set_wear fun(self: ItemStack, wear: integer): boolean Returns boolean indicating whether item was cleared
+---@field get_meta fun(): ItemStackMetaRef Returns `ItemStackMetaRef`.
+---@field get_description fun(): string Returns the description shown in inventory list tooltips. The engine uses this when showing item descriptions in tooltips. Fields for finding the description, in order: `description` in item metadata.
+---@field get_short_description fun(): string|nil Returns the short description or nil. Unlike the description, this does not include new lines. Fields for finding the short description, in order: `short_description` in item metadata. Returns nil if none of the above are set.
+---@field clear fun(): nil Removes all items from the stack, making it empty.
+---@field replace fun(self: ItemStack, item: string|table)`: replace the contents of this stack. `item` can also be an itemstring or table.
+---@field to_string fun(): string Returns the stack in itemstring form.
+---@field to_table fun(): table Returns the stack in Lua table form.
+---@field get_stack_max fun(): integer Returns the maximum size of the stack (depends on the item).
+---@field get_free_space fun(): integer Returns `get_stack_max() - get_count()`.
+---@field is_known fun(): boolean Returns `true` if the item name refers to a defined item type.
+---@field get_definition fun(): table Returns the item definition table.
+---@field get_tool_capabilities fun(): table Returns the digging properties of the item, or those of the hand if none are defined for this item type
+---@field add_wear fun(self: ItemStack, amount: integer|number): nil Increases wear by `amount` if the item is a tool, otherwise does nothing. Valid `amount` range is [0,65536] `amount`: number, integer
+---@field add_wear_by_uses fun(self: ItemStack, max_uses: integer|number): nil Increases wear in such a way that, if only this function is called, the item breaks after `max_uses` times. Valid `max_uses` range is [0,65536] Does nothing if item is not a tool or if `max_uses` is 0
+---@field add_item fun(self: ItemStack, item: string|table): ItemStack Returns leftover `ItemStack` Put some item or stack onto this stack
+---@field item_fits fun(self: ItemStack, item: string|table): boolean Returns `true` if item or stack can be fully added to this one.
+---@field take_item fun(self: ItemStack, n: integer|number): ItemStack Returns taken `ItemStack` Take (and remove) up to `n` items from this stack `n`: number, default: `1`
+---@field peek_item fun(self: ItemStack, n: integer|number): ItemStack Returns taken `ItemStack` Copy (don't remove) up to `n` items from this stack `n`: number, default: `1`
+---@field name string
+---@field count integer
+---@field wear string
+---@field metadata string
+
+---ItemStack metadata: reference extra data and functionality stored in a stack. Can be obtained via `item:get_meta()`.
+---@class ItemStackMetaRef
+---@field set_tool_capabilities fun(self: ItemStackMetaRef, tool_capabilities?: table): nil Overrides the item's tool capabilities. A nil value will clear the override data and restore the original behavior.
+---@field contains fun(self: MetaDataRef, key: string): boolean|nil Returns true if key present, otherwise false. Returns `nil` when the MetaData is inexistent.
+---@field get fun(self: MetaDataRef, key: string): string|nil Returns `nil` if key not present, else the stored string.
+---@field set_string fun(self: MetaDataRef, key: string, value: string): string Value of `""` will delete the key.
+---@field get_string fun(self: MetaDataRef, key: string): string Returns `""` if key not present.
+---@field set_int fun(self: MetaDataRef, key: string, value: integer): nil
+---@field get_int fun(self: MetaDataRef, key: string): string|integer Returns `0` if key not present.
+---@field set_float fun(self: MetaDataRef, key: string, value: number): nil
+---@field get_float fun(self: MetaDataRef, key): integer|number Returns `0` if key not present.
+---@field to_table fun(): nil Returns `nil` or a table with keys: `fields`: key-value storage `inventory`: `{list1 = {}, ...}}` (NodeMetaRef only)
+---@field from_table fun(self: MetaDataRef, t: nil|table): boolean Any non-table value will clear the metadata. Returns `true` on success
+---@field equals fun(self: MetaDataRef, other: any): boolean Returns `true` if this metadata has the same key-value pairs as `other`
+
+---Base class used by [`StorageRef`], [`NodeMetaRef`], [`ItemStackMetaRef`], and [`PlayerMetaRef`].
+---@class MetaDataRef
+---@field contains fun(self: MetaDataRef, key: string): boolean|nil Returns true if key present, otherwise false. Returns `nil` when the MetaData is inexistent.
+---@field get fun(self: MetaDataRef, key: string): string|nil Returns `nil` if key not present, else the stored string.
+---@field set_string fun(self: MetaDataRef, key: string, value: string): string Value of `""` will delete the key.
+---@field get_string fun(self: MetaDataRef, key: string): string Returns `""` if key not present.
+---@field set_int fun(self: MetaDataRef, key: string, value: integer): nil
+---@field get_int fun(self: MetaDataRef, key: string): string|integer Returns `0` if key not present.
+---@field set_float fun(self: MetaDataRef, key: string, value: number): nil
+---@field get_float fun(self: MetaDataRef, key): integer|number Returns `0` if key not present.
+---@field to_table fun(): nil Returns `nil` or a table with keys: `fields`: key-value storage `inventory`: `{list1 = {}, ...}}` (NodeMetaRef only)
+---@field from_table fun(self: MetaDataRef, t: nil|table): boolean Any non-table value will clear the metadata. Returns `true` on success
+---@field equals fun(self: MetaDataRef, other: any): boolean Returns `true` if this metadata has the same key-value pairs as `other`
+
+---An `InvRef` is a reference to an inventory.
+---@class InvRef
+---@field add_item fun(self: InvRef, listname: string, stack: string|ItemStack): ItemStack Add item somewhere in list, returns leftover `ItemStack`.
+---@field contains_item fun(self: InvRef, listname: string, stack: string|ItemStack, match_meta?: boolean): boolean Returns `true` if the stack of items can be fully taken from the list. If `match_meta` is false, only the items' names are compared, default: `false`
+---@field get_list fun(self: InvRef, listname: string): ItemStack[] Return full list, list of `ItemStack`s
+---@field room_for_item fun(self: InvRef, listname: string, stack: string|ItemStack): boolean Returns `true` if the stack of items can be fully added to the list
+---@field set_stack fun(self: InvRef, listname: string, i: integer, stack: string|ItemStack): nil Copy `stack` to index `i` in list
+---@field is_empty fun(self: InvRef, listname: string): boolean Return `true` if list is empty
+---@field get_size fun(self: InvRef, listname: string): integer Get size of a list
+---@field set_size fun(self: InvRef, listname: string, size: integer): boolean Set size of a list, returns `false` on error, e.g. invalid `listname` or `size`
+---@field get_width fun(self: InvRef, listname: string): boolean Get width of a list
+---@field set_width fun(self: InvRef, listname: string, width: integer): nil Set width of list; currently used for crafting
+---@field get_stack fun(self: InvRef, listname: string, i: integer): ItemStack Get a copy of stack index `i` in list
+---@field set_list fun(self: InvRef, listname: string, list: ItemStack[]): nil Set full list, size will not change
+---@field get_lists fun(): table Returns table that maps listnames to inventory lists
+---@field set_lists fun(self: InvRef, lists: table): nil Sets inventory lists, size will not change
+---@field remove_item fun(self: InvRef, listname: string, stack: string|ItemStack): nil Take as many items as specified from the list, returns the items that were actually removed, as an `ItemStack`, note that any item metadata is ignored, so attempting to remove a specific unique item this way will likely remove the wrong one, to do that use `set_stack` with an empty `ItemStack`.
+---@field get_location fun(): InvRef|LocationUndefined returns a location compatible to `minetest.get_inventory(location)`. returns `{type="undefined"}` in case location is not known
+
+---Undefined location
+---@class LocationUndefined
+---@field type string|'undefined'
+
+---Minetest globals
+---@class Minetest
+---@field item_drop fun(itemstack: string|ItemStack, dropper: ObjectRef, pos: Vector): ItemStack Drop the item, returns the leftover itemstack
+---@field get_us_time fun(): integer|number Returns time with microsecond precision. May not return wall time.
+---@field get_modpath fun(modname: string): string|nil Returns the directory path for a mod, e.g. `"/home/user/.minetest/usermods/modname"`. Returns nil if the mod is not enabled or does not exist (not installed). Works regardless of whether the mod has been loaded yet. Useful for loading additional `.lua` modules or static data from a mod, or checking if a mod is enabled.
+---@field check_player_privs fun(player_or_name: ObjectRef|string, privs: table|string[]): boolean Returns `bool, missing_privs`. A quickhand for checking privileges.  `player_or_name`: Either a Player object or the name of a player. `privs` is either a list of strings, e.g. `"priva", "privb"` or a table, e.g. `{ priva = true, privb = true }`.
+---@field register_on_joinplayer fun(f: fun(player: ObjectRef, last_login: number|integer|nil)): nil Called when a player joins the game. `last_login`: The timestamp of the previous login, or nil if player is new
+---@field register_tool fun(name: string, item_definition: ItemDef): nil Registers the item in the engine
+---@field colorize fun(color: string, message: string): nil
+---@field register_craft fun(recipe: CraftRecipeDef): nil
+---@field register_craftitem fun(name: string, item_definition: ItemDef): nil
+---@field add_entity fun(pos: Vector, name: string, staticdata?: string): ObjectRef|nil  Spawn Lua-defined entity at position. Returns `ObjectRef`, or `nil` if failed.
+---@field get_node fun(pod: Vector): table<string, string|number|integer|boolean> Returns the node at the given position as table in the format `{name="node_name", param1=0, param2=0}`, returns `{name="ignore", param1=0, param2=0}` for unloaded areas.
+---@field registered_nodes table<string, NodeDef> Map of registered node definitions, indexed by name
+---@field after fun(time: number|integer, func: fun(...), ...): JobTable Call the function `func` after `time` seconds, may be fractional. Optional: Variable number of arguments that are passed to `func`.
+---@field sound_play fun(spec: SimpleSoundSpec|string, parameters: SoundParamDef, ephemeral?: boolean): any Returns a `handle`. Ephemeral sounds will not return a handle and can't be stopped or faded. It is recommend to use this for short sounds that happen in response to player actions (e.g. door closing).
+---@field add_particlespawner fun(particlespawner_definition: ParticlespawnerDef): number|integer Add a `ParticleSpawner`, an object that spawns an amount of particles over `time` seconds. Returns an `id`, and -1 if adding didn't succeed.
+---@field register_globalstep fun(func: fun(dtime: number|integer)): nil Called every server step, usually interval of 0.1s
+---@field get_connected_players fun(): ObjectRef[] Returns list of `ObjectRefs`
+---@field serialize fun(t: table): string Convert a table containing tables, strings, numbers, booleans and `nil`s into string form readable by `minetest.deserialize`. Example: `serialize({foo="bar"})`, returns `'return { ["foo"] = "bar" }'`.
+---@field dir_to_yaw fun(dir: Vector): number|integer Convert a vector into a yaw (angle)
+---@field settings MinetestSettings Settings object containing all of the settings from the main config file (`minetest.conf`).
+---@field register_entity fun(name: string, entity_definition: EntityDef): nil
+---@field deserialize fun(s: string, safe?: boolean): table Returns a table. Convert a string returned by `minetest.serialize` into a table `string` is loaded in an empty sandbox environment. Will load functions if safe is false or omitted. Although these functions cannot directly access the global environment, they could bypass this restriction with maliciously crafted Lua bytecode if mod security is disabled. This function should not be used on untrusted data, regardless of the value of `safe`. It is fine to serialize then deserialize user-provided data, but directly providing user input to deserialize is always unsafe.
+---@field raycast fun(pos1: Vector, pos2: Vector, objects: boolean, liquids: boolean): Raycast `pos1`: start of the ray, `pos2`: end of the ray, `objects`: if false, only nodes will be returned. Default is true. `liquids`: if false, liquid nodes (`liquidtype ~= "none"`) won't be returned. Default is false.
+---@field calculate_knockback fun(player: ObjectRef, hitter: ObjectRef, time_from_last_punch: number|integer, tool_capabilities: ToolCapabilitiesDef, dir: Vector, distance: number|integer, damage: number|integer): integer|number Returns the amount of knockback applied on the punched player. Arguments are equivalent to `register_on_punchplayer`, except the following: `distance`: distance between puncher and punched player. This function can be overriden by mods that wish to modify this behaviour. You may want to cache and call the old function to allow multiple mods to change knockback behaviour.
+---@field get_player_by_name fun(name: string): ObjectRef Get an `ObjectRef` to a player
+---@field get_node_timer fun(pos: Vector): NodeTimerRef Get `NodeTimerRef`
+---@field get_objects_inside_radius fun(pos: Vector, radius: number|integer): ObjectRef[] Returns a list of ObjectRefs. `radius`: using an euclidean metric.
+---@field register_node fun(name: string, node_definition: NodeDef): nil
+
+---Node Timers: a high resolution persistent per-node timer. Can be gotten via `minetest.get_node_timer(pos)`.
+---@class NodeTimerRef
+---@field set fun(self: NodeTimerRef, timeout: integer|number, elapsed: integer|number): nil Set a timer's state. `timeout` is in seconds, and supports fractional values (0.1 etc). `elapsed` is in seconds, and supports fractional values (0.1 etc). Will trigger the node's `on_timer` function after `(timeout - elapsed)` seconds.
+---@field start fun(self: NodeTimerRef, timeout: integer|number): nil Start a timer. Equivalent to `set(timeout,0)`.
+---@field stop fun(): nil Stops the timer
+---@field get_timeout fun(): number|integer Returns current timeout in seconds.
+---@field get_elapsed fun(): number|integer Returns current elapsed time in seconds.
+---@field is_started fun(): boolean Returns boolean state of timer. Returns `true` if timer is started, otherwise `false`.
+
+---A raycast on the map. It works with selection boxes. The map is loaded as the ray advances. If the map is modified after the `Raycast` is created, the changes may or may not have an effect on the object.
+---@class Raycast
+---@field next fun(): PointedThingDef Returns a `pointed_thing` with exact pointing location. Returns the next thing pointed by the ray or nil.
+
+---Entity definition
+---@class EntityDef
+---@field initial_properties ObjectProperties A table of object properties. The properties in this table are applied to the object once when it is spawned. `dtime_s` is the time passed since the object was unloaded, which can be used for updating the entity state.
+---@field on_activate fun(self: table, staticdata: string, dtime_s: integer|number) Function receive a "luaentity" table as `self`. Called when the object is instantiated.
+---@field on_deactivate fun(self: table, removal: boolean): nil Function receive a "luaentity" table as `self`. Called when the object is about to get removed or unloaded. `removal`: boolean indicating whether the object is about to get removed. Calling `object:remove()` on an active object will call this with `removal=true`. The mapblock the entity resides in being unloaded will call this with `removal=false`. Note that this won't be called if the object hasn't been activated in the first place. In particular, `minetest.clear_objects({mode = "full"})` won't call this, whereas `minetest.clear_objects({mode = "quick"})` might call this.
+---@field on_step fun(self: table, dtime: integer|number, moveresult?: table) Function receive a "luaentity" table as `self`. Called on every server tick, after movement and collision processing. `dtime`: elapsed time since last call. `moveresult`: table with collision info (only available if physical=true).
+---@field on_punch fun(self: table, puncher: ObjectRef|nil, time_from_last_punch: number|integer|nil, tool_capabilities: ToolCapabilitiesDef|nil, dir: Vector, damage: number|integer): boolean|nil Function receive a "luaentity" table as `self`. Called when somebody punches the object. Note that you probably want to handle most punches using the automatic armor group system. Can return `true` to prevent the default damage mechanism.
+---@field on_death fun(self: table, killer: ObjectRef|nil): nil Function receive a "luaentity" table as `self`. Called when the object dies.
+---@field on_rightclick fun(self: table, clicker: ObjectRef): nil Function receive a "luaentity" table as `self`. Called when `clicker` pressed the 'place/use' key while pointing to the object (not neccessarily an actual rightclick). `clicker`: an `ObjectRef` (may or may not be a player)
+---@field on_attach_child fun(self: table, child: ObjectRef): nil Function receive a "luaentity" table as `self`. `child`: an `ObjectRef` of the child that attaches
+---@field on_detach_child fun(self: table, child: ObjectRef): nil Function receive a "luaentity" table as `self`. `child`: an `ObjectRef` of the child that detaches
+---@field on_detach fun(self: table, parent: ObjectRef|nil) Function receive a "luaentity" table as `self`. `parent`: an `ObjectRef` (can be `nil`) from where it got detached. This happens before the parent object is removed from the world.
+---@field get_staticdata fun(self: table) Function receive a "luaentity" table as `self`. Should return a string that will be passed to `on_activate` when the object is instantiated the next time.
+
+---Entity definition
+---@class ObjectProperties
+
+---Minetest settings
+---@class MinetestSettings
+---@field get fun(self: MinetestSettings, key: string): string|number|integer Returns a value
+---@field get_bool fun(self: MinetestSettings, key: string, default?: boolean): boolean|nil Returns a boolean. `default` is the value returned if `key` is not found. Returns `nil` if `key` is not found and `default` not specified.
+---@field get_np_group fun(self: MinetestSettings, key: string): table Returns a NoiseParams table
+---@field get_flags fun(self: MinetestSettings, key: string): table Returns `{flag = true/false, ...}` according to the set flags. Is currently limited to mapgen flags `mg_flags` and mapgen-specific flags like `mgv5_spflags`.
+---@field set fun(self: MinetestSettings, key: string, value: string|integer|number): nil Setting names can't contain whitespace or any of `="{}#`. Setting values can't contain the sequence `\n"""`. Setting names starting with "secure." can't be set on the main settings object (`minetest.settings`).
+---@field set_bool fun(self: MinetestSettings, key: string, value: boolean): nil Setting names can't contain whitespace or any of `="{}#`. Setting values can't contain the sequence `\n"""`. Setting names starting with "secure." can't be set on the main settings object (`minetest.settings`).
+---@field set_np_group fun(self: MinetestSettings, key: string, value: table): nil `value` is a NoiseParams table.
+---@field remove fun(self: MinetestSettings, key: string): boolean Returns a boolean (`true` for success)
+---@field get_names fun(): table Returns `{key1,...}`
+---@field write fun(): boolean Returns a boolean (`true` for success). Writes changes to file.
+---@field to_table fun(): table Returns `{[key1]=value1,...}`
+
+--- Sound parameters.
+--- Looped sounds must either be connected to an object or played locationless to one player using `to_player = name`. A positional sound will only be heard by players that are within `max_hear_distance` of the sound position, at the start of the sound. `exclude_player = name` can be applied to locationless, positional and object-bound sounds to exclude a single player from hearing them.
+---@class SoundParamDef
+---@field to_player string Name
+---@field gain number|integer
+---@field fade number|integer Change to a value > 0 to fade the sound in
+---@field pitch number|integer
+---@field loop boolean
+---@field pos Vector
+---@field max_hear_distance number|integer
+---@field object ObjectRef
+---@field exclude_player string Name
+
+--- ParticleSpawner definition
+---@class ParticlespawnerDef
+---@field amount number|integer Number of particles spawned over the time period `time`.
+---@field time number|integer Lifespan of spawner in seconds. If time is 0 spawner has infinite lifespan and spawns the `amount` on a per-second basis.
+---@field collisiondetection boolean If true collide with `walkable` nodes and, depending on the `object_collision` field, objects too.
+---@field collision_removal boolean If true particles are removed when they collide. Requires collisiondetection = true to have any effect.
+---@field object_collision boolean If true particles collide with objects that are defined as `physical = true,` and `collide_with_objects = true,`. Requires collisiondetection = true to have any effect.
+---@field attached ObjectRef If defined, particle positions, velocities and accelerations are relative to this object's position and yaw
+---@field vertical boolean If true face player using y axis only
+---@field texture string The texture of the particle. e,g, `"image.png"`
+---@field playername string Optional, if specified spawns particles only on the player's client
+---@field animation TileAnimationDef Optional, specifies how to animate the particles' texture. v5.6.0 and later: set length to -1 to sychronize the length of the animation with the expiration time of individual particles. (-2 causes the animation to be played twice, and so on)
+---@field glow number|integer Optional, specify particle self-luminescence in darkness. Values 0-14.
+---@field node table<string, string|number|integer> e.g. `{name = "ignore", param2 = 0}`. Optional, if specified the particles will have the same appearance as node dig particles for the given node. Texture` and `animation` will be ignored if this is set.
+---@field node_tile number|integer Optional, only valid in combination with `node`. If set to a valid number 1-6, specifies the tile from which the particle texture is picked. Otherwise, the default behavior is used. (currently: any random tile)
+---@field minpos Vector Legacy definition field
+---@field maxpos Vector Legacy definition field
+---@field minvel Vector Legacy definition field
+---@field maxvel Vector Legacy definition field
+---@field minacc Vector Legacy definition field
+---@field maxacc Vector Legacy definition field
+---@field minexptime number|integer Legacy definition field
+---@field maxexptime number|integer Legacy definition field
+---@field minsize number|integer Legacy definition field
+---@field maxsize number|integer Legacy definition field
+---@field pos number|integer|Vector|ParticlespawnerPosDef As `number`: absolute value - all components of every particle's position vector will be set to this. As `Vector`: vec3 - all particles will appear at this exact position throughout the lifetime of the particlespawner. As `ParticlespawnerPosDef`: vec3 range - the particle will appear at a position that is picked at random from within a cubic range.
+
+--- ParticleSpawner pos definition
+---@class ParticlespawnerPosDef
+---@field min Vector The minimum value this property will be set to in particles spawned by the generator.
+---@field max Vector The maximum value this property will be set to in particles spawned by the generator.
+---@field bias number|integer When `bias` is 0, all random values are exactly as likely as any other. When it is positive, the higher it is, the more likely values will appear towards the minimum end of the allowed spectrum. When it is negative, the lower it is, the more likely values will appear towards the maximum end of the allowed spectrum. The curve is exponential and there is no particular maximum or minimum value.
+---@field pos_tween ParticlespawnerPosTweenDef A tween table should consist of a list of frames in the same form as the untweened pos property above, which the engine will interpolate between, and optionally a number of properties that control how the interpolation takes place. Currently **only two frames**, the first and the last, are used, but extra frames are accepted for the sake of forward compatibility. Any of the above definition styles can be used here as well in any combination supported by the property type.
+
+--- ParticleSpawner pos_tween definition
+---@class ParticlespawnerPosTweenDef
+---@field style string e.g. "fwd":  linear animation from first to last frame (default), "rev": linear animation from last to first frame, "pulse": linear animation from first to last then back to first again, "flicker": like "pulse", but slightly randomized to add a bit of stutter
+---@field reps number|integer Number of times the animation is played over the particle's lifespan
+---@field start number|integer  Point in the spawner's lifespan at which the animation begins. 0 is the very beginning, 1 is the very end.
+---@field frames number|integer|Vector|ParticlespawnerPosDef Frames can be defined in a number of different ways, depending on the underlying type of the property. For now, all but the first and last frame are ignored.
+
+--- Tile animation definition
+---@class TileAnimationDef
+---@field type string e.g. "vertical_frames",  "sheet_2d"
+---@field aspect_w number|integer Width of a frame in pixels
+---@field aspect_h number|integer Height of a frame in pixels
+---@field length number|integer e.g. 3.0 Full loop length, 0.5 Length of a single frame
+
+--- Job table
+---@class JobTable
+---@field cancel fun(self: JobTable) Cancels the job function from being called
+
+---Minetest item definition. Used by `minetest.register_node`, `minetest.register_craftitem`, and `minetest.register_tool`.
+---Add your own custom fields. By convention, all custom field names. Should start with `_` to avoid naming collisions with future engine usage.
+---@class ItemDef
+---@field description string Can contain new lines. "\n" has to be used as new line character.
+---@field short_description string|nil Must not contain new lines. Defaults to nil.
+---@field groups table<string, string|number|integer|boolean> key = name, value = rating; rating = <number>. If rating not applicable, use 1. e.g. `{wool = 1, fluffy = 3}` `{soil = 2, outerspace = 1, crumbly = 1}` `{bendy = 2, snappy = 1}` {hard = 1, metal = 1, spikes = 1}
+---@field inventory_image string Texture shown in the inventory GUI. Defaults to a 3D rendering of the node if left empty.
+---@field inventory_overlay string An overlay texture which is not affected by colorization
+---@field wield_image string Texture shown when item is held in hand. Defaults to a 3D rendering of the node if left empty.
+---@field wield_overlay string Like inventory_overlay but only used in the same situation as wield_image
+---@field wield_scale table<string, number|integer> Scale for the item when held in hand
+---@field palette string An image file containing the palette of a node. You can set the currently used color as the "palette_index" field of the item stack metadata. The palette is always stretched to fit indices between 0 and 255, to ensure compatibility with "colorfacedir" (and similar) nodes.
+---@field color string Color the item is colorized with. The palette overrides this.
+---@field stack_max integer|number Maximum amount of items that can be in a single stack.
+---@field range integer|number Range of node and object pointing that is possible with this item held.
+---@field liquids_pointable boolean If true, item can point to all liquid nodes (`liquidtype ~= "none"`), even those for which `pointable = false`
+---@field light_source integer|number When used for nodes: Defines amount of light emitted by node. Otherwise: Defines texture glow when viewed as a dropped item. To set the maximum (14), use the value 'minetest.LIGHT_MAX'. A value outside the range 0 to minetest.LIGHT_MAX causes undefined behavior.
+---@field tool_capabilities ToolCapabilitiesDef
+---@field node_placement_prediction string|nil If nil and item is node, prediction is made automatically. If nil and item is not a node, no prediction is made. If "" and item is anything, no prediction is made. Otherwise should be name of node which the client immediately places on ground when the player places the item. Server will always update with actual result shortly.
+---@field node_dig_prediction string if "", no prediction is made. if "air", node is removed. Otherwise should be name of node which the client immediately places upon digging. Server will always update with actual result shortly.
+---@field sound SoundDef
+---@field on_place fun(itemstack: ItemStack, placer: ObjectRef|nil, pointed_thing: PointedThingDef): ItemStack|nil When the 'place' key was pressed with the item in hand and a node was pointed at. Shall place item and return the leftover itemstack or nil to not modify the inventory. The placer may be any ObjectRef or nil. default: minetest.item_place
+---@field on_secondary_use fun(itemstack: ItemStack, user: ObjectRef|nil, pointed_thing: PointedThingDef): ItemStack|nil Same as on_place but called when not pointing at a node. Function must return either nil if inventory shall not be modified, or an itemstack to replace the original itemstack. The user may be any ObjectRef or nil. default: nil
+---@field on_drop fun(itemstack: ItemStack, dropper: ObjectRef|nil, pos: Vector): ItemStack Shall drop item and return the leftover itemstack. The dropper may be any ObjectRef or nil. default: minetest.item_drop
+---@field on_pickup fun(itemstack: ItemStack, picker: ObjectRef|nil, pointed_thing?: PointedThingDef, time_from_last_punch?: number|integer, rest?: any): ItemStack|nil Called when a dropped item is punched by a player. Shall pick-up the item and return the leftover itemstack or nil to not modify the dropped item. `rest` are other parameters from `luaentity:on_punch`. default: `minetest.item_pickup`
+---@field on_use fun(itemstack: ItemStack, user: ObjectRef|nil, pointed_thing: PointedThingDef): ItemStack|nil default: nil. When user pressed the 'punch/mine' key with the item in hand. Function must return either nil if inventory shall not be modified, or an itemstack to replace the original itemstack. e.g. itemstack:take_item(); return itemstack. Otherwise, the function is free to do what it wants. The user may be any ObjectRef or nil. The default functions handle regular use cases.
+---@field after_use fun(itemstack: ItemStack, user: ObjectRef|nil, node: NodeDef, digparams: DigParamsDef): ItemStack|nil default: nil. If defined, should return an itemstack and will be called instead of wearing out the item (if tool). If returns nil, does nothing.
+
+---Tool capabilities definition
+---@class ToolCapabilitiesDef
+---@field full_punch_interval number|integer
+---@field max_drop_level number|integer
+---@field groupcaps GroupCapsDef
+---@field damage_groups table<string, number|integer> Damage values must be between -32768 and 32767 (2^15)
+---@field punch_attack_uses number|integer|nil Amount of uses this tool has for attacking players and entities by punching them (0 = infinite uses). For compatibility, this is automatically set from the first suitable groupcap using the forumla "uses * 3^(maxlevel - 1)". It is recommend to set this explicitly instead of relying on the fallback behavior.
+
+---Known damage and digging time defining groups
+---@class GroupCapsDef
+---@field crumbly GroupCapsItemDef dirt, sand
+---@field cracky GroupCapsItemDef tough but crackable stuff like stone.
+---@field snappy GroupCapsItemDef something that can be cut using things like scissors, shears, bolt cutters and the like, e.g. leaves, small plants, wire, sheets of metal
+---@field choppy GroupCapsItemDef something that can be cut using force; e.g. trees, wooden planks
+---@field fleshy GroupCapsItemDef Living things like animals and the player. This could imply some blood effects when hitting.
+---@field explody GroupCapsItemDef Especially prone to explosions
+---@field oddly_breakable_by_hand GroupCapsItemDef Can be added to nodes that shouldn't logically be breakable by the hand but are. Somewhat similar to `dig_immediate`, but times are more like `{[1]=3.50,[2]=2.00,[3]=0.70}` and this does not override the digging speed of an item if it can dig at a faster speed than this suggests for the hand.
+
+---Known damage and digging time defining groups
+---@class GroupCapsItemDef
+---@field maxlevel number|integer Tells what is the maximum level of a node of this group that the item will be able to dig.
+---@field uses number|integer Tools only. Determines how many uses the tool has when it is used for digging a node, of this group, of the maximum level. The maximum supported number of uses is 65535. The special number 0 is used for infinite uses. For lower leveled nodes, the use count is multiplied by `3^leveldiff`. `leveldiff` is the difference of the tool's `maxlevel` `groupcaps` and the node's `level` group. The node cannot be dug if `leveldiff` is less than zero.
+---@field times table<number|integer, number|integer> List of digging times for different ratings of the group, for nodes of the maximum level. For example, as a Lua table, `times={[2]=2.00, [3]=0.70}`. This would result in the item to be able to dig nodes that have a rating of `2` or `3` for this group, and unable to dig the rating `1`, which is the toughest. Unless there is a matching group that enables digging otherwise. If the result digging time is 0, a delay of 0.15 seconds is added between digging nodes; If the player releases LMB after digging, this delay is set to 0, i.e. players can more quickly click the nodes away instead of holding LMB.
+
+---Definition of item sounds to be played at various events.  All fields in this table are optional.
+---@class SoundDef
+---@field breaks SimpleSoundSpec|string When tool breaks due to wear. Ignored for non-tools
+---@field eat SimpleSoundSpec|string When item is eaten with `minetest.do_item_eat`
+---@field punch_use SimpleSoundSpec|string  When item is used with the 'punch/mine' key pointing at a node or entity
+---@field punch_use_air SimpleSoundSpec|string When item is used with the 'punch/mine' key pointing at nothing (air)
+
+---Specifies a sound name, gain (=volume) and pitch. This is either a string or a table. In string form, you just specify the sound name or the empty string for no sound.
+---@class SimpleSoundSpec
+---@field name string  Sound name.
+---@field gain number|integer Volume (`1.0` = 100%). Optional and default to `1.0`.
+---@field pitch number|integer Pitch (`1.0` = 100%). Optional and default to `1.0`.
+
+---Pointed thing definition
+---@class PointedThingDef
+---@field type string e.g. `{type="nothing"}` `{type="node"}` `{type="object"}`
+---@field under Vector Refers to the node position behind the pointed face.
+---@field above Vector Refers to the node position in front of the pointed face.
+---@field ref ObjectRef e.g. `{type="object", ref=ObjectRef}`
+---@field intersection_point Vector Exact pointing location (currently only `Raycast` supports these field). The absolute world coordinates of the point on the selection box which is pointed at. May be in the selection box if the pointer is in the box too.
+---@field box_id number|integer Exact pointing location (currently only `Raycast` supports these field). The ID of the pointed selection box (counting starts from 1).
+---@field intersection_normal Vector Exact pointing location (currently only `Raycast` supports these field). Unit vector, points outwards of the selected selection box. This specifies which face is pointed at. Is a null vector `vector.zero()` when the pointer is inside the selection box.
+
+---Dig params definition.
+---@class DigParamsDef
+
+---Node definition. Used by `minetest.register_node`.
+---@class NodeDef
+
+---Crafting recipes
+---@class CraftRecipeDef
+---@field type string (optional) specifies recipe type as shaped, e.g. "shaped", "shapeless", "toolrepair", "cooking", "fuel", default: "shaped"
+---@field output string Itemstring of output itemstack (item counts >= 1 are allowed)
+---@field recipe table<integer|number, string>[]|string A 2-dimensional matrix of items, with a width *w* and height *h*. *w* and *h* are chosen by you, they don't have to be equal but must be at least 1. The matrix is specified as a table containing tables containing itemnames. The inner tables are the rows. There must be *h* tables, specified from the top to the bottom row. Values inside of the inner table are the columns. Each inner table must contain a list of *w* items, specified from left to right. Empty slots *must* be filled with the empty string.
+---@field replacements string[] (optional) Allows you to replace input items with some other items when something is crafted. Provided as a list of item pairs of the form `{ old_item, new_item }` where `old_item` is the input item to replace (same syntax as for a regular input slot; groups are allowed) and `new_item` is an itemstring for the item stack it will become. When the output is crafted, Minetest iterates through the list of input items if the crafting grid. For each input item stack, it checks if it matches with an `old_item` in the item pair list. If it matches, the item will be replaced. Also, this item pair will *not* be applied again for the remaining items. If it does not match, the item is consumed (reduced by 1) normally. The `new_item` will appear in one of 3 places:  Crafting grid, if the input stack size was exactly 1, Player inventory, if input stack size was larger, Drops as item entity, if it fits neither in craft grid or inventory.
+---@field additional_wear number|integer For `{type = "toolrepair"}` only. Adds a shapeless recipe for *every* tool that doesn't have the `disable_repair=1` group. If this recipe is used, repairing is possible with any crafting grid with at least 2 slots. The player can put 2 equal tools in the craft grid to get one "repaired" tool back. The wear of the output is determined by the wear of both tools, plus a 'repair bonus' given by `additional_wear`. To reduce the wear (i.e. 'repair'), you want `additional_wear` to be negative. The formula used to calculate the resulting wear is: 65536 * (1 - ( (1 - tool_1_wear) + (1 - tool_2_wear) + additional_wear )) The result is rounded and can't be lower than 0. If the result is 65536 or higher, no crafting is possible.
+---@field cooktime number|integer For `{type = "cooking"}` only. (optional) Time it takes to cook this item, in seconds. A floating-point number. (default: 3.0)
+---@field burntime number|integer For `{type = "fuel"}` only. (optional) Burning time this item provides, in seconds. A floating-point number. (default: 1.0)
+
+---Minetest game default mod
+---@class MtgDefault
+---@field node_sound_leaves_defaults fun(): SoundDef

@@ -1,3 +1,8 @@
+minetest = minetest--[[@as Minetest]]
+ItemStack = ItemStack--[[@as ItemStack]]
+vector = vector--[[@as Vector]]
+default = default--[[@as MtgDefault]]
+
 local mod_start_time = minetest.get_us_time()
 local bow_charged_timer = 0
 
