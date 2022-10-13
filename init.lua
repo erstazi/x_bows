@@ -1,3 +1,6 @@
+-- X Bows
+-- by SaKeL
+
 minetest = minetest--[[@as Minetest]]
 ItemStack = ItemStack--[[@as ItemStack]]
 vector = vector--[[@as Vector]]
@@ -6,6 +9,7 @@ default = default--[[@as MtgDefault]]
 local mod_start_time = minetest.get_us_time()
 local bow_charged_timer = 0
 
+-- main class
 x_bows = {
 	pvp = minetest.settings:get_bool('enable_pvp') or false,
 	creative = minetest.settings:get_bool('creative_mode') or false,

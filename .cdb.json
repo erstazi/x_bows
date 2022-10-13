@@ -1,0 +1,19 @@
+{
+    "type": "MOD",
+    "title": "X Bows",
+    "name": "x_bows",
+    "short_description": "Adds bow and arrows to Minetest.",
+    "dev_state": "MAINTENANCE_ONLY",
+    "tags": [
+        "pvp",
+        "shooter",
+        "survival",
+        "tools"
+    ],
+    "license": "GPLv2",
+    "media_license": "CC BY-SA 4.0",
+    "repo": "https://bitbucket.org/minetest_gamers/x_bows/src/master/",
+    "issue_tracker": "https://bitbucket.org/minetest_gamers/x_bows/issues",
+    "forums": 26466,
+    "video_url": "https://youtu.be/pItpltmUoa8"
+}
