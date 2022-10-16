@@ -12,7 +12,7 @@
 ---@field set_string fun(self: MetaDataRef, key: string, value: string): string Value of `""` will delete the key.
 ---@field get_string fun(self: MetaDataRef, key: string): string Returns `""` if key not present.
 ---@field set_int fun(self: MetaDataRef, key: string, value: integer): nil
----@field get_int fun(self: MetaDataRef, key: string): string|integer Returns `0` if key not present.
+---@field get_int fun(self: MetaDataRef, key: string): integer|number Returns `0` if key not present.
 ---@field set_float fun(self: MetaDataRef, key: string, value: number): nil
 ---@field get_float fun(self: MetaDataRef, key): integer|number Returns `0` if key not present.
 ---@field to_table fun(): nil Returns `nil` or a table with keys: `fields`: key-value storage `inventory`: `{list1 = {}, ...}}` (NodeMetaRef only)

@@ -8,6 +8,7 @@
 
 --- Definition of node sounds to be played at various events.
 ---@class NodeSoundDef
+---@field name string  Sound name.
 ---@field footstep SimpleSoundSpec  If walkable, played when object walks on it. If node is climbable or a liquid, played when object moves through it
 ---@field dig SimpleSoundSpec|'__group' While digging node. If `"__group"`, then the sound will be `default_dig_<groupname>`, where `<groupname>` is the name of the item's digging group with the fastest digging time. In case of a tie, one of the sounds will be played (but we cannot predict which one) Default value: `"__group"`
 ---@field dug SimpleSoundSpec Node was dug

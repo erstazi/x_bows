@@ -2,7 +2,7 @@
 
 Adds bow and arrows to Minetest.
 
-![screenshot](screenshot.png)
+![screenshot](screenshot.1.png)
 
 Video: https://youtu.be/pItpltmUoa8
 
@@ -11,6 +11,7 @@ Video: https://youtu.be/pItpltmUoa8
 * bow will force you sneak when loaded (optional dep. playerphysics)
 * loaded bow will slightly adjust the player FOV
 * bow uses minetest tool capabilities - if the bow is not loaded for long enough (time from last puch) the arrow will fly shorter range
+* charged bow in inventory will discharge and give back the arrow when not selected
 * arrow uses raycast
 * arrow has chance of critical shots/hits (only on full punch interval)
 * arrow uses minetest damage calculation (including 3d_armor) for making damage (no hardcoded values)
@@ -24,8 +25,14 @@ Video: https://youtu.be/pItpltmUoa8
 * registers only one entity reused for all arrows
 * (experimental) poison arrow - dealing damage for 5s but will not kill the target
 * target block reduces fall damage by -30
+* quiver for more arrow storage (can hold only arrows)
+* quiver perks when in inventory (faster arrows, more arrow damage...)
+* quiver shows temporarily its inventory in HUD overlay when loading or shooting (quickview)
+* quiver item shows its content in infotext (hover over the item)
 
 ## How To
+
+### Bow
 
 With the bow selected in hotbar and in your hand, press right click on mouse (PC) or the same action as when placing blocks, to load the bow.
 For bow to be loaded you have to have arrows in the main invetory. Charging bow will have slight sound effect and can be fired at any time with left click (PC)
@@ -46,6 +53,17 @@ There are few indications on how to know when the arrow is a critical arrow:
 If you shoot the arrow before the bow is fully charged the speed/distance will be lower and no arrow particle trail will be shown (also no chance for critical arrow).
 Changing the selection in hotbar will unload the bow and give you back arrow from the unloaded bow - this applies also when login in to the game (bow will be discharged and arrow will be returned to inventory) and also when you drop the charged arrow (discharged bow will be dropped with arrow item).
 If you have `playerphysics` or `player_monoids` mod installed, charged bow will slow you down until you release the arrow.
+
+### Quiver
+
+Quiver item can hold inventory of arrows. When player has quiver in his/hers inventory, bow can take arrows from quiver, otherwise arrows outside of the quiver are used to load the bow.
+Though, if arrow from quivers are used to laod the bow, the arrows have additional speed and damage.
+If we are loading/shooting arrows from quiver, there is temporary quickview HUD overlay shown, peeking in to the quivers inventory from which the arrow was taken. Arrows used from quiver will be faster only when the bow is fully charged - see "How To - Bow" for more information on how to know when bow is fully charged.
+
+There are few indications on how to know when the bow shot arrow from quiver:
+
+* there is temporary HUD overview shown peeking in to the quiver inventory
+* after shooting, arrow will have blue/purple particle trail (if bow was fully charged)
 
 ## Dependencies
 
@@ -73,11 +91,6 @@ GNU Lesser General Public License v2.1 or later (see included LICENSE file)
 - x_bows_bow_wood.png
 - x_bows_bow_wood_charged.png
 - x_bows_arrow_wood.png
-- x_bows_arrow_tile_point_top.png
-- x_bows_arrow_tile_point_right.png
-- x_bows_arrow_tile_point_bottom.png
-- x_bows_arrow_tile_point_left.png
-- x_bows_arrow_tile_tail.png
 - x_bows_arrow_particle.png
 - x_bows_arrow_tipped_particle.png
 - x_bows_bubble.png
@@ -91,6 +104,18 @@ Modified by SaKeL:
 - x_bows_arrow_mese.png
 - x_bows_arrow_diamond.png
 - x_bows_arrow_diamond_poison.png
+
+**CC-BY-SA-3.0, by paramat**
+
+- x_bows_quiver_hotbar_selected.png
+- x_bows_quiver_hotbar.png
+
+**LGPL-2.1-or-later, by SaKeL**
+
+- x_bows_quiver.png
+- x_bows_quiver_open.png
+- x_bows_arrow_slot.png
+- x_bows_arrow_mesh.png
 
 ### Sounds
 
@@ -121,6 +146,24 @@ Modified by SaKeL:
 **Creative Commons License, natty23**, https://freesound.org
 
 - x_bows_arrow_successful_hit.ogg
+
+**Creative Commons License, Shamewap**, https://freesound.org
+
+- x_bows_quiver.1.ogg
+- x_bows_quiver.2.ogg
+- x_bows_quiver.3.ogg
+- x_bows_quiver.4.ogg
+- x_bows_quiver.5.ogg
+- x_bows_quiver.6.ogg
+- x_bows_quiver.7.ogg
+- x_bows_quiver.8.ogg
+- x_bows_quiver.9.ogg
+
+### Models
+
+****LGPL-2.1-or-later, by SaKeL**
+
+- x_bows_arrow.obj
 
 ## Installation
 

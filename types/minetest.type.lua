@@ -62,6 +62,11 @@
 ---@field add_node fun(pos: Vector, node: SetNodeTable): nil alias to `minetest.set_node`, Set node at position `pos`, `node`: table `{name=string, param1=number, param2=number}`, If param1 or param2 is omitted, it's set to `0`. e.g. `minetest.set_node({x=0, y=10, z=0}, {name="default:wood"})`
 ---@field string_to_pos fun(string: string): Vector|nil If the string can't be parsed to a position, nothing is returned.
 ---@field chat_send_player fun(name: string, text: string): nil
+---@field create_detached_inventory fun(name: string, callbacks: DetachedInventoryCallbacks, player_name?: string): InvRef Creates a detached inventory. If it already exists, it is cleared. `callbacks`: See [Detached inventory callbacks], `player_name`: Make detached inventory available to one player exclusively, by default they will be sent to every player (even if not used). Note that this parameter is mostly just a workaround and will be removed in future releases.
+---@field get_mod_storage fun(): StorageRef Mod metadata: per mod metadata, saved automatically. Can be obtained via `minetest.get_mod_storage()` during load time.
+---@field show_formspec fun(playername: string, formname: string, formspec: string): nil `playername`: name of player to show formspec, `formname`: name passed to `on_player_receive_fields` callbacks. It should follow the `"modname:<whatever>"` naming convention. `formspec`: formspec to display
+---@field register_on_player_receive_fields fun(func: fun(player: ObjectRef, formname: string, fields: table)): nil Called when the server received input from `player` in a formspec with the given `formname`. Specifically, this is called on any of the following events: a button was pressed, Enter was pressed while the focus was on a text field, a checkbox was toggled, something was selected in a dropdown list, a different tab was selected, selection was changed in a textlist or table, an entry was double-clicked in a textlist or table, a scrollbar was moved, or the form was actively closed by the player.
+---@field get_inventory fun(location: {['"type"']: 'player'|'node'|'detached', ['"name"']: string|nil, ['"pos"']: Vector|nil}): InvRef
 
 ---Minetest settings
 ---@class MinetestSettings
@@ -82,6 +87,15 @@
 ---@field name string
 ---@field param1 number
 ---@field param2 number
+
+--- Detached inventory callbacks
+---@class DetachedInventoryCallbacks
+---@field allow_move fun(inv: InvRef, from_list: string, from_index: number, to_list: string, to_index: number, count: number, player: ObjectRef): number Called when a player wants to move items inside the inventory. Return value: number of items allowed to move.
+---@field allow_put fun(inv: InvRef, listname: string, index: number, stack: ItemStack, player: ObjectRef): number Called when a player wants to put something into the inventory. Return value: number of items allowed to put. Return value -1: Allow and don't modify item count in inventory.
+---@field allow_take fun(inv: InvRef, listname: string, index: number, stack: ItemStack, player: ObjectRef): number Called when a player wants to take something out of the inventory. Return value: number of items allowed to take. Return value -1: Allow and don't modify item count in inventory.
+---@field on_move fun(inv: InvRef, from_list: string, from_index: number, to_list: string, to_index: number, count: number, player: ObjectRef): nil
+---@field on_put fun(inv: InvRef, listname: string, index: number, stack: ItemStack, player: ObjectRef): nil
+---@field on_take fun(inv: InvRef, listname: string, index: number, stack: ItemStack, player: ObjectRef): nil Called after the actual action has happened, according to what was allowed. No return value.
 
 --- Job table
 ---@class JobTable

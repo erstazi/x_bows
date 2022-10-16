@@ -17,4 +17,4 @@
 ---@field get_lists fun(): table Returns table that maps listnames to inventory lists
 ---@field set_lists fun(self: InvRef, lists: table): nil Sets inventory lists, size will not change
 ---@field remove_item fun(self: InvRef, listname: string, stack: string|ItemStack): nil Take as many items as specified from the list, returns the items that were actually removed, as an `ItemStack`, note that any item metadata is ignored, so attempting to remove a specific unique item this way will likely remove the wrong one, to do that use `set_stack` with an empty `ItemStack`.
----@field get_location fun(): InvRef|LocationUndefined returns a location compatible to `minetest.get_inventory(location)`. returns `{type="undefined"}` in case location is not known
+---@field get_location fun(self: InvRef): {['type']: 'player'|'node'|'detached'|'undefined', ['name']: string|nil, ['pos']: Vector|nil} returns a location compatible to `minetest.get_inventory(location)`. returns `{type="undefined"}` in case location is not known

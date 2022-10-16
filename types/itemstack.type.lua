@@ -27,7 +27,7 @@
 ---@field add_wear_by_uses fun(self: ItemStack, max_uses: integer|number): nil Increases wear in such a way that, if only this function is called, the item breaks after `max_uses` times. Valid `max_uses` range is [0,65536] Does nothing if item is not a tool or if `max_uses` is 0
 ---@field add_item fun(self: ItemStack, item: string|table): ItemStack Returns leftover `ItemStack` Put some item or stack onto this stack
 ---@field item_fits fun(self: ItemStack, item: string|table): boolean Returns `true` if item or stack can be fully added to this one.
----@field take_item fun(self: ItemStack, n: integer|number): ItemStack Returns taken `ItemStack` Take (and remove) up to `n` items from this stack `n`: number, default: `1`
+---@field take_item fun(self: ItemStack, n?: integer|number): ItemStack Returns taken `ItemStack` Take (and remove) up to `n` items from this stack `n`: number, default: `1`
 ---@field peek_item fun(self: ItemStack, n: integer|number): ItemStack Returns taken `ItemStack` Copy (don't remove) up to `n` items from this stack `n`: number, default: `1`
 ---@field name string
 ---@field count integer
