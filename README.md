@@ -77,6 +77,8 @@ There are few indications on how to know when the bow shot arrow from quiver:
 - hbhunger (changes hudbar when poisoned)
 - mesecons (target can be used to trigger mesecon signal)
 - playerphysics (force sneak when holding charged bow)
+- player_monoids (force sneak when holding charged bow)
+- wool (quiver recipe)
 
 ## License:
 
