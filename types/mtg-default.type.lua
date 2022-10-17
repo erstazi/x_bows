@@ -29,6 +29,7 @@
 ---@field node_sound_glass_defaults fun(table?: NodeSoundDef): NodeSoundDef
 ---@field node_sound_metal_defaults fun(table?: NodeSoundDef): NodeSoundDef
 ---@field node_sound_ice_defaults fun(table?: NodeSoundDef): NodeSoundDef
+---@field get_hotbar_bg fun(x: number, y: number): nil Get the hotbar background as string, containing the formspec elements. x: Horizontal position in the formspec, y: Vertical position in the formspec.
 
 --- Leaf decay definition
 ---@class RegisterLeafdecayDef

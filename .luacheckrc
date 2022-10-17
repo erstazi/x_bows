@@ -23,6 +23,7 @@ read_globals = {
 	"PcgRandom",
 	"ItemStack",
 	"AreaStore",
+	"unpack",
 
 	"vector",
 
