@@ -8,3 +8,4 @@
 ---@field steps number How many steps the plant has to grow, until it can be harvested
 ---@field minlight number Minimum light to grow
 ---@field maxlight number Maximum light to grow
+---@field on_timer fun(pos: Vector, elapsed: number): boolean default: nil, called by NodeTimers, see minetest.get_node_timer and NodeTimerRef. elapsed is the total time passed since the timer was started. return true to run the timer for another cycle with the same timeout value.

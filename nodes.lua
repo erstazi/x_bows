@@ -10,22 +10,28 @@ minetest.register_node('x_bows:arrow_node', {
 })
 
 minetest.register_node('x_bows:target', {
-    description = 'Straw',
+    description = 'Target',
     tiles = {'x_bows_target.png'},
     is_ground_content = false,
-    groups = {snappy=3, flammable=4, fall_damage_add_percent=-30},
+    groups = {snappy=3, flammable=4, fall_damage_add_percent = -30},
     sounds = default.node_sound_leaves_defaults(),
     mesecons = {receptor = {state = 'off'}},
+    ---@param pos Vector
+    ---@param elapsed number
+    ---@return boolean
     on_timer = function (pos, elapsed)
-        mesecon.receptor_off(pos)
+        if XBows.mesecons then
+            mesecon.receptor_off(pos)
+        end
+
         return false
-    end,
+    end
 })
 
 minetest.register_craft({
     type = 'fuel',
     recipe = 'x_bows:target',
-    burntime = 3,
+    burntime = 3
 })
 
 minetest.register_craft({
