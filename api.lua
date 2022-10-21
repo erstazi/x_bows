@@ -1,3 +1,17 @@
+---Check if table contains value
+---@param table table
+---@param value string|number
+---@return boolean
+local function table_contains(table, value)
+    for _, v in ipairs(table) do
+        if v == value then
+            return true
+        end
+    end
+
+    return false
+end
+
 ---Merge two tables with key/value pair
 ---@param t1 table
 ---@param t2 table
@@ -53,10 +67,19 @@ local XBowsEntityDef = {}
 XBowsEntityDef.__index = XBowsEntityDef
 setmetatable(XBowsEntityDef, XBows)
 
+---Check if creative is enabled or if player has creative priv
+---@param self XBows
+---@param name string
+---@return boolean
 function XBows.is_creative(self, name)
     return self.creative or minetest.check_player_privs(name, {creative = true})
 end
 
+---Updates `allowed_ammunition` definition on already registered item, so MODs can add new ammunitions to this list.
+---@param self XBows
+---@param name string
+---@param allowed_ammunition string[]
+---@return nil
 function XBows.update_bow_allowed_ammunition(self, name, allowed_ammunition)
     local _name = 'x_bows:'..name
     local def = self.registered_bows[_name]
@@ -77,6 +100,7 @@ function XBows.update_bow_allowed_ammunition(self, name, allowed_ammunition)
 end
 
 ---Reset charged bow to uncharged bow, this will return the arrow item to the inventory also
+---@param self XBows
 ---@param player ObjectRef Player Ref
 ---@param includeWielded? boolean Will include reset for wielded bow also. default: `false`
 ---@return nil
@@ -119,6 +143,7 @@ function XBows.reset_charged_bow(self, player, includeWielded)
 end
 
 ---Register bows
+---@param self XBows
 ---@param name string
 ---@param def ItemDef | BowItemDefCustom
 ---@param override? boolean MOD everride
@@ -246,6 +271,7 @@ function XBows.register_bow(self, name, def, override)
 end
 
 ---Register arrows
+---@param self XBows
 ---@param name string
 ---@param def ItemDef | ArrowItemDefCustom
 ---@return boolean|nil
@@ -304,6 +330,7 @@ function XBows.register_arrow(self, name, def)
 end
 
 ---Register quivers
+---@param self XBows
 ---@param name string
 ---@param def ItemDef | QuiverItemDefCustom
 ---@return boolean|nil
@@ -401,7 +428,8 @@ function XBows.register_quiver(self, name, def)
     end
 end
 
----Loads bow
+---Load bow
+---@param self XBows
 ---@param itemstack ItemStack
 ---@param user ObjectRef
 ---@param pointed_thing PointedThingDef
@@ -520,7 +548,8 @@ function XBows.load(self, itemstack, user, pointed_thing)
     return itemstack
 end
 
----Shoots the bow
+---Shoot bow
+---@param self XBows
 ---@param itemstack ItemStack
 ---@param user ObjectRef
 ---@param pointed_thing? PointedThingDef
@@ -682,6 +711,11 @@ function XBows.shoot(self, itemstack, user, pointed_thing)
     return itemstack
 end
 
+---Add new particle to XBow registration
+---@param self XBows
+---@param name string
+---@param def ParticlespawnerDef|ParticlespawnerDefCustom
+---@return nil
 function XBows.register_particle_effect(self, name, def)
     if self.registered_particle_spawners[name] then
         minetest.log('warning', 'Particle effect "' .. name .. '" already exists and will not be overwritten.')
@@ -691,13 +725,17 @@ function XBows.register_particle_effect(self, name, def)
     self.registered_particle_spawners[name] = def
 end
 
-
+---Get particle effect from registered spawners table
+---@param self XBows
+---@param name string
+---@param pos Vector
+---@return number|boolean
 function XBows.get_particle_effect_for_arrow(self, name, pos)
     local def = self.registered_particle_spawners[name]
 
     if not def then
         minetest.log('warning', 'Particle effect "' .. name .. '" is not registered.')
-        return
+        return false
     end
 
     def.custom = def.custom or {}
@@ -707,6 +745,11 @@ function XBows.get_particle_effect_for_arrow(self, name, pos)
     return minetest.add_particlespawner(def--[[@as ParticlespawnerDef]])
 end
 
+---Check if ammunition is allowed to charge this weapon
+---@param self XBows
+---@param weapon_name string
+---@param ammo_name string
+---@return boolean
 function XBows.is_allowed_ammunition(self, weapon_name, ammo_name)
     local x_bows_weapon_def = self.registered_bows[weapon_name]
 
@@ -722,21 +765,7 @@ function XBows.is_allowed_ammunition(self, weapon_name, ammo_name)
         return false
     end
 
-    return XBows.table_contains(x_bows_weapon_def.custom.allowed_ammunition, ammo_name)
-end
-
----Check if table contains value
----@param table table
----@param value string|number
----@return boolean
-function XBows.table_contains(table, value)
-    for _, v in ipairs(table) do
-        if v == value then
-            return true
-        end
-    end
-
-    return false
+    return table_contains(x_bows_weapon_def.custom.allowed_ammunition, ammo_name)
 end
 
 ----
@@ -782,7 +811,13 @@ local function get_obj_box(obj)
     return box
 end
 
-function XBowsEntityDef.on_activate(self, selfObj, staticdata)
+---Function receive a "luaentity" table as `self`. Called when the object is instantiated.
+---@param self EntityDef|EntityDefCustom|XBows
+---@param selfObj table
+---@param staticdata string
+---@param dtime_s? integer|number
+---@return nil
+function XBowsEntityDef.on_activate(self, selfObj, staticdata, dtime_s)
     if not selfObj or not staticdata or staticdata == '' then
         selfObj.object:remove()
         return
@@ -839,6 +874,11 @@ function XBowsEntityDef.on_activate(self, selfObj, staticdata)
     end
 end
 
+---Function receive a "luaentity" table as `self`. Called when the object dies.
+---@param self XBows
+---@param selfObj table
+---@param killer ObjectRef|nil
+---@return nil
 function XBowsEntityDef.on_death(self, selfObj, killer)
     if not selfObj._old_pos then
         selfObj.object:remove()
@@ -848,6 +888,11 @@ function XBowsEntityDef.on_death(self, selfObj, killer)
     minetest.item_drop(ItemStack(selfObj._arrow_name), nil, vector.round(selfObj._old_pos))
 end
 
+--- Function receive a "luaentity" table as `self`. Called on every server tick, after movement and collision processing. `dtime`: elapsed time since last call. `moveresult`: table with collision info (only available if physical=true).
+---@param self XBows
+---@param selfObj table
+---@param dtime number
+---@return nil
 function XBowsEntityDef.on_step(self, selfObj, dtime)
     local pos = selfObj.object:get_pos()
     selfObj._old_pos = selfObj._old_pos or pos
@@ -1236,6 +1281,15 @@ function XBowsEntityDef.on_step(self, selfObj, dtime)
     selfObj._old_pos = pos
 end
 
+---Function receive a "luaentity" table as `self`. Called when somebody punches the object. Note that you probably want to handle most punches using the automatic armor group system. Can return `true` to prevent the default damage mechanism.
+---@param self XBows
+---@param selfObj table
+---@param puncher ObjectRef|nil
+---@param time_from_last_punch number|integer|nil
+---@param tool_capabilities ToolCapabilitiesDef
+---@param dir Vector
+---@param damage number|integer
+---@return boolean
 function XBowsEntityDef.on_punch(self, selfObj, puncher, time_from_last_punch, tool_capabilities, dir, damage)
     local wood_sound_def = default.node_sound_wood_defaults()
 
@@ -1247,6 +1301,10 @@ function XBowsEntityDef.on_punch(self, selfObj, puncher, time_from_last_punch, t
     return false
 end
 
+---Register new projectile entity
+---@param self XBows
+---@param name string
+---@param def XBowsEntityDef
 function XBows.register_entity(self, name, def)
     if not def._custom then
         def._custom = {}
@@ -1301,9 +1359,10 @@ end
 ----
 
 ---Close one or all open quivers in players inventory
+---@param self XBowsQuiver
 ---@param player ObjectRef
 ---@param quiver_id? string If `nil` then all open quivers will be closed
----@returns nil
+---@return nil
 function XBowsQuiver.close_quiver(self, player, quiver_id)
     local player_inv = player:get_inventory()
 
@@ -1329,6 +1388,7 @@ function XBowsQuiver.close_quiver(self, player, quiver_id)
 end
 
 ---Swap item in player inventory indicating open quiver. Preserve all ItemStack definition and meta.
+---@param self XBowsQuiver
 ---@param from_stack ItemStack transfer data from this item
 ---@param to_item_name string transfer data to this item
 ---@return ItemStack ItemStack replacement item
@@ -1423,7 +1483,9 @@ function XBowsQuiver.get_itemstack_arrow_from_quiver(self, player)
 end
 
 ---Remove all added HUDs
+---@param self XBowsQuiver
 ---@param player ObjectRef
+---@return nil
 function XBowsQuiver.remove_hud(self, player)
     local player_name = player:get_player_name()
 
@@ -1451,6 +1513,12 @@ function XBowsQuiver.remove_hud(self, player)
 end
 
 ---@todo implement hud_change?
+---Update or create quiver HUD
+---@param self XBowsQuiver
+---@param player ObjectRef
+---@param inv_list ItemStack[]
+---@param idx? number
+---@return nil
 function XBowsQuiver.udate_or_create_hud(self, player, inv_list, idx)
     local _idx = idx or 1
     local player_name = player:get_player_name()
@@ -1549,6 +1617,12 @@ function XBowsQuiver.udate_or_create_hud(self, player, inv_list, idx)
     end, player))
 end
 
+---Get existing detached inventory or create new one
+---@param self XBowsQuiver
+---@param quiver_id string
+---@param player_name string
+---@param quiver_items? string
+---@return InvRef|unknown
 function XBowsQuiver.get_or_create_detached_inv(self, quiver_id, player_name, quiver_items)
     local detached_inv
 
@@ -1635,7 +1709,8 @@ function XBowsQuiver.get_or_create_detached_inv(self, quiver_id, player_name, qu
     return detached_inv
 end
 
----create formspec
+---Create formspec
+---@param self XBowsQuiver
 ---@param name string name of the form
 ---@return string
 function XBowsQuiver.get_formspec(self, name)
@@ -1672,7 +1747,8 @@ function XBowsQuiver.get_formspec(self, name)
     return formspec
 end
 
----convert inventory of itemstacks to serialized string
+---Convert inventory of itemstacks to serialized string
+---@param self XBowsQuiver
 ---@param inv InvRef
 ---@return {['inv_string']: string, ['content_description']: string}
 function XBowsQuiver.get_string_from_inv(self, inv)
@@ -1695,9 +1771,11 @@ function XBowsQuiver.get_string_from_inv(self, inv)
     }
 end
 
----set items from serialized string to inventory
+---Set items from serialized string to inventory
+---@param self XBowsQuiver
 ---@param inv InvRef inventory to add items to
 ---@param str string previously stringified inventory of itemstacks
+---@return nil
 function XBowsQuiver.set_string_to_inv(self, inv, str)
     local t = minetest.deserialize(str)
 
@@ -1708,6 +1786,12 @@ function XBowsQuiver.set_string_to_inv(self, inv, str)
     end
 end
 
+---Save quiver inventory to itemstack meta
+---@param self XBowsQuiver
+---@param inv InvRef
+---@param player ObjectRef
+---@param quiver_is_closed? boolean
+---@return nil
 function XBowsQuiver.save(self, inv, player, quiver_is_closed)
     local player_inv = player:get_inventory()
     local inv_loc = inv:get_location()
@@ -1738,7 +1822,8 @@ function XBowsQuiver.save(self, inv, player, quiver_is_closed)
     end
 end
 
----check if we are allowing actions in the correct quiver inventory
+---Check if we are allowing actions in the correct quiver inventory
+---@param self XBowsQuiver
 ---@param inv InvRef
 ---@param player ObjectRef
 ---@return boolean
@@ -1763,6 +1848,7 @@ function XBowsQuiver.quiver_can_allow(self, inv, player)
 end
 
 ---Open quiver
+---@param self XBowsQuiver
 ---@param itemstack ItemStack
 ---@param user ObjectRef
 ---@return ItemStack

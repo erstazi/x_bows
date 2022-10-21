@@ -13,11 +13,19 @@
 ---@field settings table
 ---@field quiver table Quiver class
 ---@field charge_sound_after_job table<string, JobTable>
----@field is_allowed_ammunition fun(self: XBows, weapon_name: string, ammo_name: string): boolean ---Check if ammunition is allowed to charge this weapon
+---@field is_allowed_ammunition fun(self: XBows, weapon_name: string, ammo_name: string): boolean Check if ammunition is allowed to charge this weapon
 ---@field is_creative fun(self: XBows, name: string): boolean Check if creative is enabled or if player has creative priv
----@field register_particle_effect fun(self: XBows, name: string, def: ParticlespawnerDef|ParticlespawnerDefCustom): nil
----@field get_particle_effect_for_arrow fun(self: XBows, name: string, pos: Vector): number
+---@field get_particle_effect_for_arrow fun(self: XBows, name: string, pos: Vector): number|boolean Get particle effect from registered spawners table
 ---@field register_entity fun(self: EntityDef|XBows, name: string, def: XBowsEntityDef): nil Register new projectile entity
+---@field update_bow_allowed_ammunition fun(self: XBows, name: string, def: string[]): nil Updates `allowed_ammunition` definition on already registered item, so MODs can add new ammunitions to this list.
+---@field reset_charged_bow fun(self: XBows, player: ObjectRef, includeWielded?: boolean): nil Reset charged bow to uncharged bow, this will return the arrow item to the inventory also
+---@field register_bow fun(self: XBows, name: string, def: ItemDef | BowItemDefCustom, mod_override?: boolean): boolean|nil Register new bow/gun.
+---@field register_arrow fun(self: XBows, name: string, def: ItemDef | ArrowItemDefCustom): boolean|nil Register new arrow/projectile.
+---@field register_quiver fun(self: XBows, name: string, def: ItemDef | ArrowItemDefCustom): boolean|nil Register new quiver.
+---@field load fun(self: XBows, itemstack: ItemStack, user: ObjectRef, pointed_thing: PointedThingDef): ItemStack Load bow
+---@field shoot fun(self: XBows, itemstack: ItemStack, user: ObjectRef, pointed_thing?: PointedThingDef): ItemStack Shoot bow
+---@field register_particle_effect fun(self: XBows, name: string, def: ParticlespawnerDef|ParticlespawnerDefCustom): nil Add new particle to XBow registration
+---@field open_quiver fun(self: XBowsQuiver, itemstack: ItemStack, user: ObjectRef): ItemStack Open quiver
 
 
 ---XBowsQuiver class extended from XBows
@@ -25,9 +33,17 @@
 ---@class XBowsQuiverBase
 ---@field hud_item_ids table
 ---@field after_job table<string, JobTable>
----@field udate_or_create_hud fun(self: XBowsQuiver, player: ObjectRef, inv_list: ItemStack[], idx?: number): nil Update or create HUD
----@field get_or_create_detached_inv fun(self: XBowsQuiver, quiver_id: string, player_name: string, quiver_items?: string): InvRef Get existing detached inventory or create new one
+---@field udate_or_create_hud fun(self: XBowsQuiver, player: ObjectRef, inv_list: ItemStack[], idx?: number): nil Update or create quiver HUD
+---@field get_or_create_detached_inv fun(self: XBowsQuiver, quiver_id: string, player_name: string, quiver_items?: string): InvRef|unknown Get existing detached inventory or create new one
 ---@field save fun(self: XBowsQuiver, inv: InvRef, player: ObjectRef, quiver_is_closed?: boolean): nil Save quiver inventory to itemstack meta
+---@field close_quiver fun(self: XBowsQuiver, player: ObjectRef, quiver_id?: string): nil Close one or all open quivers in players inventory
+---@field get_replacement_item fun(self: XBowsQuiver, from_stack: ItemStack, to_item_name: string): ItemStack Swap item in player inventory indicating open quiver. Preserve all ItemStack definition and meta.
+---@field get_itemstack_arrow_from_quiver fun(self: XBowsQuiver, player: ObjectRef, to_item_name: string): {["found_arrow_stack"]: ItemStack|nil, ["quiver_id"]: string|nil, ["quiver_name"]: string|nil, ["found_arrow_stack_idx"]: number} Gets arrow from quiver
+---@field remove_hud fun(self: XBowsQuiver, player: ObjectRef): nil Remove all added HUDs
+---@field get_formspec fun(self: XBowsQuiver, name: string): string Create formspec
+---@field get_string_from_inv fun(self: XBowsQuiver, inv: InvRef): {['inv_string']: string, ['content_description']: string} Convert inventory of itemstacks to serialized string
+---@field set_string_to_inv fun(self: XBowsQuiver, inv: InvRef, str: string): nil Set items from serialized string to inventory
+---@field quiver_can_allow fun(self: XBowsQuiver, inv: InvRef, player: ObjectRef): boolean Check if we are allowing actions in the correct quiver inventory
 
 
 ---Custom field in ParticlespawnerDef
