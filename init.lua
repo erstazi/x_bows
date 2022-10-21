@@ -19,6 +19,9 @@ dofile(path .. '/arrow.lua')
 dofile(path .. '/items.lua')
 dofile(path .. '/quiver.lua')
 
+---backwards compatibility
+minetest.register_alias('x_bows:arrow_diamond_tipped_poison', 'x_bows:arrow_diamond')
+
 minetest.register_on_joinplayer(function(player)
     XBows:reset_charged_bow(player, true)
     XBowsQuiver:close_quiver(player)

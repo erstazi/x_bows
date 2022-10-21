@@ -62,28 +62,3 @@ XBows:register_particle_effect('bubble', {
     maxsize = 1,
     texture = 'x_bows_bubble.png'
 })
-
-XBows:register_particle_effect('arrow_tipped', {
-    amount = 5,
-    time = 1,
-    minexptime = 0.4,
-    maxexptime = 0.8,
-    minvel = {x=-0.4, y=0.4, z=-0.4},
-    maxvel = {x=0.4, y=0.6, z=0.4},
-    minacc = {x=0.2, y=0.4, z=0.2},
-    maxacc = {x=0.4, y=0.6, z=0.4},
-    minsize = 4,
-    maxsize = 6,
-    texture = 'x_bows_arrow_tipped_particle.png^[colorize:#008000:127',
-    animation = {
-        type = 'vertical_frames',
-        aspect_w = 8,
-        aspect_h = 8,
-        length = 1,
-    },
-    glow = 1,
-    custom = {
-        minpos = {x = -0.5, y = -0.5, z = -0.5},
-        maxpos = {x = 0.5, y = 0.5, z = 0.5}
-    }
-})

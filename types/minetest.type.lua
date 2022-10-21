@@ -67,6 +67,9 @@
 ---@field show_formspec fun(playername: string, formname: string, formspec: string): nil `playername`: name of player to show formspec, `formname`: name passed to `on_player_receive_fields` callbacks. It should follow the `"modname:<whatever>"` naming convention. `formspec`: formspec to display
 ---@field register_on_player_receive_fields fun(func: fun(player: ObjectRef, formname: string, fields: table)): nil Called when the server received input from `player` in a formspec with the given `formname`. Specifically, this is called on any of the following events: a button was pressed, Enter was pressed while the focus was on a text field, a checkbox was toggled, something was selected in a dropdown list, a different tab was selected, selection was changed in a textlist or table, an entry was double-clicked in a textlist or table, a scrollbar was moved, or the form was actively closed by the player.
 ---@field get_inventory fun(location: {['"type"']: 'player'|'node'|'detached', ['"name"']: string|nil, ['"pos"']: Vector|nil}): InvRef
+---@field dir_to_wallmounted fun(dir: Vector): number Convert a vector to a wallmounted value, used for `paramtype2="wallmounted"`
+---@field item_place_node fun(itemstack: ItemStack, placer: ObjectRef, pointed_thing: PointedThingDef, param2?: , prevent_after_place?: boolean): Vector|nil Place item as a node, `param2` overrides `facedir` and wallmounted `param2`, `prevent_after_place`: if set to `true`, `after_place_node` is not called or the newly placed node to prevent a callback and placement loop. returns `itemstack, position`, `position`: the location the node was placed to. `nil` if nothing was placed.
+---@field unregister_item fun(name: string): nil Unregisters the item from the engine, and deletes the entry with key `name` from `minetest.registered_items` and from the associated item table according to its nature: `minetest.registered_nodes`, etc.
 
 ---Minetest settings
 ---@class MinetestSettings

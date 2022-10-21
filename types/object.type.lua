@@ -28,6 +28,8 @@
 ---@field hud_remove fun(self: ObjectRef, id: number|integer): nil remove the HUD element of the specified id
 ---@field hud_change fun(self: ObjectRef, id: number|integer, stat: string, value: any): nil change a value of a previously added HUD element. `stat` supports the same keys as in the hud definition table except for `"hud_elem_type"`.
 ---@field set_wielded_item fun(self: ObjectRef, item: ItemStack): boolean replaces the wielded item, returns `true` if successful.
+---@field move_to fun(self: ObjectRef, pos: Vector, continuous?: boolean): nil Does an interpolated move for Lua entities for visually smooth transitions. If `continuous` is true, the Lua entity will not be moved to the current position before starting the interpolated move. For players this does the same as `set_pos`,`continuous` is ignored.
+---@field set_hp fun(self: ObjectRef, hp: number, reason: table): nil set number of health points See reason in register_on_player_hpchange Is limited to the range of 0 ... 65535 (2^16 - 1) For players: HP are also limited by `hp_max` specified in object properties
 
 ---Moving things in the game are generally these.
 ---This is basically a reference to a C++ `ServerActiveObject`.

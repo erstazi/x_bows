@@ -3,7 +3,6 @@
 ---@field pvp boolean
 ---@field creative boolean
 ---@field mesecons string|nil
----@field hbhunger string|nil
 ---@field playerphysics string|nil
 ---@field player_monoids string|nil
 ---@field registered_bows table<string, ItemDef|BowItemDefCustom>
@@ -69,6 +68,7 @@
 ---@field sound_hit string
 ---@field sound_shoot string
 ---@field sound_shoot_crit string
+---@field gravity number
 
 ---Custom field in ItemDef
 ---@class ArrowItemDefCustom
@@ -88,6 +88,10 @@
 ---@field projectile_textures table|nil
 ---@field projectile_visual_size table
 ---@field projectile_entity string
+---@field on_hit_node fun(self: table, pointed_thing_ref: table)
+---@field on_hit_entity fun(self: table, pointed_thing_ref: table)
+---@field on_hit_player fun(self: table, pointed_thing_ref: table)
+---@field on_after_activate fun(self: table)
 
 
 ---Custom field in ItemDef

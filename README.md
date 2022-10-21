@@ -23,7 +23,6 @@ Video: https://youtu.be/pItpltmUoa8
 * arrows adjusts pitch when flying
 * arrows can be picked up again after stuck in solid nodes
 * registers only one entity reused for all arrows
-* (experimental) poison arrow - dealing damage for 5s but will not kill the target
 * target block reduces fall damage by -30
 * quiver for more arrow storage (can hold only arrows)
 * quiver perks when in inventory (faster arrows, more arrow damage...)
@@ -74,7 +73,6 @@ There are few indications on how to know when the bow shot arrow from quiver:
 - default (recipes)
 - farming (bow and target recipes)
 - 3d_armor (calculates damage including the armor)
-- hbhunger (changes hudbar when poisoned)
 - mesecons (target can be used to trigger mesecon signal)
 - playerphysics (force sneak when holding charged bow)
 - player_monoids (force sneak when holding charged bow)
@@ -94,7 +92,6 @@ GNU Lesser General Public License v2.1 or later (see included LICENSE file)
 - x_bows_bow_wood_charged.png
 - x_bows_arrow_wood.png
 - x_bows_arrow_particle.png
-- x_bows_arrow_tipped_particle.png
 - x_bows_bubble.png
 - x_bows_target.png
 
@@ -105,7 +102,6 @@ Modified by SaKeL:
 - x_bows_arrow_steel.png
 - x_bows_arrow_mese.png
 - x_bows_arrow_diamond.png
-- x_bows_arrow_diamond_poison.png
 
 **CC-BY-SA-3.0, by paramat**
 

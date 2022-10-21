@@ -1,5 +1,6 @@
 XBows:register_bow('bow_wood', {
     description = 'Wooden Bow',
+    short_description = 'Wooden Bow',
     custom = {
         uses = 385,
         crit_chance = 10,
@@ -15,8 +16,7 @@ XBows:register_bow('bow_wood', {
             'x_bows:arrow_bronze',
             'x_bows:arrow_steel',
             'x_bows:arrow_mese',
-            'x_bows:arrow_diamond',
-            'x_bows:arrow_diamond_tipped_poison'
+            'x_bows:arrow_diamond'
         }
     }
 })
@@ -124,28 +124,12 @@ XBows:register_arrow('arrow_diamond', {
     }
 })
 
-XBows:register_arrow('arrow_diamond_tipped_poison', {
-    description = 'Arrow Diamond Tipped Poison (0:05)',
-    inventory_image = 'x_bows_arrow_diamond_poison.png',
-    custom = {
-        recipe = {
-            {'', '', ''},
-            {'', 'default:marram_grass_1', ''},
-            {'', 'x_bows:arrow_diamond', ''}
-        },
-        tool_capabilities = {
-            full_punch_interval = 0.7,
-            max_drop_level = 1,
-            damage_groups = {fleshy=8}
-        },
-        recipe_count = 1
-    }
-})
-
 XBows:register_quiver('quiver', {
     description = 'Quiver \n\n Empty\n',
     short_description = 'Quiver',
     custom = {
+        description = 'Quiver \n\n Empty\n',
+        short_description = 'Quiver',
         recipe = {
             {'group:arrow', 'group:arrow', 'group:arrow'},
             {'group:arrow', 'wool:brown', 'group:arrow'},
@@ -154,15 +138,6 @@ XBows:register_quiver('quiver', {
         recipe_count = 1,
         faster_arrows = 5,
         add_damage = 2,
-        fuel_burntime = 3,
-        allowed_ammunition = {
-            'x_bows:arrow_wood',
-            'x_bows:arrow_stone',
-            'x_bows:arrow_bronze',
-            'x_bows:arrow_steel',
-            'x_bows:arrow_mese',
-            'x_bows:arrow_diamond',
-            'x_bows:arrow_diamond_tipped_poison'
-        }
+        fuel_burntime = 3
     }
 })

@@ -24,7 +24,6 @@ XBows = {
     pvp = minetest.settings:get_bool('enable_pvp') or false,
     creative = minetest.settings:get_bool('creative_mode') or false,
     mesecons = minetest.get_modpath('mesecons'),
-    hbhunger = minetest.get_modpath('hbhunger'),
     playerphysics = minetest.get_modpath('playerphysics'),
     player_monoids = minetest.get_modpath('player_monoids'),
     registered_bows = {},
@@ -56,6 +55,25 @@ setmetatable(XBowsEntityDef, XBows)
 
 function XBows.is_creative(self, name)
     return self.creative or minetest.check_player_privs(name, {creative = true})
+end
+
+function XBows.update_bow_allowed_ammunition(self, name, allowed_ammunition)
+    local _name = 'x_bows:'..name
+    local def = self.registered_bows[_name]
+
+    if not def then
+        return
+    end
+
+    local def_copy = table.copy(def)
+
+    minetest.unregister_item(_name)
+
+    for _, v in ipairs(allowed_ammunition) do
+        table.insert(def_copy.custom.allowed_ammunition, v)
+    end
+
+    self:register_bow(name, def_copy, true)
 end
 
 ---Reset charged bow to uncharged bow, this will return the arrow item to the inventory also
@@ -103,8 +121,9 @@ end
 ---Register bows
 ---@param name string
 ---@param def ItemDef | BowItemDefCustom
+---@param override? boolean MOD everride
 ---@return boolean|nil
-function XBows.register_bow(self, name, def)
+function XBows.register_bow(self, name, def, override)
     if name == nil or name == '' then
         return false
     end
@@ -112,7 +131,8 @@ function XBows.register_bow(self, name, def)
     local mod_name = def.custom.mod_name or 'x_bows'
     def.custom.name = mod_name .. ':' .. name
     def.custom.name_charged = mod_name .. ':' .. name .. '_charged'
-    def.description = def.description or name
+    def.short_description = def.short_description
+    def.description = override and def.short_description or (def.description or name)
     def.custom.uses = def.custom.uses or 150
     def.groups = mergeTables({bow = 1, flammable = 1}, def.groups or {})
     def.custom.groups_charged = mergeTables({bow_charged = 1, flammable = 1, not_in_creative_inventory = 1}, def.groups or {})
@@ -122,6 +142,7 @@ function XBows.register_bow(self, name, def)
     def.custom.sound_hit = def.custom.sound_hit or 'x_bows_arrow_hit'
     def.custom.sound_shoot = def.custom.sound_shoot or 'x_bows_bow_shoot'
     def.custom.sound_shoot_crit = def.custom.sound_shoot_crit or 'x_bows_bow_shoot_crit'
+    def.custom.gravity = def.custom.gravity or -10
 
     if def.custom.crit_chance then
         def.description = def.description .. '\n' .. minetest.colorize('#00FF00', 'Critical Arrow Chance: '
@@ -145,7 +166,7 @@ function XBows.register_bow(self, name, def)
     self.registered_bows[def.custom.name_charged] = def
 
     ---not charged bow
-    minetest.register_tool(def.custom.name, {
+    minetest.register_tool(override and ':' .. def.custom.name or def.custom.name, {
         description = def.description,
         inventory_image = def.inventory_image or 'x_bows_bow_wood.png',
         wield_image = def.wield_image or def.inventory_image,
@@ -171,7 +192,7 @@ function XBows.register_bow(self, name, def)
     })
 
     ---charged bow
-    minetest.register_tool(def.custom.name_charged, {
+    minetest.register_tool(override and ':' .. def.custom.name_charged or def.custom.name_charged, {
         description = def.description,
         inventory_image = def.custom.inventory_image_charged or 'x_bows_bow_wood_charged.png',
         wield_image = def.custom.wield_image_charged or def.custom.inventory_image_charged,
@@ -249,6 +270,9 @@ function XBows.register_arrow(self, name, def)
     def.custom.projectile_visual_size = def.custom.projectile_visual_size or {x = 1, y = 1, z = 1}
     def.custom.projectile_entity = def.custom.projectile_entity or 'x_bows:arrow_entity'
     def.custom.on_hit_node = def.custom.on_hit_node or nil
+    def.custom.on_hit_entity = def.custom.on_hit_entity or nil
+    def.custom.on_hit_player = def.custom.on_hit_player or nil
+    def.custom.on_after_activate = def.custom.on_after_activate or nil
 
     self.registered_arrows[def.custom.name] = def
 
@@ -546,6 +570,7 @@ function XBows.shoot(self, itemstack, user, pointed_thing)
     local acc_x_max = x_bows_registered_bow_charged_def.custom.acc_x_max
     local acc_y_max = x_bows_registered_bow_charged_def.custom.acc_y_max
     local acc_z_max = x_bows_registered_bow_charged_def.custom.acc_z_max
+    local gravity = x_bows_registered_bow_charged_def.custom.gravity
     ---Arrow
     local projectile_entity = x_bows_registered_arrow_def.custom.projectile_entity
     ---Quiver
@@ -623,7 +648,7 @@ function XBows.shoot(self, itemstack, user, pointed_thing)
 
     ---acceleration
     local acc_x = dir.x
-    local acc_y = -10
+    local acc_y = gravity
     local acc_z = dir.z
 
     if acc_x_min and acc_x_max then
@@ -778,10 +803,10 @@ function XBowsEntityDef.on_activate(self, selfObj, staticdata)
     selfObj._nodechecktimer = 0.5
     selfObj._is_drowning = false
     selfObj._in_liquid = false
-    selfObj._poison_arrow = false
     selfObj._shot_from_pos = selfObj.object:get_pos()
     selfObj._arrow_name = _staticdata._arrow_name
     selfObj._bow_name = _staticdata._bow_name
+    selfObj._user_name = _staticdata.user_name
     selfObj.user = minetest.get_player_by_name(_staticdata.user_name)
     selfObj._tflp = _staticdata._tflp
     selfObj._tool_capabilities = _staticdata._tool_capabilities
@@ -798,16 +823,20 @@ function XBowsEntityDef.on_activate(self, selfObj, staticdata)
     selfObj._projectile_textures = x_bows_registered_arrow_def.custom.projectile_textures
     selfObj._projectile_visual_size = x_bows_registered_arrow_def.custom.projectile_visual_size
     selfObj._sound_hit = x_bows_registered_bow_def.custom.sound_hit
-
-    if selfObj._arrow_name == 'x_bows:arrow_diamond_tipped_poison' then
-        selfObj._poison_arrow = true
-    end
+    selfObj._caused_damage = 0
+    selfObj._caused_knockback = 0
 
     selfObj.object:set_properties({
         textures = selfObj._projectile_textures,
         infotext = selfObj._arrow_name,
         visual_size = selfObj._projectile_visual_size
     })
+
+    local on_after_activate_callback = x_bows_registered_arrow_def.custom.on_after_activate
+
+    if on_after_activate_callback then
+        on_after_activate_callback(selfObj)
+    end
 end
 
 function XBowsEntityDef.on_death(self, selfObj, killer)
@@ -907,6 +936,7 @@ function XBowsEntityDef.on_step(self, selfObj, dtime)
                 )
             )
             and selfObj.object:get_attach() == nil
+            and not selfObj._attached
         then
             if pointed_thing.ref:is_player() then
                 minetest.sound_play('x_bows_arrow_successful_hit', {
@@ -988,6 +1018,9 @@ function XBowsEntityDef.on_step(self, selfObj, dtime)
                 }
             )
 
+            selfObj._caused_damage = _damage
+            selfObj._caused_knockback = knockback
+
             -- already dead (entity)
             if not pointed_thing.ref:get_luaentity() and not pointed_thing.ref:is_player() then
                 selfObj.object:remove()
@@ -996,10 +1029,6 @@ function XBowsEntityDef.on_step(self, selfObj, dtime)
 
             -- already dead (player)
             if pointed_thing.ref:get_hp() <= 0 then
-                if XBows.hbhunger then
-                    -- Reset HUD bar color
-                    hb.change_hudbar(pointed_thing.ref, 'health', nil, nil, 'hudbars_icon_health.png', nil, 'hudbars_bar_health.png')
-                end
                 selfObj.object:remove()
                 return
             end
@@ -1076,42 +1105,6 @@ function XBowsEntityDef.on_step(self, selfObj, dtime)
                 position.z = zmin / 10
             end
 
-            -- poison arrow
-            if selfObj._poison_arrow then
-                local old_damage_texture_modifier = pointed_thing.ref:get_properties().damage_texture_modifier
-                local punch_def = {}
-                punch_def.puncher = selfObj.object
-                punch_def.time_from_last_punch = selfObj._tflp
-                punch_def.tool_capabilities = {
-                    full_punch_interval = selfObj._tool_capabilities.full_punch_interval,
-                    damage_groups = {fleshy = _damage, knockback = knockback}
-                }
-
-                if pointed_thing.ref:is_player() then
-                    -- @TODO missing `active` posion arrow check for player (see lua_ent below)
-                    if XBows.hbhunger then
-                        -- Set poison bar
-                        hb.change_hudbar(
-                            pointed_thing.ref,
-                            'health',
-                            nil,
-                            nil,
-                            'hbhunger_icon_health_poison.png',
-                            nil,
-                            'hbhunger_bar_health_poison.png'
-                        )
-                    end
-
-                    XBows:poison_effect(1, 5, 0, selfObj, pointed_thing.ref, old_damage_texture_modifier, punch_def)
-                else
-                    -- local lua_ent = pointed_thing.ref:get_luaentity()
-                    -- if not lua_ent[selfObj.arrow .. '_active'] or lua_ent[selfObj.arrow .. '_active'] == 'false' then
-                        -- lua_ent[selfObj.arrow .. '_active'] = true
-                        XBows:poison_effect(1, 5, 0, selfObj, pointed_thing.ref, old_damage_texture_modifier, punch_def)
-                    -- end
-                end
-            end
-
             if not XBows.settings.x_bows_attach_arrows_to_entities and not pointed_thing.ref:is_player() then
                 selfObj.object:remove()
                 return
@@ -1131,15 +1124,30 @@ function XBowsEntityDef.on_step(self, selfObj, dtime)
 
             -- remove last arrow when too many already attached
             local children = {}
+            local projectile_entity = self.registered_arrows[selfObj._arrow_name].custom.projectile_entity
 
             for _, object in ipairs(pointed_thing.ref:get_children()) do
-                if object:get_luaentity() and object:get_luaentity().name == 'x_bows:arrow_entity' then
+                if object:get_luaentity() and object:get_luaentity().name == projectile_entity then
                     table.insert(children, object)
                 end
             end
 
             if #children >= 5 then
                 children[1]:remove()
+            end
+
+            if pointed_thing.ref:is_player() then
+                local on_hit_player_callback = self.registered_arrows[selfObj._arrow_name].custom.on_hit_player
+
+                if on_hit_player_callback then
+                    on_hit_player_callback(selfObj, pointed_thing)
+                end
+            else
+                local on_hit_entity_callback = self.registered_arrows[selfObj._arrow_name].custom.on_hit_entity
+
+                if on_hit_entity_callback then
+                    on_hit_entity_callback(selfObj, pointed_thing)
+                end
             end
 
             return
@@ -1195,9 +1203,10 @@ function XBowsEntityDef.on_step(self, selfObj, dtime)
 
                 -- remove last arrow when too many already attached
                 local children = {}
+                local projectile_entity = self.registered_arrows[selfObj._arrow_name].custom.projectile_entity
 
                 for _, object in ipairs(minetest.get_objects_inside_radius(pointed_thing.under, 1)) do
-                    if not object:is_player() and object:get_luaentity() and object:get_luaentity().name == 'x_bows:arrow_entity' then
+                    if not object:is_player() and object:get_luaentity() and object:get_luaentity().name == projectile_entity then
                         table.insert(children, object)
                     end
                 end
@@ -1209,7 +1218,7 @@ function XBowsEntityDef.on_step(self, selfObj, dtime)
                 local on_hit_node_callback = self.registered_arrows[selfObj._arrow_name].custom.on_hit_node
 
                 if on_hit_node_callback then
-                    on_hit_node_callback(selfObj)
+                    on_hit_node_callback(selfObj, pointed_thing)
                 end
 
                 minetest.sound_play(selfObj._sound_hit, {
@@ -1285,82 +1294,6 @@ function XBows.register_entity(self, name, def)
         on_step = def.on_step,
         on_punch = def.on_punch
     })
-end
-
-----
---- ARROW API
-----
-
----Poison Arrow Effects
----@param tick integer|number
----@param time integer|number
----@param time_left integer|number
----@param arrow_obj ObjectRef
----@param target_obj ObjectRef
----@param old_damage_texture_modifier string
----@param punch_def table
-function XBows.poison_effect(self, tick, time, time_left, arrow_obj, target_obj, old_damage_texture_modifier, punch_def)
-    if not arrow_obj or target_obj:get_hp() <= 0 then
-        return
-    end
-
-    target_obj:set_properties({damage_texture_modifier = '^[colorize:#00FF0050'})
-
-    time_left = time_left + tick
-
-    if time_left <= time then
-        minetest.after(
-            tick,
-            self.poison_effect,
-            tick,
-            time,
-            time_left,
-            arrow_obj,
-            target_obj,
-            old_damage_texture_modifier,
-            punch_def
-        )
-    elseif target_obj:is_player() then
-        if self.hbhunger then
-            -- Reset HUD bar color
-            hb.change_hudbar(target_obj, 'health', nil, nil, 'hudbars_icon_health.png', nil, 'hudbars_bar_health.png')
-        end
-
-        if old_damage_texture_modifier then
-            target_obj:set_properties({damage_texture_modifier = old_damage_texture_modifier})
-        end
-
-        -- return
-    else
-        -- local lua_ent = target_obj:get_luaentity()
-
-        -- if not lua_ent then
-        -- 	return
-        -- end
-
-        -- lua_ent[arrow_obj.arrow .. '_active'] = false
-
-
-        if old_damage_texture_modifier then
-            target_obj:set_properties({damage_texture_modifier = old_damage_texture_modifier})
-        end
-        -- return
-    end
-
-    local _damage = punch_def.tool_capabilities.damage_groups.fleshy
-    if target_obj:get_hp() - _damage > 0 then
-        target_obj:punch(
-            punch_def.puncher,
-            punch_def.time_from_last_punch,
-            punch_def.tool_capabilities
-        )
-
-        local target_obj_pos = target_obj:get_pos()
-
-        if target_obj_pos then
-            self:get_particle_effect_for_arrow('arrow_tipped', target_obj_pos)
-        end
-    end
 end
 
 ----
