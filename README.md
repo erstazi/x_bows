@@ -1,6 +1,6 @@
 # Bow and Arrows [x_bows]
 
-Adds bow and arrows to Minetest.
+Adds bow and arrows to Minetest. The goal of this Mod is to make most complete single bow with arrow what will work with MTG damage system, time from last punch as simple as possible. Eventually due to the damage tiers in MTG additional arrows were added.
 
 ![screenshot](screenshot.1.png)
 
@@ -28,6 +28,7 @@ Video: https://youtu.be/pItpltmUoa8
 * quiver perks when in inventory (faster arrows, more arrow damage...)
 * quiver shows temporarily its inventory in HUD overlay when loading or shooting (quickview)
 * quiver item shows its content in infotext (hover over the item)
+* X Bows API for creating custom shooters and projectiles
 
 ## How To
 
