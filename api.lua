@@ -1260,6 +1260,35 @@ function XBowsEntityDef.on_step(self, selfObj, dtime)
                     children[#children]:remove()
                 end
 
+                ---Wiggle
+                local rotation = selfObj.object:get_rotation()
+                local wiggle_timer = 0.05
+
+                for i = 1, 3 do
+                    local rotx = rotation.x + math.random(10, 20) / 100
+
+                    if i % 2 == 0 then
+                        rotx = rotation.x - math.random(10, 20) / 100
+                    end
+
+                    local _rotation = {
+                        x = rotx,
+                        y = rotation.y,
+                        z = rotation.z
+                    }
+
+                    if i == 3 then
+                        _rotation = rotation
+                    end
+
+                    minetest.after(wiggle_timer, function(v_object)
+                        selfObj.object:set_rotation(_rotation)
+                    end, selfObj.object, wiggle_timer)
+
+                    wiggle_timer = wiggle_timer + wiggle_timer
+                end
+
+                ---API callbacks
                 local on_hit_node_callback = self.registered_arrows[selfObj._arrow_name].custom.on_hit_node
 
                 if on_hit_node_callback then
