@@ -911,7 +911,7 @@ function XBowsEntityDef.on_step(self, selfObj, dtime)
         selfObj.object:set_rotation({
             x = pitch,
             y = v_rotation.y,
-            z = v_rotation.z
+            z = v_rotation.z + math.pi / 2
         })
     end
 
