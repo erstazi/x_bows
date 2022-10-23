@@ -1882,7 +1882,7 @@ function XBowsQuiver.quiver_can_allow(self, inv, player)
 end
 
 ---Open quiver
----@param self XBowsQuiver
+---@param self XBows
 ---@param itemstack ItemStack
 ---@param user ObjectRef
 ---@return ItemStack
