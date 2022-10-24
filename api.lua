@@ -44,6 +44,7 @@ XBows = {
     registered_arrows = {},
     registered_quivers = {},
     registered_particle_spawners = {},
+    registered_entities = {},
     player_bow_sneak = {},
     settings = {
         x_bows_attach_arrows_to_entities = minetest.settings:get_bool('x_bows_attach_arrows_to_entities', false)
@@ -292,8 +293,6 @@ function XBows.register_arrow(self, name, def)
     def.custom.particle_effect = def.custom.particle_effect or 'arrow'
     def.custom.particle_effect_crit = def.custom.particle_effect_crit or 'arrow_crit'
     def.custom.particle_effect_fast = def.custom.particle_effect_fast or 'arrow_fast'
-    def.custom.projectile_textures = def.custom.projectile_textures or {'x_bows:arrow_node'}
-    def.custom.projectile_visual_size = def.custom.projectile_visual_size or {x = 1, y = 1, z = 1}
     def.custom.projectile_entity = def.custom.projectile_entity or 'x_bows:arrow_entity'
     def.custom.on_hit_node = def.custom.on_hit_node or nil
     def.custom.on_hit_entity = def.custom.on_hit_entity or nil
@@ -848,25 +847,34 @@ function XBowsEntityDef.on_activate(self, selfObj, staticdata, dtime_s)
     selfObj._is_critical_hit = _staticdata.is_critical_hit
     selfObj._faster_arrows_multiplier = _staticdata.faster_arrows_multiplier
     selfObj._add_damage = _staticdata._add_damage
-
-    local x_bows_registered_arrow_def = self.registered_arrows[selfObj._arrow_name]
-    local x_bows_registered_bow_def = self.registered_bows[selfObj._bow_name]
-
-    selfObj._arrow_particle_effect = x_bows_registered_arrow_def.custom.particle_effect
-    selfObj._arrow_particle_effect_crit = x_bows_registered_arrow_def.custom.particle_effect_crit
-    selfObj._arrow_particle_effect_fast = x_bows_registered_arrow_def.custom.particle_effect_fast
-    selfObj._projectile_textures = x_bows_registered_arrow_def.custom.projectile_textures
-    selfObj._projectile_visual_size = x_bows_registered_arrow_def.custom.projectile_visual_size
-    selfObj._sound_hit = x_bows_registered_bow_def.custom.sound_hit
     selfObj._caused_damage = 0
     selfObj._caused_knockback = 0
 
+    local x_bows_registered_arrow_def = self.registered_arrows[selfObj._arrow_name]
+    selfObj._arrow_particle_effect = x_bows_registered_arrow_def.custom.particle_effect
+    selfObj._arrow_particle_effect_crit = x_bows_registered_arrow_def.custom.particle_effect_crit
+    selfObj._arrow_particle_effect_fast = x_bows_registered_arrow_def.custom.particle_effect_fast
+
+    local x_bows_registered_bow_def = self.registered_bows[selfObj._bow_name]
+    selfObj._sound_hit = x_bows_registered_bow_def.custom.sound_hit
+
+    local x_bows_registered_entity_def = self.registered_entities[selfObj.name]
+    selfObj._rotation_factor = x_bows_registered_entity_def._custom.rotation_factor
+
+    if type(selfObj._rotation_factor) == 'function' then
+        selfObj._rotation_factor = selfObj._rotation_factor()
+    end
+
     selfObj.object:set_properties({
-        textures = selfObj._projectile_textures,
         infotext = selfObj._arrow_name,
-        visual_size = selfObj._projectile_visual_size
     })
 
+
+    if x_bows_registered_entity_def and x_bows_registered_entity_def._custom.animations.idle then
+        selfObj.object:set_animation(unpack(x_bows_registered_entity_def._custom.animations.idle))
+    end
+
+    ---Callbacks
     local on_after_activate_callback = x_bows_registered_arrow_def.custom.on_after_activate
 
     if on_after_activate_callback then
@@ -911,7 +919,7 @@ function XBowsEntityDef.on_step(self, selfObj, dtime)
         selfObj.object:set_rotation({
             x = pitch,
             y = v_rotation.y,
-            z = v_rotation.z + math.pi / 2
+            z = v_rotation.z + (selfObj._rotation_factor or math.pi / 2)
         })
     end
 
@@ -1261,36 +1269,9 @@ function XBowsEntityDef.on_step(self, selfObj, dtime)
                 end
 
                 ---Wiggle
-                local rotation = selfObj.object:get_rotation()
-
-                if rotation then
-                    local wiggle_timer_const = 0.05
-                    local wiggle_timer = 0
-
-                    for i = 1, 3 do
-                        local rotx = rotation.x + math.random(10, 20) / 100
-
-                        if i % 2 == 0 then
-                            rotx = rotation.x - math.random(10, 20) / 100
-                        end
-
-                        local _rotation = {
-                            x = rotx,
-                            y = rotation.y,
-                            z = rotation.z
-                        }
-
-                        if i == 3 then
-                            _rotation = rotation
-                        end
-
-                        wiggle_timer = wiggle_timer + wiggle_timer_const
-
-                        minetest.after(wiggle_timer, function(v_object)
-                            selfObj.object:set_rotation(_rotation)
-                        end, selfObj.object, wiggle_timer)
-                    end
-
+                local x_bows_registered_entity_def = self.registered_entities[selfObj.name]
+                if x_bows_registered_entity_def and x_bows_registered_entity_def._custom.animations.on_hit_node then
+                    selfObj.object:set_animation(unpack(x_bows_registered_entity_def._custom.animations.on_hit_node))
                 end
 
                 ---API callbacks
@@ -1340,20 +1321,21 @@ end
 ---@param name string
 ---@param def XBowsEntityDef
 function XBows.register_entity(self, name, def)
-    if not def._custom then
-        def._custom = {}
-    end
+    def._custom = def._custom or {}
+    def._custom.animations = def._custom.animations or {}
 
     local mod_name = def._custom.mod_name or 'x_bows'
     def._custom.name = mod_name .. ':' .. name
-    def.initial_properties = {
+    def.initial_properties = mergeTables({
+        ---defaults
         visual = 'wielditem',
         collisionbox = {0, 0, 0, 0, 0, 0},
         selectionbox = {0, 0, 0, 0, 0, 0},
         physical = false,
         textures = {'air'},
-        hp_max = 1
-    }
+        hp_max = 1,
+        visual_size = {x = 1, y = 1, z = 1}
+    }, def.initial_properties or {})
 
     def.on_death = function(selfObj, killer)
         return XBowsEntityDef:on_death(selfObj, killer)
@@ -1378,6 +1360,8 @@ function XBows.register_entity(self, name, def)
     if def._custom.on_punch then
         def.on_punch = def._custom.on_punch
     end
+
+    self.registered_entities[def._custom.name] = def
 
     minetest.register_entity(def._custom.name, {
         initial_properties = def.initial_properties,
@@ -1656,7 +1640,7 @@ end
 ---@param quiver_id string
 ---@param player_name string
 ---@param quiver_items? string
----@return InvRef|unknown
+---@return InvRef
 function XBowsQuiver.get_or_create_detached_inv(self, quiver_id, player_name, quiver_items)
     local detached_inv
 

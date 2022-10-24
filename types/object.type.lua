@@ -30,6 +30,7 @@
 ---@field set_wielded_item fun(self: ObjectRef, item: ItemStack): boolean replaces the wielded item, returns `true` if successful.
 ---@field move_to fun(self: ObjectRef, pos: Vector, continuous?: boolean): nil Does an interpolated move for Lua entities for visually smooth transitions. If `continuous` is true, the Lua entity will not be moved to the current position before starting the interpolated move. For players this does the same as `set_pos`,`continuous` is ignored.
 ---@field set_hp fun(self: ObjectRef, hp: number, reason: table): nil set number of health points See reason in register_on_player_hpchange Is limited to the range of 0 ... 65535 (2^16 - 1) For players: HP are also limited by `hp_max` specified in object properties
+---@field set_animation fun(self: ObjectRef, frame_range?: {["x"]: number, ["y"]: number}, frame_speed?: number, frame_blend?: number, frame_loop?: boolean): nil `frame_range`: table {x=num, y=num}, default: `{x=1, y=1}`, `frame_speed`: number, default: `15.0`, `frame_blend`: number, default: `0.0`, `frame_loop`: boolean, default: `true`
 
 ---Moving things in the game are generally these.
 ---This is basically a reference to a C++ `ServerActiveObject`.

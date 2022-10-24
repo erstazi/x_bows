@@ -50,7 +50,7 @@ function XBowsQuiver.udate_or_create_hud(self, player, inv_list, idx) end
 -- @param quiver_id string
 -- @param player_name string
 -- @param quiver_items? string
--- @return InvRef|unknown
+-- @return InvRef
 function XBowsQuiver.get_or_create_detached_inv(self, quiver_id, player_name, quiver_items) end
 
 ---Create formspec

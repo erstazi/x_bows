@@ -9,6 +9,7 @@
 ---@field registered_arrows table<string, ItemDef|ArrowItemDefCustom>
 ---@field registered_quivers table<string, ItemDef|QuiverItemDefCustom>
 ---@field registered_particle_spawners table<string, ParticlespawnerDef|ParticlespawnerDefCustom>
+---@field registered_entities table<string, XBowsEntityDef>
 ---@field player_bow_sneak table<string, table<string, boolean>>
 ---@field settings table
 ---@field quiver table Quiver class
@@ -34,7 +35,7 @@
 ---@field hud_item_ids table
 ---@field after_job table<string, JobTable>
 ---@field udate_or_create_hud fun(self: XBowsQuiver, player: ObjectRef, inv_list: ItemStack[], idx?: number): nil Update or create quiver HUD
----@field get_or_create_detached_inv fun(self: XBowsQuiver, quiver_id: string, player_name: string, quiver_items?: string): InvRef|unknown Get existing detached inventory or create new one
+---@field get_or_create_detached_inv fun(self: XBowsQuiver, quiver_id: string, player_name: string, quiver_items?: string): InvRef Get existing detached inventory or create new one
 ---@field save fun(self: XBowsQuiver, inv: InvRef, player: ObjectRef, quiver_is_closed?: boolean): nil Save quiver inventory to itemstack meta
 ---@field close_quiver fun(self: XBowsQuiver, player: ObjectRef, quiver_id?: string): nil Close one or all open quivers in players inventory
 ---@field get_replacement_item fun(self: XBowsQuiver, from_stack: ItemStack, to_item_name: string): ItemStack Swap item in player inventory indicating open quiver. Preserve all ItemStack definition and meta.
@@ -101,8 +102,6 @@
 ---@field particle_effect string|nil
 ---@field particle_effect_crit string|nil
 ---@field particle_effect_fast string|nil
----@field projectile_textures table|nil
----@field projectile_visual_size table
 ---@field projectile_entity string
 ---@field on_hit_node fun(self: table, pointed_thing_ref: table)
 ---@field on_hit_entity fun(self: table, pointed_thing_ref: table)
@@ -137,3 +136,10 @@
 ---@class EntityDefCustomAttrDef
 ---@field name string
 ---@field mod_name string
+---@field animations EntityAnimationDef
+---@field rotation_factor number|fun(): number
+
+---Entity animation definition
+---@class EntityAnimationDef
+---@field idle {frame_range?: {["x"]: number, ["y"]: number}, frame_speed?: number, frame_blend?: number, frame_loop?: boolean}
+---@field on_hit_node {frame_range?: {["x"]: number, ["y"]: number}, frame_speed?: number, frame_blend?: number, frame_loop?: boolean}

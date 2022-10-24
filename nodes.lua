@@ -1,14 +1,3 @@
-minetest.register_node('x_bows:arrow_node', {
-    drawtype = 'mesh',
-    mesh = 'x_bows_arrow.obj',
-    tiles = {'x_bows_arrow_mesh.png'},
-    groups = {not_in_creative_inventory=1},
-    sunlight_propagates = true,
-    paramtype = 'light',
-    collision_box = {0, 0, 0, 0, 0, 0},
-    selection_box = {0, 0, 0, 0, 0, 0}
-})
-
 minetest.register_node('x_bows:target', {
     description = 'Target',
     tiles = {'x_bows_target.png'},
