@@ -1,8 +1,8 @@
 XBows:register_particle_effect('arrow', {
     amount = 1,
     time = 0.1,
-    minexptime = 1,
-    maxexptime = 1,
+    minexptime = 0.5,
+    maxexptime = 0.5,
     minsize = 2,
     maxsize = 2,
     texture = 'x_bows_arrow_particle.png',
@@ -12,11 +12,15 @@ XBows:register_particle_effect('arrow', {
         aspect_h = 8,
         length = 1,
     },
-    glow = 1
+    glow = 1,
+    minvel = {x = 0, y = -0.1, z = 0},
+    maxvel = {x = 0, y = -0.1, z = 0},
+    minacc = {x = 0, y = -0.1, z = 0},
+    maxacc = {x = 0, y = -0.1, z = 0}
 })
 
 XBows:register_particle_effect('arrow_crit', {
-    amount = 3,
+    amount = 1,
     time = 0.1,
     minexptime = 0.5,
     maxexptime = 0.5,
@@ -29,11 +33,15 @@ XBows:register_particle_effect('arrow_crit', {
         aspect_h = 8,
         length = 1,
     },
-    glow = 1
+    glow = 1,
+    minvel = {x = 0, y = -0.1, z = 0},
+    maxvel = {x = 0, y = -0.1, z = 0},
+    minacc = {x = 0, y = -0.1, z = 0},
+    maxacc = {x = 0, y = -0.1, z = 0}
 })
 
 XBows:register_particle_effect('arrow_fast', {
-    amount = 3,
+    amount = 1,
     time = 0.1,
     minexptime = 0.5,
     maxexptime = 0.5,
@@ -46,7 +54,11 @@ XBows:register_particle_effect('arrow_fast', {
         aspect_h = 8,
         length = 1,
     },
-    glow = 1
+    glow = 1,
+    minvel = {x = 0, y = -0.1, z = 0},
+    maxvel = {x = 0, y = -0.1, z = 0},
+    minacc = {x = 0, y = -0.1, z = 0},
+    maxacc = {x = 0, y = -0.1, z = 0}
 })
 
 XBows:register_particle_effect('bubble', {

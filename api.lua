@@ -197,6 +197,7 @@ function XBows.register_bow(self, name, def, override)
         inventory_image = def.inventory_image or 'x_bows_bow_wood.png',
         wield_image = def.wield_image or def.inventory_image,
         groups = def.groups,
+        wield_scale = {x = 2, y = 2, z = 1.5},
         ---@param itemstack ItemStack
         ---@param placer ObjectRef|nil
         ---@param pointed_thing PointedThingDef
@@ -223,6 +224,7 @@ function XBows.register_bow(self, name, def, override)
         inventory_image = def.custom.inventory_image_charged or 'x_bows_bow_wood_charged.png',
         wield_image = def.custom.wield_image_charged or def.custom.inventory_image_charged,
         groups = def.custom.groups_charged,
+        wield_scale = {x = 2, y = 2, z = 1.5},
         ---@param itemstack ItemStack
         ---@param user ObjectRef|nil
         ---@param pointed_thing PointedThingDef
@@ -1334,7 +1336,8 @@ function XBows.register_entity(self, name, def)
         physical = false,
         textures = {'air'},
         hp_max = 1,
-        visual_size = {x = 1, y = 1, z = 1}
+        visual_size = {x = 1, y = 1, z = 1},
+        glow = 1
     }, def.initial_properties or {})
 
     def.on_death = function(selfObj, killer)

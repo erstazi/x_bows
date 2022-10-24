@@ -46,6 +46,7 @@ minetest.register_globalstep(function(dtime)
             end
 
             if minetest.get_item_group(wielded_stack_name, 'bow_charged') ~= 0 and not XBows.player_bow_sneak[player_name].sneak then
+                --charged weapon
                 if XBows.playerphysics then
                     playerphysics.add_physics_factor(player, 'speed', 'x_bows:bow_charged_speed', 0.25)
                 elseif XBows.player_monoids then
