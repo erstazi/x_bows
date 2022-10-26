@@ -1,3 +1,5 @@
+sfinv = sfinv--[[@as Sfinv]]
+
 ---Check if table contains value
 ---@param table table
 ---@param value string|number
@@ -286,11 +288,15 @@ function XBows.register_arrow(self, name, def)
     local mod_name = def.custom.mod_name or 'x_bows'
     def.custom.name = mod_name .. ':' .. name
     def.description = def.description or name
+    def.short_description = def.short_description or name
     def.custom.tool_capabilities = def.custom.tool_capabilities or {
         full_punch_interval = 1,
         max_drop_level = 0,
         damage_groups = {fleshy=2}
     }
+    def.custom.description_abilities = minetest.colorize('#00FF00', 'Damage: '
+        .. def.custom.tool_capabilities.damage_groups.fleshy) .. '\n' .. minetest.colorize('#00BFFF', 'Charge Time: '
+        .. def.custom.tool_capabilities.full_punch_interval .. 's')
     def.groups = mergeTables({arrow = 1, flammable = 1}, def.groups or {})
     def.custom.particle_effect = def.custom.particle_effect or 'arrow'
     def.custom.particle_effect_crit = def.custom.particle_effect_crit or 'arrow_crit'
@@ -304,10 +310,8 @@ function XBows.register_arrow(self, name, def)
     self.registered_arrows[def.custom.name] = def
 
     minetest.register_craftitem(def.custom.name, {
-        description = def.description .. '\n' .. minetest.colorize('#00FF00', 'Damage: '
-            .. def.custom.tool_capabilities.damage_groups.fleshy) .. '\n' .. minetest.colorize('#00BFFF', 'Charge Time: '
-            .. def.custom.tool_capabilities.full_punch_interval .. 's'),
-        short_description = def.description,
+        description = def.description .. '\n' .. def.custom.description_abilities,
+        short_description = def.short_description,
         inventory_image = def.inventory_image,
         groups = def.groups
     })
@@ -1814,12 +1818,25 @@ end
 ---@param quiver_is_closed? boolean
 ---@return nil
 function XBowsQuiver.save(self, inv, player, quiver_is_closed)
-    local player_inv = player:get_inventory()
+    local player_inv = player:get_inventory()--[[@as InvRef]]
     local inv_loc = inv:get_location()
     local quiver_item_name = quiver_is_closed and 'x_bows:quiver' or 'x_bows:quiver_open'
+    local player_quiver_inv_stack = player_inv:get_stack('x_bows:quiver_inv', 1)
 
-    ---find matching quiver item in players inventory with the open formspec name
-    if player_inv and player_inv:contains_item('main', quiver_item_name) then
+    if not player_quiver_inv_stack:is_empty() and player_quiver_inv_stack:get_meta():get_string('quiver_id') == inv_loc.name then
+        local st_meta = player_quiver_inv_stack:get_meta()
+        ---save inventory items in quiver item meta
+        local string_from_inventory_result = self:get_string_from_inv(inv)
+
+        st_meta:set_string('quiver_items', string_from_inventory_result.inv_string)
+
+        ---update description
+        local new_description = player_quiver_inv_stack:get_short_description()..'\n'..string_from_inventory_result.content_description..'\n'
+
+        st_meta:set_string('description', new_description)
+        player_inv:set_stack('x_bows:quiver_inv', 1, player_quiver_inv_stack)
+    elseif player_inv and player_inv:contains_item('main', quiver_item_name) then
+        ---find matching quiver item in players inventory with the open formspec name
         local inv_list = player_inv:get_list('main')
 
         for i, st in ipairs(inv_list) do
@@ -1849,11 +1866,16 @@ end
 ---@param player ObjectRef
 ---@return boolean
 function XBowsQuiver.quiver_can_allow(self, inv, player)
-    local player_inv = player:get_inventory()
+    local player_inv = player:get_inventory()--[[@as InvRef]]
     local inv_loc = inv:get_location()
+    local player_quiver_inv_stack = player_inv:get_stack('x_bows:quiver_inv', 1)
 
-    ---find matching quiver item in players inventory with the open formspec name
-    if player_inv and player_inv:contains_item('main', 'x_bows:quiver_open') then
+    if not player_quiver_inv_stack:is_empty() and player_quiver_inv_stack:get_meta():get_string('quiver_id') == inv_loc.name then
+        ---find quiver in player `quiver_inv` inv list
+        return true
+    elseif player_inv and player_inv:contains_item('main', 'x_bows:quiver_open') then
+        ---find quiver in player `main` inv list
+        ---matching quiver item in players inventory with the open formspec name
         local inv_list = player_inv:get_list('main')
 
         for i, st in ipairs(inv_list) do
@@ -1900,4 +1922,212 @@ function XBows.open_quiver(self, itemstack, user)
 
     minetest.show_formspec(pname, quiver_id, XBowsQuiver:get_formspec(quiver_id))
     return itemstack
+end
+
+---Register sfinv page
+---@param self XBowsQuiver
+function XBowsQuiver.sfinv_register_page(self)
+    sfinv.register_page('x_bows:quiver_page', {
+        title = 'X Bows',
+        get = function(this, player, context)
+            local formspec = {
+                ---arrow
+                'label[0,0;Arrows you are wearing:]',
+                'list[current_player;x_bows:arrow_inv;0,0.5;1,1;]',
+                'image[0,0.5;1,1;x_bows_arrow_slot.png;]',
+                'listring[current_player;x_bows:arrow_inv]',
+                'listring[current_player;main]',
+                ---quiver
+                'label[0,1.5;Quiver you are wearing:]',
+                'list[current_player;x_bows:quiver_inv;0,2;1,1;]',
+                'image[0,2;1,1;x_bows_quiver_slot.png]',
+                'listring[current_player;x_bows:quiver_inv]',
+                'listring[current_player;main]',
+            }
+
+            if not context._itemstack_arrow then
+                context._itemstack_arrow = player:get_inventory():get_stack('x_bows:arrow_inv', 1)
+            end
+
+            if not context._itemstack_quiver then
+                context._itemstack_quiver = player:get_inventory():get_stack('x_bows:quiver_inv', 1)
+            end
+
+            if context._itemstack_arrow and not context._itemstack_arrow:is_empty() then
+                local x_bows_registered_arrow_def = self.registered_arrows[context._itemstack_arrow:get_name()]
+
+                if x_bows_registered_arrow_def then
+                    formspec[#formspec + 1] = 'label[2.5,0;' .. minetest.formspec_escape(context._itemstack_arrow:get_short_description()) .. '\n'.. minetest.formspec_escape(x_bows_registered_arrow_def.custom.description_abilities) ..']'
+                end
+            end
+
+
+            if context._itemstack_quiver and not context._itemstack_quiver:is_empty() then
+                local st_meta = context._itemstack_quiver:get_meta()
+                local quiver_id = st_meta:get_string('quiver_id')
+
+                ---description
+                formspec[#formspec + 1] = 'label[2.5,1.5;' .. minetest.formspec_escape(context._itemstack_quiver:get_short_description()) .. ']'
+                formspec[#formspec + 1] = 'list[detached:'..quiver_id..';main;0,3.2;3,1;]'
+                formspec[#formspec + 1] = 'listring[detached:'..quiver_id..';main]'
+                formspec[#formspec + 1] = 'listring[current_player;main]'
+            end
+
+            return sfinv.make_formspec(player, context, table.concat(formspec, ''), true)
+        end,
+        on_enter = function(this, player, context)
+            if not context._itemstack_quiver then
+                context._itemstack_quiver = player:get_inventory():get_stack('x_bows:quiver_inv', 1)
+            end
+
+            if context._itemstack_quiver and not context._itemstack_quiver:is_empty() then
+                local st_meta = context._itemstack_quiver:get_meta()
+                local quiver_id = st_meta:get_string('quiver_id')
+
+                self:get_or_create_detached_inv(
+                    quiver_id,
+                    player:get_player_name(),
+                    st_meta:get_string('quiver_items')
+                )
+            end
+        end
+    })
+
+    minetest.register_allow_player_inventory_action(function(player, action, inventory, inventory_info)
+        ---arrow inventory
+        if action == 'move' and inventory_info.to_list == 'x_bows:arrow_inv' then
+            local stack = inventory:get_stack(inventory_info.from_list, inventory_info.from_index)
+
+            if minetest.get_item_group(stack:get_name(), 'arrow') ~= 0 then
+                return inventory_info.count
+            else
+                return 0
+            end
+        elseif action == 'move' and inventory_info.from_list == 'x_bows:arrow_inv' then
+            local stack = inventory:get_stack(inventory_info.from_list, inventory_info.from_index)
+
+            if minetest.get_item_group(stack:get_name(), 'arrow') ~= 0 then
+                return inventory_info.count
+            else
+                return 0
+            end
+        elseif action == 'put' and inventory_info.listname == 'x_bows:arrow_inv' then
+            if minetest.get_item_group(inventory_info.stack:get_name(), 'arrow') ~= 0 then
+                return inventory_info.stack:get_count()
+            else
+                return 0
+            end
+        elseif action == 'take' and inventory_info.listname == 'x_bows:arrow_inv' then
+            if minetest.get_item_group(inventory_info.stack:get_name(), 'arrow') ~= 0 then
+                return inventory_info.stack:get_count()
+            else
+                return 0
+            end
+        end
+
+        ---quiver inventory
+        if action == 'move' and inventory_info.to_list == 'x_bows:quiver_inv' then
+            local stack = inventory:get_stack(inventory_info.from_list, inventory_info.from_index)
+            if minetest.get_item_group(stack:get_name(), 'quiver') ~= 0 then
+                return inventory_info.count
+            else
+                return 0
+            end
+        elseif action == 'move' and inventory_info.from_list == 'x_bows:quiver_inv' then
+            local stack = inventory:get_stack(inventory_info.from_list, inventory_info.from_index)
+            if minetest.get_item_group(stack:get_name(), 'quiver') ~= 0 then
+                return inventory_info.count
+            else
+                return 0
+            end
+        elseif action == 'put' and inventory_info.listname == 'x_bows:quiver_inv' then
+            if minetest.get_item_group(inventory_info.stack:get_name(), 'quiver') ~= 0 then
+                return inventory_info.stack:get_count()
+            else
+                return 0
+            end
+        elseif action == 'take' and inventory_info.listname == 'x_bows:quiver_inv' then
+            if minetest.get_item_group(inventory_info.stack:get_name(), 'quiver') ~= 0 then
+                return inventory_info.stack:get_count()
+            else
+                return 0
+            end
+        end
+
+        return inventory_info.count or inventory_info.stack:get_count()
+    end)
+
+    minetest.register_on_player_inventory_action(function(player, action, inventory, inventory_info)
+        ---arrow
+        if action == 'move' and inventory_info.to_list == 'x_bows:arrow_inv' then
+            local stack = inventory:get_stack(inventory_info.to_list, inventory_info.to_index)
+            local context = sfinv.get_or_create_context(player)
+            context._itemstack_arrow = stack
+            sfinv.set_context(player, context)
+            sfinv.set_player_inventory_formspec(player)
+        elseif action == 'move' and inventory_info.from_list == 'x_bows:arrow_inv' then
+            local stack = inventory:get_stack(inventory_info.from_list, inventory_info.from_index)
+            local context = sfinv.get_or_create_context(player)
+
+            context._itemstack_arrow = stack
+            sfinv.set_context(player, context)
+            sfinv.set_player_inventory_formspec(player)
+        elseif action == 'put' and inventory_info.listname == 'x_bows:arrow_inv' then
+            local context = sfinv.get_or_create_context(player)
+
+            context._itemstack_arrow = inventory_info.stack
+            sfinv.set_context(player, context)
+            sfinv.set_player_inventory_formspec(player)
+        elseif action == 'take' and inventory_info.listname == 'x_bows:arrow_inv' then
+            local context = sfinv.get_or_create_context(player)
+            context._itemstack_arrow = nil
+            sfinv.set_context(player, context)
+            sfinv.set_player_inventory_formspec(player)
+        end
+
+        ---quiver
+        if action == 'move' and inventory_info.to_list == 'x_bows:quiver_inv' then
+            local stack = inventory:get_stack(inventory_info.to_list, inventory_info.to_index)
+            local context = sfinv.get_or_create_context(player)
+            local st_meta = stack:get_meta()
+            local player_name = player:get_player_name()
+            local quiver_id = st_meta:get_string('quiver_id')
+
+            if quiver_id == '' then
+                quiver_id = stack:get_name()..'_'..uuid()
+                st_meta:set_string('quiver_id', quiver_id)
+                inventory:set_stack(inventory_info.to_list, inventory_info.to_index, stack)
+            end
+
+            self:get_or_create_detached_inv(
+                quiver_id,
+                player_name,
+                st_meta:get_string('quiver_items')
+            )
+
+            context._itemstack_quiver = stack
+            sfinv.set_context(player, context)
+            sfinv.set_player_inventory_formspec(player)
+        elseif action == 'move' and inventory_info.from_list == 'x_bows:quiver_inv' then
+            local stack = inventory:get_stack(inventory_info.from_list, inventory_info.from_index)
+            local context = sfinv.get_or_create_context(player)
+
+            context._itemstack_quiver = stack
+            sfinv.set_context(player, context)
+            sfinv.set_player_inventory_formspec(player)
+        elseif action == 'put' and inventory_info.listname == 'x_bows:quiver_inv' then
+            local context = sfinv.get_or_create_context(player)
+
+            if minetest.get_item_group(inventory_info.stack:get_name(), 'quiver') ~= 0 then
+                context._itemstack_quiver = inventory_info.stack
+                sfinv.set_context(player, context)
+                sfinv.set_player_inventory_formspec(player)
+            end
+        elseif action == 'take' and inventory_info.listname == 'x_bows:quiver_inv' then
+            local context = sfinv.get_or_create_context(player)
+            context._itemstack_quiver = nil
+            sfinv.set_context(player, context)
+            sfinv.set_player_inventory_formspec(player)
+        end
+    end)
 end

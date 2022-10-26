@@ -5,6 +5,7 @@ minetest = minetest--[[@as Minetest]]
 ItemStack = ItemStack--[[@as ItemStack]]
 vector = vector--[[@as Vector]]
 default = default--[[@as MtgDefault]]
+sfinv = sfinv--[[@as Sfinv]]
 
 math.randomseed(tonumber(tostring(os.time()):reverse():sub(1, 9))--[[@as number]])
 
@@ -18,6 +19,16 @@ dofile(path .. '/nodes.lua')
 dofile(path .. '/arrow.lua')
 dofile(path .. '/items.lua')
 dofile(path .. '/quiver.lua')
+
+XBowsQuiver:sfinv_register_page()
+
+minetest.register_on_joinplayer(function(player)
+    local inv_quiver = player:get_inventory()--[[@as InvRef]]
+    local inv_arrow = player:get_inventory()--[[@as InvRef]]
+
+    inv_quiver:set_size('x_bows:quiver_inv', 1 * 1)
+    inv_arrow:set_size('x_bows:arrow_inv', 1 * 1)
+end)
 
 ---backwards compatibility
 minetest.register_alias('x_bows:arrow_diamond_tipped_poison', 'x_bows:arrow_diamond')

@@ -107,6 +107,7 @@
 ---@field on_hit_entity fun(self: table, pointed_thing_ref: table)
 ---@field on_hit_player fun(self: table, pointed_thing_ref: table)
 ---@field on_after_activate fun(self: table)
+---@field description_abilities string
 
 
 ---Custom field in ItemDef
