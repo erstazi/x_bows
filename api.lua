@@ -1934,15 +1934,15 @@ function XBowsQuiver.sfinv_register_page(self)
         get = function(this, player, context)
             local formspec = {
                 ---arrow
-                'label[0,0;Arrows you are holding:]',
+                'label[0,0;Arrows:]',
                 'list[current_player;x_bows:arrow_inv;0,0.5;1,1;]',
                 'image[0,0.5;1,1;x_bows_arrow_slot.png;]',
                 'listring[current_player;x_bows:arrow_inv]',
                 'listring[current_player;main]',
                 ---quiver
-                'label[2.5,0;Quiver you are wearing:]',
-                'list[current_player;x_bows:quiver_inv;2.5,0.5;1,1;]',
-                'image[2.5,0.5;1,1;x_bows_quiver_slot.png]',
+                'label[3.5,0;Quiver:]',
+                'list[current_player;x_bows:quiver_inv;3.5,0.5;1,1;]',
+                'image[3.5,0.5;1,1;x_bows_quiver_slot.png]',
                 'listring[current_player;x_bows:quiver_inv]',
                 'listring[current_player;main]',
             }
@@ -1965,8 +1965,8 @@ function XBowsQuiver.sfinv_register_page(self)
                 local quiver_id = st_meta:get_string('quiver_id')
 
                 ---description
-                formspec[#formspec + 1] = 'label[2.5,1.5;' .. minetest.formspec_escape(context._itemstack_quiver:get_short_description()) .. ']'
-                formspec[#formspec + 1] = 'list[detached:'..quiver_id..';main;3.5,0.5;3,1;]'
+                formspec[#formspec + 1] = 'label[3.5,1.5;' .. minetest.formspec_escape(context._itemstack_quiver:get_short_description()) .. ']'
+                formspec[#formspec + 1] = 'list[detached:'..quiver_id..';main;4.5,0.5;3,1;]'
                 formspec[#formspec + 1] = 'listring[detached:'..quiver_id..';main]'
                 formspec[#formspec + 1] = 'listring[current_player;main]'
             end
@@ -1983,13 +1983,13 @@ function XBowsQuiver.i3_register_page(self)
         formspec = function(player, data, fs)
             local formspec = {
                 ---arrow
-                'label[1,1;Arrows you are holding:]',
-                'list[current_player;x_bows:arrow_inv;1,1.5;1,1;]',
+                'label[0.5,1;Arrows:]',
+                'list[current_player;x_bows:arrow_inv;0.5,1.5;1,1;]',
                 'listring[current_player;x_bows:arrow_inv]',
                 'listring[current_player;main]',
                 ---quiver
-                'label[3,1;Quiver you are wearing:]',
-                'list[current_player;x_bows:quiver_inv;3,1.5;1,1;]',
+                'label[5,1;Quiver:]',
+                'list[current_player;x_bows:quiver_inv;5,1.5;1,1;]',
                 'listring[current_player;x_bows:quiver_inv]',
                 'listring[current_player;main]',
                 ---main
@@ -2022,7 +2022,7 @@ function XBowsQuiver.i3_register_page(self)
                 local x_bows_registered_arrow_def = self.registered_arrows[context._itemstack_arrow:get_name()]
 
                 if x_bows_registered_arrow_def then
-                    formspec[#formspec + 1] = 'label[1,3;' .. minetest.formspec_escape(context._itemstack_arrow:get_short_description()) .. '\n'.. minetest.formspec_escape(x_bows_registered_arrow_def.custom.description_abilities) ..']'
+                    formspec[#formspec + 1] = 'label[0.5,3;' .. minetest.formspec_escape(context._itemstack_arrow:get_short_description()) .. '\n'.. minetest.formspec_escape(x_bows_registered_arrow_def.custom.description_abilities) ..']'
                 end
             end
 
@@ -2032,13 +2032,15 @@ function XBowsQuiver.i3_register_page(self)
                 local quiver_id = st_meta:get_string('quiver_id')
 
                 ---description
-                formspec[#formspec + 1] = 'label[3,3;' .. minetest.formspec_escape(context._itemstack_quiver:get_short_description()) .. ']'
-                formspec[#formspec + 1] = 'list[detached:'..quiver_id..';main;4.5,1.5;3,1;]'
+                formspec[#formspec + 1] = 'label[5,3;' .. minetest.formspec_escape(context._itemstack_quiver:get_short_description()) .. ']'
+                formspec[#formspec + 1] = 'list[detached:'..quiver_id..';main;6.3,1.5;3,1;]'
                 formspec[#formspec + 1] = 'listring[detached:'..quiver_id..';main]'
                 formspec[#formspec + 1] = 'listring[current_player;main]'
             end
 
-            fs(table.concat(formspec, ''))
+            formspec = table.concat(formspec, '')
+
+            fs(formspec)
         end
     })
 end
@@ -2051,15 +2053,15 @@ function XBowsQuiver.ui_register_page(self)
                 unified_inventory.style_full.standard_inv_bg,
                 'listcolors[#00000000;#00000000]',
                 ---arrow
-                'label[0.5,0.5;Arrows you are holding:]',
+                'label[0.5,0.5;Arrows:]',
                 unified_inventory.single_slot(0.4,0.9),
                 'list[current_player;x_bows:arrow_inv;0.5,1;1,1;]',
                 'listring[current_player;x_bows:arrow_inv]',
                 'listring[current_player;main]',
                 ---quiver
-                'label[3,0.5;Quiver you are wearing:]',
-                unified_inventory.single_slot(2.9,0.9),
-                'list[current_player;x_bows:quiver_inv;3,1;1,1;]',
+                'label[5,0.5;Quiver:]',
+                unified_inventory.single_slot(4.9,0.9),
+                'list[current_player;x_bows:quiver_inv;5,1;1,1;]',
                 'listring[current_player;x_bows:quiver_inv]',
                 'listring[current_player;main]',
             }
@@ -2082,11 +2084,11 @@ function XBowsQuiver.ui_register_page(self)
                 local quiver_id = st_meta:get_string('quiver_id')
 
                 ---description
-                formspec[#formspec + 1] = 'label[3,2.5;' .. minetest.formspec_escape(context._itemstack_quiver:get_short_description()) .. ']'
-                formspec[#formspec + 1] = unified_inventory.single_slot(4.4,0.9)
-                formspec[#formspec + 1] = unified_inventory.single_slot(5.65,0.9)
-                formspec[#formspec + 1] = unified_inventory.single_slot(6.9,0.9)
-                formspec[#formspec + 1] = 'list[detached:'..quiver_id..';main;4.5,1;3,1;]'
+                formspec[#formspec + 1] = 'label[5,2.5;' .. minetest.formspec_escape(context._itemstack_quiver:get_short_description()) .. ']'
+                formspec[#formspec + 1] = unified_inventory.single_slot(6.4,0.9)
+                formspec[#formspec + 1] = unified_inventory.single_slot(7.65,0.9)
+                formspec[#formspec + 1] = unified_inventory.single_slot(8.9,0.9)
+                formspec[#formspec + 1] = 'list[detached:'..quiver_id..';main;6.5,1;3,1;]'
                 formspec[#formspec + 1] = 'listring[detached:'..quiver_id..';main]'
                 formspec[#formspec + 1] = 'listring[current_player;main]'
             end
