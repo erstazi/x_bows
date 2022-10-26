@@ -21,9 +21,9 @@ dofile(path .. '/items.lua')
 dofile(path .. '/quiver.lua')
 
 
-if minetest.get_modpath('i3') then
+if XBows.i3 then
     XBowsQuiver:i3_register_page()
-elseif minetest.get_modpath('unified_inventory') then
+elseif XBows.unified_inventory then
     XBowsQuiver:ui_register_page()
 else
     XBowsQuiver:sfinv_register_page()
@@ -47,6 +47,162 @@ minetest.register_on_joinplayer(function(player)
             player:get_player_name(),
             st_meta:get_string('quiver_items')
         )
+    end
+end)
+
+---formspec callbacks
+minetest.register_allow_player_inventory_action(function(player, action, inventory, inventory_info)
+    ---arrow inventory
+    if action == 'move' and inventory_info.to_list == 'x_bows:arrow_inv' then
+        local stack = inventory:get_stack(inventory_info.from_list, inventory_info.from_index)
+
+        if minetest.get_item_group(stack:get_name(), 'arrow') ~= 0 then
+            return inventory_info.count
+        else
+            return 0
+        end
+    elseif action == 'move' and inventory_info.from_list == 'x_bows:arrow_inv' then
+        local stack = inventory:get_stack(inventory_info.from_list, inventory_info.from_index)
+
+        if minetest.get_item_group(stack:get_name(), 'arrow') ~= 0 then
+            return inventory_info.count
+        else
+            return 0
+        end
+    elseif action == 'put' and inventory_info.listname == 'x_bows:arrow_inv' then
+        if minetest.get_item_group(inventory_info.stack:get_name(), 'arrow') ~= 0 then
+            return inventory_info.stack:get_count()
+        else
+            return 0
+        end
+    elseif action == 'take' and inventory_info.listname == 'x_bows:arrow_inv' then
+        if minetest.get_item_group(inventory_info.stack:get_name(), 'arrow') ~= 0 then
+            return inventory_info.stack:get_count()
+        else
+            return 0
+        end
+    end
+
+    ---quiver inventory
+    if action == 'move' and inventory_info.to_list == 'x_bows:quiver_inv' then
+        local stack = inventory:get_stack(inventory_info.from_list, inventory_info.from_index)
+        if minetest.get_item_group(stack:get_name(), 'quiver') ~= 0 then
+            return inventory_info.count
+        else
+            return 0
+        end
+    elseif action == 'move' and inventory_info.from_list == 'x_bows:quiver_inv' then
+        local stack = inventory:get_stack(inventory_info.from_list, inventory_info.from_index)
+        if minetest.get_item_group(stack:get_name(), 'quiver') ~= 0 then
+            return inventory_info.count
+        else
+            return 0
+        end
+    elseif action == 'put' and inventory_info.listname == 'x_bows:quiver_inv' then
+        if minetest.get_item_group(inventory_info.stack:get_name(), 'quiver') ~= 0 then
+            return inventory_info.stack:get_count()
+        else
+            return 0
+        end
+    elseif action == 'take' and inventory_info.listname == 'x_bows:quiver_inv' then
+        if minetest.get_item_group(inventory_info.stack:get_name(), 'quiver') ~= 0 then
+            return inventory_info.stack:get_count()
+        else
+            return 0
+        end
+    end
+
+    return inventory_info.count or inventory_info.stack:get_count()
+end)
+
+minetest.register_on_player_inventory_action(function(player, action, inventory, inventory_info)
+    ---arrow
+    if action == 'move' and inventory_info.to_list == 'x_bows:arrow_inv' then
+        if XBows.i3 then
+            i3.set_fs(player)
+        elseif XBows.unified_inventory then
+            unified_inventory.set_inventory_formspec(player, 'x_bows:quiver_page')
+        else
+            sfinv.set_player_inventory_formspec(player)
+        end
+    elseif action == 'move' and inventory_info.from_list == 'x_bows:arrow_inv' then
+        if XBows.i3 then
+            i3.set_fs(player)
+        elseif XBows.unified_inventory then
+            unified_inventory.set_inventory_formspec(player, 'x_bows:quiver_page')
+        else
+            sfinv.set_player_inventory_formspec(player)
+        end
+    elseif action == 'put' and inventory_info.listname == 'x_bows:arrow_inv' then
+        if XBows.i3 then
+            i3.set_fs(player)
+        elseif XBows.unified_inventory then
+            unified_inventory.set_inventory_formspec(player, 'x_bows:quiver_page')
+        else
+            sfinv.set_player_inventory_formspec(player)
+        end
+    elseif action == 'take' and inventory_info.listname == 'x_bows:arrow_inv' then
+        if XBows.i3 then
+            i3.set_fs(player)
+        elseif XBows.unified_inventory then
+            unified_inventory.set_inventory_formspec(player, 'x_bows:quiver_page')
+        else
+            sfinv.set_player_inventory_formspec(player)
+        end
+    end
+
+    ---quiver
+    if action == 'move' and inventory_info.to_list == 'x_bows:quiver_inv' then
+        local stack = inventory:get_stack(inventory_info.to_list, inventory_info.to_index)
+
+        ---init detached inventory if not already
+        local st_meta = stack:get_meta()
+        local quiver_id = st_meta:get_string('quiver_id')
+
+        if quiver_id == '' then
+            quiver_id = stack:get_name()..'_'..XBows.uuid()
+            st_meta:set_string('quiver_id', quiver_id)
+            inventory:set_stack(inventory_info.to_list, inventory_info.to_index, stack)
+        end
+
+        XBowsQuiver:get_or_create_detached_inv(
+            quiver_id,
+            player:get_player_name(),
+            st_meta:get_string('quiver_items')
+        )
+
+        if XBows.i3 then
+            i3.set_fs(player)
+        elseif XBows.unified_inventory then
+            unified_inventory.set_inventory_formspec(player, 'x_bows:quiver_page')
+        else
+            sfinv.set_player_inventory_formspec(player)
+        end
+
+    elseif action == 'move' and inventory_info.from_list == 'x_bows:quiver_inv' then
+        if XBows.i3 then
+            i3.set_fs(player)
+        elseif XBows.unified_inventory then
+            unified_inventory.set_inventory_formspec(player, 'x_bows:quiver_page')
+        else
+            sfinv.set_player_inventory_formspec(player)
+        end
+    elseif action == 'put' and inventory_info.listname == 'x_bows:quiver_inv' then
+        if XBows.i3 then
+            i3.set_fs(player)
+        elseif XBows.unified_inventory then
+            unified_inventory.set_inventory_formspec(player, 'x_bows:quiver_page')
+        else
+            sfinv.set_player_inventory_formspec(player)
+        end
+    elseif action == 'take' and inventory_info.listname == 'x_bows:quiver_inv' then
+        if XBows.i3 then
+            i3.set_fs(player)
+        elseif XBows.unified_inventory then
+            unified_inventory.set_inventory_formspec(player, 'x_bows:quiver_page')
+        else
+            sfinv.set_player_inventory_formspec(player)
+        end
     end
 end)
 

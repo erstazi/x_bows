@@ -27,6 +27,7 @@
 ---@field shoot fun(self: XBows, itemstack: ItemStack, user: ObjectRef, pointed_thing?: PointedThingDef): ItemStack Shoot bow
 ---@field register_particle_effect fun(self: XBows, name: string, def: ParticlespawnerDef|ParticlespawnerDefCustom): nil Add new particle to XBow registration
 ---@field open_quiver fun(self: XBowsQuiver, itemstack: ItemStack, user: ObjectRef): ItemStack Open quiver
+---@field uuid fun(): string Creates UUID
 
 
 ---XBowsQuiver class extended from XBows
