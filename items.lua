@@ -23,6 +23,7 @@ XBows:register_bow('bow_wood', {
 
 XBows:register_arrow('arrow_wood', {
     description = 'Arrow Wood',
+    short_description = 'Arrow Wood',
     inventory_image = 'x_bows_arrow_wood.png',
     custom = {
         recipe = {
@@ -41,6 +42,7 @@ XBows:register_arrow('arrow_wood', {
 
 XBows:register_arrow('arrow_stone', {
     description = 'Arrow Stone',
+    short_description = 'Arrow Stone',
     inventory_image = 'x_bows_arrow_stone.png',
     custom = {
         recipe = {
@@ -58,6 +60,7 @@ XBows:register_arrow('arrow_stone', {
 
 XBows:register_arrow('arrow_bronze', {
     description = 'Arrow Bronze',
+    short_description = 'Arrow Bronze',
     inventory_image = 'x_bows_arrow_bronze.png',
     custom = {
         recipe = {
@@ -75,6 +78,7 @@ XBows:register_arrow('arrow_bronze', {
 
 XBows:register_arrow('arrow_steel', {
     description = 'Arrow Steel',
+    short_description = 'Arrow Steel',
     inventory_image = 'x_bows_arrow_steel.png',
     custom = {
         recipe = {
@@ -92,6 +96,7 @@ XBows:register_arrow('arrow_steel', {
 
 XBows:register_arrow('arrow_mese', {
     description = 'Arrow Mese',
+    short_description = 'Arrow Mese',
     inventory_image = 'x_bows_arrow_mese.png',
     custom = {
         recipe = {
@@ -109,6 +114,7 @@ XBows:register_arrow('arrow_mese', {
 
 XBows:register_arrow('arrow_diamond', {
     description = 'Arrow Diamond',
+    short_description = 'Arrow Diamond',
     inventory_image = 'x_bows_arrow_diamond.png',
     custom = {
         recipe = {

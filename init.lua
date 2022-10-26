@@ -20,7 +20,14 @@ dofile(path .. '/arrow.lua')
 dofile(path .. '/items.lua')
 dofile(path .. '/quiver.lua')
 
-XBowsQuiver:sfinv_register_page()
+
+if minetest.get_modpath('i3') then
+    XBowsQuiver:i3_register_page()
+elseif minetest.get_modpath('unified_inventory') then
+    XBowsQuiver:ui_register_page()
+else
+    XBowsQuiver:sfinv_register_page()
+end
 
 minetest.register_on_joinplayer(function(player)
     local inv_quiver = player:get_inventory()--[[@as InvRef]]
@@ -28,6 +35,19 @@ minetest.register_on_joinplayer(function(player)
 
     inv_quiver:set_size('x_bows:quiver_inv', 1 * 1)
     inv_arrow:set_size('x_bows:arrow_inv', 1 * 1)
+
+    local quiver = player:get_inventory():get_stack('x_bows:quiver_inv', 1)
+
+    if quiver and not quiver:is_empty() then
+        local st_meta = quiver:get_meta()
+        local quiver_id = st_meta:get_string('quiver_id')
+
+        XBowsQuiver:get_or_create_detached_inv(
+            quiver_id,
+            player:get_player_name(),
+            st_meta:get_string('quiver_items')
+        )
+    end
 end)
 
 ---backwards compatibility

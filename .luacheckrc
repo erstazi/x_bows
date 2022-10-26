@@ -60,5 +60,7 @@ read_globals = {
     "hb",
     "mesecon",
     "armor",
-    "default"
+    "default",
+    "i3",
+    "unified_inventory"
 }
