@@ -1,2 +1,4 @@
 .DS_Store
 docs/build
+*.blend1
+*.blend2

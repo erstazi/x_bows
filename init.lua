@@ -6,6 +6,8 @@ ItemStack = ItemStack--[[@as ItemStack]]
 vector = vector--[[@as Vector]]
 default = default--[[@as MtgDefault]]
 sfinv = sfinv--[[@as Sfinv]]
+unified_inventory = unified_inventory--[[@as UnifiedInventory]]
+player_api = player_api--[[@as MtgPlayerApi]]
 
 math.randomseed(tonumber(tostring(os.time()):reverse():sub(1, 9))--[[@as number]])
 
@@ -20,7 +22,6 @@ dofile(path .. '/arrow.lua')
 dofile(path .. '/items.lua')
 dofile(path .. '/quiver.lua')
 
-
 if XBows.i3 then
     XBowsQuiver:i3_register_page()
 elseif XBows.unified_inventory then
@@ -33,34 +34,48 @@ minetest.register_on_joinplayer(function(player)
     local inv_quiver = player:get_inventory()--[[@as InvRef]]
     local inv_arrow = player:get_inventory()--[[@as InvRef]]
 
+    if XBows._3d_armor then
+        player_api.set_model(player, 'x_bows_3d_armor_character.b3d')
+    else
+        player_api.set_model(player, 'x_bows_character.b3d')
+    end
+
     inv_quiver:set_size('x_bows:quiver_inv', 1 * 1)
     inv_arrow:set_size('x_bows:arrow_inv', 1 * 1)
 
-    local quiver = player:get_inventory():get_stack('x_bows:quiver_inv', 1)
+    local quiver_stack = player:get_inventory():get_stack('x_bows:quiver_inv', 1)
 
-    if quiver and not quiver:is_empty() then
-        local st_meta = quiver:get_meta()
+    if quiver_stack and not quiver_stack:is_empty() then
+        local st_meta = quiver_stack:get_meta()
         local quiver_id = st_meta:get_string('quiver_id')
 
+        ---create detached inventory
         XBowsQuiver:get_or_create_detached_inv(
             quiver_id,
             player:get_player_name(),
             st_meta:get_string('quiver_items')
         )
+
+        ---set model textures
+        XBows:show_3d_quiver(player)
+    else
+        ---set model textures
+        XBows:hide_3d_quiver(player)
     end
 
-    player_api.set_model(player, 'x_bows_character.b3d')
-
-    player_api.set_textures(player, {
-        'character.png',
-        'x_bows_quiver_mesh.png'
-    })
+    XBows:reset_charged_bow(player, true)
+    XBowsQuiver:close_quiver(player)
 end)
 
----player api
-player_api.register_model('x_bows_character.b3d', {
+local model_name = 'x_bows_character.b3d'
+if XBows._3d_armor then
+    ---3d armor
+    model_name = 'x_bows_3d_armor_character.b3d'
+end
+
+player_api.register_model(model_name, {
     animation_speed = 30,
-    textures = {"character.png"},
+    textures = {'character.png'},
     animations = {
         -- Standard animations.
         stand = {x = 0, y = 79},
@@ -206,13 +221,22 @@ minetest.register_on_player_inventory_action(function(player, action, inventory,
             sfinv.set_player_inventory_formspec(player)
         end
 
+        ---set player visual
+        XBows:show_3d_quiver(player)
     elseif action == 'move' and inventory_info.from_list == 'x_bows:quiver_inv' then
+        local stack = inventory:get_stack(inventory_info.from_list, inventory_info.from_index)
+
         if XBows.i3 then
             i3.set_fs(player)
         elseif XBows.unified_inventory then
             unified_inventory.set_inventory_formspec(player, 'x_bows:quiver_page')
         else
             sfinv.set_player_inventory_formspec(player)
+        end
+
+        ---set player visual
+        if stack:is_empty() then
+            XBows:hide_3d_quiver(player)
         end
     elseif action == 'put' and inventory_info.listname == 'x_bows:quiver_inv' then
         if XBows.i3 then
@@ -235,11 +259,6 @@ end)
 
 ---backwards compatibility
 minetest.register_alias('x_bows:arrow_diamond_tipped_poison', 'x_bows:arrow_diamond')
-
-minetest.register_on_joinplayer(function(player)
-    XBows:reset_charged_bow(player, true)
-    XBowsQuiver:close_quiver(player)
-end)
 
 -- sneak, fov adjustments when bow is charged
 minetest.register_globalstep(function(dtime)

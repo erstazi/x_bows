@@ -32,6 +32,9 @@ XBows = {
     player_monoids = minetest.get_modpath('player_monoids'),
     i3 = minetest.get_modpath('i3'),
     unified_inventory = minetest.get_modpath('unified_inventory'),
+    u_skins = minetest.get_modpath('u_skins'),
+    wardrobe = minetest.get_modpath('wardrobe'),
+    _3d_armor = minetest.get_modpath('3d_armor'),
     registered_bows = {},
     registered_arrows = {},
     registered_quivers = {},
@@ -2156,4 +2159,107 @@ function XBowsQuiver.ui_register_page(self)
         image = "x_bows_bow_wood_charged.png",
         tooltip = 'X Bows',
     })
+end
+
+function XBows.show_3d_quiver(self, player)
+    local p_name = player:get_player_name()
+    local player_textures
+
+    if self._3d_armor then
+        minetest.after(0.1, function()
+            player_textures = {
+                armor.textures[p_name].skin,
+                armor.textures[p_name].armor,
+                armor.textures[p_name].wielditem,
+                'x_bows_quiver_mesh.png'
+            }
+
+            if player_textures then
+                player_api.set_textures(player, player_textures)
+            end
+        end)
+
+        return
+    elseif self.u_skins then
+        local u_skin_texture = u_skins.u_skins[p_name]
+
+        player_textures = {
+            u_skin_texture .. '.png',
+            'x_bows_quiver_mesh.png'
+        }
+    elseif self.wardrobe and wardrobe.playerSkins and wardrobe.playerSkins[p_name] then
+        player_textures = {
+            wardrobe.playerSkins[p_name],
+            'x_bows_quiver_mesh.png'
+        }
+    else
+        local textures = player_api.get_textures(player)
+
+        ---cleanup
+        for index, value in ipairs(textures) do
+            if value == 'x_bows_quiver_empty_mesh.png' or value == 'x_bows_quiver_mesh.png' then
+                table.remove(textures, index)
+            end
+        end
+
+        table.insert(textures, 'x_bows_quiver_mesh.png')
+
+        player_textures = textures
+    end
+
+    if player_textures then
+        player_api.set_textures(player, player_textures)
+    end
+end
+
+function XBows.hide_3d_quiver(self, player)
+    local p_name = player:get_player_name()
+    local player_textures
+
+    if self._3d_armor then
+        minetest.after(0.1, function()
+            player_textures = {
+                armor.textures[p_name].skin,
+                armor.textures[p_name].armor,
+                armor.textures[p_name].wielditem,
+                'x_bows_quiver_empty_mesh.png'
+            }
+
+            if player_textures then
+                player_api.set_textures(player, player_textures)
+            end
+
+        end)
+
+        return
+    elseif self.u_skins then
+        local u_skin_texture = u_skins.u_skins[p_name]
+
+        player_textures = {
+            u_skin_texture .. '.png',
+            'x_bows_quiver_empty_mesh.png'
+        }
+    elseif self.wardrobe and wardrobe.playerSkins and wardrobe.playerSkins[p_name] then
+        player_textures = {
+            wardrobe.playerSkins[p_name],
+            'x_bows_quiver_empty_mesh.png'
+        }
+    else
+        local textures = player_api.get_textures(player)
+
+        ---cleanup
+        for index, value in ipairs(textures) do
+            if value == 'x_bows_quiver_mesh.png' or value == 'x_bows_quiver_empty_mesh.png' then
+                table.remove(textures, index)
+            end
+        end
+
+        table.insert(textures, 'x_bows_quiver_empty_mesh.png')
+
+        player_textures = textures
+    end
+
+    if player_textures then
+        player_api.set_textures(player, player_textures)
+    end
 end
