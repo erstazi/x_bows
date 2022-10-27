@@ -477,7 +477,14 @@ function XBows.load(self, itemstack, user, pointed_thing)
         itemstack_arrow_meta:set_string('quiver_name', quiver_result.quiver_name)
         itemstack_arrow_meta:set_string('quiver_id', quiver_result.quiver_id)
     else
-        XBowsQuiver:remove_hud(user)
+        if not inv:is_empty('x_bows:arrow_inv') then
+            XBowsQuiver:udate_or_create_hud(user, inv:get_list('x_bows:arrow_inv'))
+        else
+            ---no ammo (fake stack)
+            XBowsQuiver:udate_or_create_hud(user, {ItemStack({
+                name = 'x_bows:no_ammo'
+            })})
+        end
 
         ---find itemstack arrow in players inventory
         local arrow_stack = inv:get_stack('x_bows:arrow_inv', 1)
@@ -598,7 +605,15 @@ function XBows.shoot(self, itemstack, user, pointed_thing)
     if is_arrow_from_quiver == 1 then
         XBowsQuiver:udate_or_create_hud(user, detached_inv:get_list('main'), found_arrow_stack_idx)
     else
-        XBowsQuiver:remove_hud(user)
+        local inv = user:get_inventory()--[[@as InvRef]]
+        if not inv:is_empty('x_bows:arrow_inv') then
+            XBowsQuiver:udate_or_create_hud(user, inv:get_list('x_bows:arrow_inv'))
+        else
+            ---no ammo (fake stack)
+            XBowsQuiver:udate_or_create_hud(user, {ItemStack({
+                name = 'x_bows:no_ammo'
+            })})
+        end
     end
 
     local x_bows_registered_arrow_def = self.registered_arrows[arrow_name]
@@ -1612,7 +1627,27 @@ function XBowsQuiver.udate_or_create_hud(self, player, inv_list, idx)
     local _idx = idx or 1
     local player_name = player:get_player_name()
     local selected_bg_added = false
+    local is_arrow = #inv_list == 1
+    local item_def = minetest.registered_items['x_bows:quiver']
+    local is_no_ammo = false
 
+    if is_arrow then
+        item_def = minetest.registered_items[inv_list[1]:get_name()]
+        is_no_ammo = inv_list[1]:get_name() == 'x_bows:no_ammo'
+    end
+
+    if is_no_ammo then
+        item_def = {
+            inventory_image = 'x_bows_arrow_slot.png',
+            short_description = 'No Ammo!'
+        }
+    end
+
+    if not item_def then
+        return
+    end
+
+    ---cancel previous timeouts and reset
     if self.after_job[player_name] then
         for _, v in pairs(self.after_job[player_name]) do
             v:cancel()
@@ -1630,18 +1665,17 @@ function XBowsQuiver.udate_or_create_hud(self, player, inv_list, idx)
         hud_elem_type = 'image',
         position = {x = 1, y = 0.5},
         offset = {x = -120, y = -140},
-        text = 'x_bows_quiver.png',
+        text = item_def.inventory_image,
         scale = {x = 4, y = 4},
         alignment = 0,
     })
 
     ---title copy
-    local quiver_def = minetest.registered_items['x_bows:quiver']
     self.hud_item_ids[player_name].title_copy = player:hud_add({
         hud_elem_type = 'text',
         position = {x = 1, y = 0.5},
         offset = {x = -120, y = -75},
-        text = quiver_def.short_description,
+        text = item_def.short_description,
         alignment = 0,
         scale = {x = 100, y = 30},
         number = 0xFFFFFF,
@@ -1652,7 +1686,7 @@ function XBowsQuiver.udate_or_create_hud(self, player, inv_list, idx)
         hud_elem_type = 'image',
         position = {x = 1, y = 0.5},
         offset = {x = -238, y = 0},
-        text = 'x_bows_quiver_hotbar.png',
+        text = is_arrow and 'x_bows_single_hotbar.png' or 'x_bows_quiver_hotbar.png',
         scale = {x = 1, y = 1},
         alignment = {x = 1, y = 0 },
     })
@@ -1660,6 +1694,10 @@ function XBowsQuiver.udate_or_create_hud(self, player, inv_list, idx)
     for j, qst in ipairs(inv_list) do
         if not qst:is_empty() then
             local found_arrow_stack_def = minetest.registered_items[qst:get_name()]
+
+            if is_no_ammo then
+                found_arrow_stack_def = item_def
+            end
 
             if not selected_bg_added and j == _idx then
                 selected_bg_added = true
@@ -1669,7 +1707,7 @@ function XBowsQuiver.udate_or_create_hud(self, player, inv_list, idx)
                     hud_elem_type = 'image',
                     position = {x = 1, y = 0.5},
                     offset = {x = -308 + (j * 74), y = 2},
-                    text = 'x_bows_quiver_hotbar_selected.png',
+                    text = 'x_bows_hotbar_selected.png',
                     scale = {x = 1, y = 1},
                     alignment = {x = 1, y = 0 },
                 })
@@ -1691,7 +1729,7 @@ function XBowsQuiver.udate_or_create_hud(self, player, inv_list, idx)
                     hud_elem_type = 'text',
                     position = {x = 1, y = 0.5},
                     offset = {x = -244 + (j * 74), y = 23},
-                    text = qst:get_count(),
+                    text = is_no_ammo and 0 or qst:get_count(),
                     alignment = -1,
                     scale = {x = 50, y = 10},
                     number = 0xFFFFFF,
