@@ -62,5 +62,6 @@ read_globals = {
     "armor",
     "default",
     "i3",
-    "unified_inventory"
+    "unified_inventory",
+    "player_api"
 }

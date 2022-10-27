@@ -444,7 +444,6 @@ end
 function XBows.load(self, itemstack, user, pointed_thing)
     local player_name = user:get_player_name()
     local inv = user:get_inventory()--[[@as InvRef]]
-    local inv_list = inv:get_list('main')
     local bow_name = itemstack:get_name()
     local bow_def = self.registered_bows[bow_name]
     ---@alias ItemStackArrows {["stack"]: ItemStack, ["idx"]: number|integer}[]
@@ -476,17 +475,24 @@ function XBows.load(self, itemstack, user, pointed_thing)
         XBowsQuiver:remove_hud(user)
 
         ---find itemstack arrow in players inventory
-        for i, st in ipairs(inv_list) do
-            local st_name = st:get_name()
+        local arrow_stack = inv:get_stack('x_bows:arrow_inv', 1)
+        local is_allowed_ammunition = self:is_allowed_ammunition(bow_name, arrow_stack:get_name())
 
-            if not st:is_empty() and self.registered_arrows[st_name] then
-                local is_allowed_ammunition = self:is_allowed_ammunition(bow_name, st_name)
-
-                if self.registered_arrows[st_name] and is_allowed_ammunition then
-                    table.insert(itemstack_arrows, {stack = st, idx = i})
-                end
-            end
+        if self.registered_arrows[arrow_stack:get_name()] and is_allowed_ammunition then
+            table.insert(itemstack_arrows, {stack = arrow_stack, idx = 1})
         end
+
+        -- for i, st in ipairs(inv_list) do
+        --     local st_name = st:get_name()
+
+        --     if not st:is_empty() and self.registered_arrows[st_name] then
+        --         local is_allowed_ammunition = self:is_allowed_ammunition(bow_name, st_name)
+
+        --         if self.registered_arrows[st_name] and is_allowed_ammunition then
+        --             table.insert(itemstack_arrows, {stack = st, idx = i})
+        --         end
+        --     end
+        -- end
 
         -- take 1st found arrow in the list
         itemstack_arrow = #itemstack_arrows > 0 and itemstack_arrows[1].stack or nil
@@ -515,7 +521,7 @@ function XBows.load(self, itemstack, user, pointed_thing)
 
                 if not self:is_creative(v_user:get_player_name()) and v_itemstack_arrow_meta:get_int('is_arrow_from_quiver') ~= 1 then
                     v_itemstack_arrow:take_item()
-                    v_inv:set_stack('main', v_itemstack_arrows[1].idx, v_itemstack_arrow)
+                    v_inv:set_stack('x_bows:arrow_inv', v_itemstack_arrows[1].idx, v_itemstack_arrow)
                 end
             end
         end, user, bow_name, itemstack_arrow, inv, itemstack_arrows)
@@ -1450,56 +1456,102 @@ function XBowsQuiver.get_itemstack_arrow_from_quiver(self, player)
     local quiver_id
     local quiver_name
 
-    ---find matching quiver item in players inventory with the open formspec name
-    if player_inv and player_inv:contains_item('main', 'x_bows:quiver') then
-        local inv_list = player_inv:get_list('main')
+    ---check quiver inventory slot
+    if player_inv and player_inv:contains_item('x_bows:quiver_inv', 'x_bows:quiver') then
+        local player_name = player:get_player_name()
+        local quiver_stack = player_inv:get_stack('x_bows:quiver_inv', 1)
+        local st_meta = quiver_stack:get_meta()
+        quiver_id = st_meta:get_string('quiver_id')
 
-        for i, st in ipairs(inv_list) do
-            if not st:is_empty() and st:get_name() == 'x_bows:quiver' then
-                local st_meta = st:get_meta()
-                local player_name = player:get_player_name()
-                quiver_id = st_meta:get_string('quiver_id')
+        local detached_inv = self:get_or_create_detached_inv(
+            quiver_id,
+            player_name,
+            st_meta:get_string('quiver_items')
+        )
 
-                local detached_inv = self:get_or_create_detached_inv(
-                    quiver_id,
-                    player_name,
-                    st_meta:get_string('quiver_items')
-                )
+        if not detached_inv:is_empty('main') then
+            local detached_inv_list = detached_inv:get_list('main')
 
-                if not detached_inv:is_empty('main') then
-                    local detached_inv_list = detached_inv:get_list('main')
+            ---find arrows inside quiver inventory
+            for j, qst in ipairs(detached_inv_list) do
+                ---save copy of inv list before we take the item
+                table.insert(prev_detached_inv_list, detached_inv:get_stack('main', j))
 
-                    ---find arrows inside quiver inventory
-                    for j, qst in ipairs(detached_inv_list) do
-                        ---save copy of inv list before we take the item
-                        table.insert(prev_detached_inv_list, detached_inv:get_stack('main', j))
+                if not qst:is_empty() and not found_arrow_stack then
+                    local is_allowed_ammunition = self:is_allowed_ammunition(wielded_stack:get_name(), qst:get_name())
 
-                        if not qst:is_empty() and not found_arrow_stack then
-                            local is_allowed_ammunition = self:is_allowed_ammunition(wielded_stack:get_name(), qst:get_name())
+                    if is_allowed_ammunition then
+                        quiver_name = quiver_stack:get_name()
+                        found_arrow_stack = qst:take_item()
+                        found_arrow_stack_idx = j
 
-                            if is_allowed_ammunition then
-                                quiver_name = st:get_name()
-                                found_arrow_stack = qst:take_item()
-                                found_arrow_stack_idx = j
-
-                                if not self:is_creative(player_name) then
-                                    detached_inv:set_list('main', detached_inv_list)
-                                    self:save(detached_inv, player, true)
-                                end
-                            end
+                        if not self:is_creative(player_name) then
+                            detached_inv:set_list('main', detached_inv_list)
+                            self:save(detached_inv, player, true)
                         end
                     end
                 end
             end
+        end
 
-            if found_arrow_stack then
-                ---show HUD - quiver inventory
-                self:udate_or_create_hud(player, prev_detached_inv_list, found_arrow_stack_idx)
-
-                break
-            end
+        if found_arrow_stack then
+            ---show HUD - quiver inventory
+            self:udate_or_create_hud(player, prev_detached_inv_list, found_arrow_stack_idx)
         end
     end
+
+    ---check arrows inventory slot
+
+    ---find matching quiver item in players inventory with the open formspec name
+    -- if player_inv and player_inv:contains_item('main', 'x_bows:quiver') then
+    --     local inv_list = player_inv:get_list('main')
+
+    --     for i, st in ipairs(inv_list) do
+    --         if not st:is_empty() and st:get_name() == 'x_bows:quiver' then
+    --             local st_meta = st:get_meta()
+    --             local player_name = player:get_player_name()
+    --             quiver_id = st_meta:get_string('quiver_id')
+
+    --             local detached_inv = self:get_or_create_detached_inv(
+    --                 quiver_id,
+    --                 player_name,
+    --                 st_meta:get_string('quiver_items')
+    --             )
+
+    --             if not detached_inv:is_empty('main') then
+    --                 local detached_inv_list = detached_inv:get_list('main')
+
+    --                 ---find arrows inside quiver inventory
+    --                 for j, qst in ipairs(detached_inv_list) do
+    --                     ---save copy of inv list before we take the item
+    --                     table.insert(prev_detached_inv_list, detached_inv:get_stack('main', j))
+
+    --                     if not qst:is_empty() and not found_arrow_stack then
+    --                         local is_allowed_ammunition = self:is_allowed_ammunition(wielded_stack:get_name(), qst:get_name())
+
+    --                         if is_allowed_ammunition then
+    --                             quiver_name = st:get_name()
+    --                             found_arrow_stack = qst:take_item()
+    --                             found_arrow_stack_idx = j
+
+    --                             if not self:is_creative(player_name) then
+    --                                 detached_inv:set_list('main', detached_inv_list)
+    --                                 self:save(detached_inv, player, true)
+    --                             end
+    --                         end
+    --                     end
+    --                 end
+    --             end
+    --         end
+
+            -- if found_arrow_stack then
+            --     ---show HUD - quiver inventory
+            --     self:udate_or_create_hud(player, prev_detached_inv_list, found_arrow_stack_idx)
+
+            --     break
+            -- end
+    --     end
+    -- end
 
     return {
         found_arrow_stack = found_arrow_stack,
