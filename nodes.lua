@@ -3,7 +3,7 @@ minetest.register_node('x_bows:target', {
     tiles = {'x_bows_target.png'},
     is_ground_content = false,
     groups = {snappy=3, flammable=4, fall_damage_add_percent = -30},
-    sounds = default.node_sound_leaves_defaults(),
+    sounds = minetest.global_exists('default') and default.node_sound_leaves_defaults() or {},
     mesecons = {receptor = {state = 'off'}},
     ---@param pos Vector
     ---@param elapsed number
