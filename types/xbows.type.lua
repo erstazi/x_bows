@@ -28,6 +28,7 @@
 ---@field register_particle_effect fun(self: XBows, name: string, def: ParticlespawnerDef|ParticlespawnerDefCustom): nil Add new particle to XBow registration
 ---@field open_quiver fun(self: XBowsQuiver, itemstack: ItemStack, user: ObjectRef): ItemStack Open quiver
 ---@field uuid fun(): string Creates UUID
+---@field fallback_quiver boolean If no invenotory mod is detected then fallback solution will be used
 
 
 ---XBowsQuiver class extended from XBows
