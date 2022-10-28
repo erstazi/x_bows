@@ -1,3 +1,7 @@
+local S = minetest.get_translator(minetest.get_current_modname())
+
+sfinv = sfinv--[[@as Sfinv]]
+
 ---Check if table contains value
 ---@param table table
 ---@param value string|number
@@ -21,18 +25,6 @@ local function mergeTables(t1, t2)
     return t1
 end
 
----create UUID
----@return string
-local function uuid()
-    local template ='xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'
-
-    ---@diagnostic disable-next-line: redundant-return-value
-    return string.gsub(template, '[xy]', function (c)
-        local v = (c == 'x') and math.random(0, 0xf) or math.random(8, 0xb)
-        return string.format('%x', v)
-    end)
-end
-
 ---@type XBows
 XBows = {
     pvp = minetest.settings:get_bool('enable_pvp') or false,
@@ -40,6 +32,11 @@ XBows = {
     mesecons = minetest.get_modpath('mesecons'),
     playerphysics = minetest.get_modpath('playerphysics'),
     player_monoids = minetest.get_modpath('player_monoids'),
+    i3 = minetest.get_modpath('i3'),
+    unified_inventory = minetest.get_modpath('unified_inventory'),
+    u_skins = minetest.get_modpath('u_skins'),
+    wardrobe = minetest.get_modpath('wardrobe'),
+    _3d_armor = minetest.get_modpath('3d_armor'),
     registered_bows = {},
     registered_arrows = {},
     registered_quivers = {},
@@ -49,7 +46,8 @@ XBows = {
     settings = {
         x_bows_attach_arrows_to_entities = minetest.settings:get_bool('x_bows_attach_arrows_to_entities', false)
     },
-    charge_sound_after_job = {}
+    charge_sound_after_job = {},
+    fallback_quiver = not minetest.global_exists('sfinv') and  not minetest.global_exists('unified_inventory') and not minetest.global_exists('i3')
 }
 
 XBows.__index = XBows
@@ -57,7 +55,8 @@ XBows.__index = XBows
 ---@type XBowsQuiver
 XBowsQuiver = {
     hud_item_ids = {},
-    after_job = {}
+    after_job = {},
+    quiver_empty_state = {}
 }
 XBowsQuiver.__index = XBowsQuiver
 setmetatable(XBowsQuiver, XBows)
@@ -67,6 +66,18 @@ setmetatable(XBowsQuiver, XBows)
 local XBowsEntityDef = {}
 XBowsEntityDef.__index = XBowsEntityDef
 setmetatable(XBowsEntityDef, XBows)
+
+---create UUID
+---@return string
+function XBows.uuid()
+    local template ='xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'
+
+    ---@diagnostic disable-next-line: redundant-return-value
+    return string.gsub(template, '[xy]', function (c)
+        local v = (c == 'x') and math.random(0, 0xf) or math.random(8, 0xb)
+        return string.format('%x', v)
+    end)
+end
 
 ---Check if creative is enabled or if player has creative priv
 ---@param self XBows
@@ -171,20 +182,20 @@ function XBows.register_bow(self, name, def, override)
     def.custom.gravity = def.custom.gravity or -10
 
     if def.custom.crit_chance then
-        def.description = def.description .. '\n' .. minetest.colorize('#00FF00', 'Critical Arrow Chance: '
+        def.description = def.description .. '\n' .. minetest.colorize('#00FF00', S('Critical Arrow Chance') ..': '
             .. (1 / def.custom.crit_chance) * 100 .. '%')
     end
 
-    def.description = def.description .. '\n' .. minetest.colorize('#00BFFF', 'Strength: '
+    def.description = def.description .. '\n' .. minetest.colorize('#00BFFF', S('Strength') .. ': '
         .. def.custom.strength)
 
     if def.custom.allowed_ammunition then
         local allowed_amm_desc = table.concat(def.custom.allowed_ammunition, '\n')
 
         if allowed_amm_desc ~= '' then
-            def.description = def.description .. '\nAllowed ammunition:\n' .. allowed_amm_desc
+            def.description = def.description .. '\n' .. S('Allowed ammunition') .. ':\n' .. allowed_amm_desc
         else
-            def.description = def.description .. '\nAllowed ammunition: none'
+            def.description = def.description .. '\n' .. S('Allowed ammunition') .. ': ' .. S('none')
         end
     end
 
@@ -286,11 +297,15 @@ function XBows.register_arrow(self, name, def)
     local mod_name = def.custom.mod_name or 'x_bows'
     def.custom.name = mod_name .. ':' .. name
     def.description = def.description or name
+    def.short_description = def.short_description or name
     def.custom.tool_capabilities = def.custom.tool_capabilities or {
         full_punch_interval = 1,
         max_drop_level = 0,
         damage_groups = {fleshy=2}
     }
+    def.custom.description_abilities = minetest.colorize('#00FF00', S('Damage') .. ': '
+        .. def.custom.tool_capabilities.damage_groups.fleshy) .. '\n' .. minetest.colorize('#00BFFF', S('Charge Time') .. ': '
+        .. def.custom.tool_capabilities.full_punch_interval .. 's')
     def.groups = mergeTables({arrow = 1, flammable = 1}, def.groups or {})
     def.custom.particle_effect = def.custom.particle_effect or 'arrow'
     def.custom.particle_effect_crit = def.custom.particle_effect_crit or 'arrow_crit'
@@ -304,10 +319,8 @@ function XBows.register_arrow(self, name, def)
     self.registered_arrows[def.custom.name] = def
 
     minetest.register_craftitem(def.custom.name, {
-        description = def.description .. '\n' .. minetest.colorize('#00FF00', 'Damage: '
-            .. def.custom.tool_capabilities.damage_groups.fleshy) .. '\n' .. minetest.colorize('#00BFFF', 'Charge Time: '
-            .. def.custom.tool_capabilities.full_punch_interval .. 's'),
-        short_description = def.description,
+        description = def.description .. '\n' .. def.custom.description_abilities,
+        short_description = def.short_description,
         inventory_image = def.inventory_image,
         groups = def.groups
     })
@@ -348,13 +361,13 @@ function XBows.register_quiver(self, name, def)
     def.custom.groups_charged = mergeTables({quiver = 1, quiver_open = 1, flammable = 1, not_in_creative_inventory = 1}, def.groups or {})
 
     if def.custom.faster_arrows then
-        def.description = def.description .. '\n' .. minetest.colorize('#00FF00', 'Faster Arrows: ' .. (1 / def.custom.faster_arrows) * 100 .. '%')
-        def.short_description = def.short_description .. '\n' .. minetest.colorize('#00FF00', 'Faster Arrows: ' .. (1 / def.custom.faster_arrows) * 100 .. '%')
+        def.description = def.description .. '\n' .. minetest.colorize('#00FF00', S('Faster Arrows') .. ': ' .. (1 / def.custom.faster_arrows) * 100 .. '%')
+        def.short_description = def.short_description .. '\n' .. minetest.colorize('#00FF00', S('Faster Arrows') .. ': ' .. (1 / def.custom.faster_arrows) * 100 .. '%')
     end
 
     if def.custom.add_damage then
-        def.description = def.description .. '\n' .. minetest.colorize('#FF8080', 'Arrow Damage: +' .. def.custom.add_damage)
-        def.short_description = def.short_description .. '\n' .. minetest.colorize('#FF8080', 'Arrow Damage: +' .. def.custom.add_damage)
+        def.description = def.description .. '\n' .. minetest.colorize('#FF8080', S('Arrow Damage') .. ': +' .. def.custom.add_damage)
+        def.short_description = def.short_description .. '\n' .. minetest.colorize('#FF8080', S('Arrow Damage') .. ': +' .. def.custom.add_damage)
     end
 
     self.registered_quivers[def.custom.name] = def
@@ -438,7 +451,6 @@ end
 function XBows.load(self, itemstack, user, pointed_thing)
     local player_name = user:get_player_name()
     local inv = user:get_inventory()--[[@as InvRef]]
-    local inv_list = inv:get_list('main')
     local bow_name = itemstack:get_name()
     local bow_def = self.registered_bows[bow_name]
     ---@alias ItemStackArrows {["stack"]: ItemStack, ["idx"]: number|integer}[]
@@ -460,6 +472,7 @@ function XBows.load(self, itemstack, user, pointed_thing)
     local itemstack_arrow = quiver_result.found_arrow_stack
 
     if itemstack_arrow then
+        ---we got arrow from quiver
         local itemstack_arrow_meta = itemstack_arrow:get_meta()
 
         itemstack_arrow_meta:set_int('is_arrow_from_quiver', 1)
@@ -467,17 +480,36 @@ function XBows.load(self, itemstack, user, pointed_thing)
         itemstack_arrow_meta:set_string('quiver_name', quiver_result.quiver_name)
         itemstack_arrow_meta:set_string('quiver_id', quiver_result.quiver_id)
     else
-        XBowsQuiver:remove_hud(user)
+        if not inv:is_empty('x_bows:arrow_inv') then
+            XBowsQuiver:udate_or_create_hud(user, inv:get_list('x_bows:arrow_inv'))
+        else
+            ---no ammo (fake stack)
+            XBowsQuiver:udate_or_create_hud(user, {ItemStack({
+                name = 'x_bows:no_ammo'
+            })})
+        end
 
         ---find itemstack arrow in players inventory
-        for i, st in ipairs(inv_list) do
-            local st_name = st:get_name()
+        local arrow_stack = inv:get_stack('x_bows:arrow_inv', 1)
+        local is_allowed_ammunition = self:is_allowed_ammunition(bow_name, arrow_stack:get_name())
 
-            if not st:is_empty() and self.registered_arrows[st_name] then
-                local is_allowed_ammunition = self:is_allowed_ammunition(bow_name, st_name)
+        if self.registered_arrows[arrow_stack:get_name()] and is_allowed_ammunition then
+            table.insert(itemstack_arrows, {stack = arrow_stack, idx = 1})
+        end
 
-                if self.registered_arrows[st_name] and is_allowed_ammunition then
-                    table.insert(itemstack_arrows, {stack = st, idx = i})
+        ---if everything else fails
+        if self.fallback_quiver then
+            local inv_list = inv:get_list('main')
+
+            for i, st in ipairs(inv_list) do
+                local st_name = st:get_name()
+
+                if not st:is_empty() and self.registered_arrows[st_name] then
+                    local _is_allowed_ammunition = self:is_allowed_ammunition(bow_name, st_name)
+
+                    if self.registered_arrows[st_name] and _is_allowed_ammunition then
+                        table.insert(itemstack_arrows, {stack = st, idx = i})
+                    end
                 end
             end
         end
@@ -509,7 +541,7 @@ function XBows.load(self, itemstack, user, pointed_thing)
 
                 if not self:is_creative(v_user:get_player_name()) and v_itemstack_arrow_meta:get_int('is_arrow_from_quiver') ~= 1 then
                     v_itemstack_arrow:take_item()
-                    v_inv:set_stack('main', v_itemstack_arrows[1].idx, v_itemstack_arrow)
+                    v_inv:set_stack('x_bows:arrow_inv', v_itemstack_arrows[1].idx, v_itemstack_arrow)
                 end
             end
         end, user, bow_name, itemstack_arrow, inv, itemstack_arrows)
@@ -575,8 +607,22 @@ function XBows.shoot(self, itemstack, user, pointed_thing)
 
     if is_arrow_from_quiver == 1 then
         XBowsQuiver:udate_or_create_hud(user, detached_inv:get_list('main'), found_arrow_stack_idx)
+
+        if detached_inv:is_empty('main') then
+            XBowsQuiver:show_3d_quiver(user, {is_empty = true})
+        else
+            XBowsQuiver:show_3d_quiver(user)
+        end
     else
-        XBowsQuiver:remove_hud(user)
+        local inv = user:get_inventory()--[[@as InvRef]]
+        if not inv:is_empty('x_bows:arrow_inv') then
+            XBowsQuiver:udate_or_create_hud(user, inv:get_list('x_bows:arrow_inv'))
+        else
+            ---no ammo (fake stack)
+            XBowsQuiver:udate_or_create_hud(user, {ItemStack({
+                name = 'x_bows:no_ammo'
+            })})
+        end
     end
 
     local x_bows_registered_arrow_def = self.registered_arrows[arrow_name]
@@ -1446,53 +1492,99 @@ function XBowsQuiver.get_itemstack_arrow_from_quiver(self, player)
     local quiver_id
     local quiver_name
 
-    ---find matching quiver item in players inventory with the open formspec name
-    if player_inv and player_inv:contains_item('main', 'x_bows:quiver') then
-        local inv_list = player_inv:get_list('main')
+    ---check quiver inventory slot
+    if player_inv and player_inv:contains_item('x_bows:quiver_inv', 'x_bows:quiver') then
+        local player_name = player:get_player_name()
+        local quiver_stack = player_inv:get_stack('x_bows:quiver_inv', 1)
+        local st_meta = quiver_stack:get_meta()
+        quiver_id = st_meta:get_string('quiver_id')
 
-        for i, st in ipairs(inv_list) do
-            if not st:is_empty() and st:get_name() == 'x_bows:quiver' then
-                local st_meta = st:get_meta()
-                local player_name = player:get_player_name()
-                quiver_id = st_meta:get_string('quiver_id')
+        local detached_inv = self:get_or_create_detached_inv(
+            quiver_id,
+            player_name,
+            st_meta:get_string('quiver_items')
+        )
 
-                local detached_inv = self:get_or_create_detached_inv(
-                    quiver_id,
-                    player_name,
-                    st_meta:get_string('quiver_items')
-                )
+        if not detached_inv:is_empty('main') then
+            local detached_inv_list = detached_inv:get_list('main')
 
-                if not detached_inv:is_empty('main') then
-                    local detached_inv_list = detached_inv:get_list('main')
+            ---find arrows inside quiver inventory
+            for j, qst in ipairs(detached_inv_list) do
+                ---save copy of inv list before we take the item
+                table.insert(prev_detached_inv_list, detached_inv:get_stack('main', j))
 
-                    ---find arrows inside quiver inventory
-                    for j, qst in ipairs(detached_inv_list) do
-                        ---save copy of inv list before we take the item
-                        table.insert(prev_detached_inv_list, detached_inv:get_stack('main', j))
+                if not qst:is_empty() and not found_arrow_stack then
+                    local is_allowed_ammunition = self:is_allowed_ammunition(wielded_stack:get_name(), qst:get_name())
 
-                        if not qst:is_empty() and not found_arrow_stack then
-                            local is_allowed_ammunition = self:is_allowed_ammunition(wielded_stack:get_name(), qst:get_name())
+                    if is_allowed_ammunition then
+                        quiver_name = quiver_stack:get_name()
+                        found_arrow_stack = qst:take_item()
+                        found_arrow_stack_idx = j
 
-                            if is_allowed_ammunition then
-                                quiver_name = st:get_name()
-                                found_arrow_stack = qst:take_item()
-                                found_arrow_stack_idx = j
+                        if not self:is_creative(player_name) then
+                            detached_inv:set_list('main', detached_inv_list)
+                            self:save(detached_inv, player, true)
+                        end
+                    end
+                end
+            end
+        end
 
-                                if not self:is_creative(player_name) then
-                                    detached_inv:set_list('main', detached_inv_list)
-                                    self:save(detached_inv, player, true)
+        if found_arrow_stack then
+            ---show HUD - quiver inventory
+            self:udate_or_create_hud(player, prev_detached_inv_list, found_arrow_stack_idx)
+        end
+    end
+
+    if self.fallback_quiver then
+        ---find matching quiver item in players inventory with the open formspec name
+        if player_inv and player_inv:contains_item('main', 'x_bows:quiver') then
+            local inv_list = player_inv:get_list('main')
+
+            for i, st in ipairs(inv_list) do
+                if not st:is_empty() and st:get_name() == 'x_bows:quiver' then
+                    local st_meta = st:get_meta()
+                    local player_name = player:get_player_name()
+                    quiver_id = st_meta:get_string('quiver_id')
+
+                    local detached_inv = self:get_or_create_detached_inv(
+                        quiver_id,
+                        player_name,
+                        st_meta:get_string('quiver_items')
+                    )
+
+                    if not detached_inv:is_empty('main') then
+                        local detached_inv_list = detached_inv:get_list('main')
+
+                        ---find arrows inside quiver inventory
+                        for j, qst in ipairs(detached_inv_list) do
+                            ---save copy of inv list before we take the item
+                            table.insert(prev_detached_inv_list, detached_inv:get_stack('main', j))
+
+                            if not qst:is_empty() and not found_arrow_stack then
+                                local is_allowed_ammunition = self:is_allowed_ammunition(wielded_stack:get_name(), qst:get_name())
+
+                                if is_allowed_ammunition then
+                                    quiver_name = st:get_name()
+                                    found_arrow_stack = qst:take_item()
+                                    found_arrow_stack_idx = j
+
+                                    if not self:is_creative(player_name) then
+                                        detached_inv:set_list('main', detached_inv_list)
+                                        self:save(detached_inv, player, true)
+                                    end
                                 end
                             end
                         end
                     end
                 end
-            end
 
-            if found_arrow_stack then
-                ---show HUD - quiver inventory
-                self:udate_or_create_hud(player, prev_detached_inv_list, found_arrow_stack_idx)
+                if found_arrow_stack then
+                    ---show HUD - quiver inventory
+                    self:udate_or_create_hud(player, prev_detached_inv_list, found_arrow_stack_idx)
 
-                break
+                    break
+                end
             end
         end
     end
@@ -1546,7 +1638,27 @@ function XBowsQuiver.udate_or_create_hud(self, player, inv_list, idx)
     local _idx = idx or 1
     local player_name = player:get_player_name()
     local selected_bg_added = false
+    local is_arrow = #inv_list == 1
+    local item_def = minetest.registered_items['x_bows:quiver']
+    local is_no_ammo = false
 
+    if is_arrow then
+        item_def = minetest.registered_items[inv_list[1]:get_name()]
+        is_no_ammo = inv_list[1]:get_name() == 'x_bows:no_ammo'
+    end
+
+    if is_no_ammo then
+        item_def = {
+            inventory_image = 'x_bows_arrow_slot.png',
+            short_description = S('No Ammo') .. '!'
+        }
+    end
+
+    if not item_def then
+        return
+    end
+
+    ---cancel previous timeouts and reset
     if self.after_job[player_name] then
         for _, v in pairs(self.after_job[player_name]) do
             v:cancel()
@@ -1564,18 +1676,17 @@ function XBowsQuiver.udate_or_create_hud(self, player, inv_list, idx)
         hud_elem_type = 'image',
         position = {x = 1, y = 0.5},
         offset = {x = -120, y = -140},
-        text = 'x_bows_quiver.png',
+        text = item_def.inventory_image,
         scale = {x = 4, y = 4},
         alignment = 0,
     })
 
     ---title copy
-    local quiver_def = minetest.registered_items['x_bows:quiver']
     self.hud_item_ids[player_name].title_copy = player:hud_add({
         hud_elem_type = 'text',
         position = {x = 1, y = 0.5},
         offset = {x = -120, y = -75},
-        text = quiver_def.short_description,
+        text = item_def.short_description,
         alignment = 0,
         scale = {x = 100, y = 30},
         number = 0xFFFFFF,
@@ -1586,7 +1697,7 @@ function XBowsQuiver.udate_or_create_hud(self, player, inv_list, idx)
         hud_elem_type = 'image',
         position = {x = 1, y = 0.5},
         offset = {x = -238, y = 0},
-        text = 'x_bows_quiver_hotbar.png',
+        text = is_arrow and 'x_bows_single_hotbar.png' or 'x_bows_quiver_hotbar.png',
         scale = {x = 1, y = 1},
         alignment = {x = 1, y = 0 },
     })
@@ -1594,6 +1705,10 @@ function XBowsQuiver.udate_or_create_hud(self, player, inv_list, idx)
     for j, qst in ipairs(inv_list) do
         if not qst:is_empty() then
             local found_arrow_stack_def = minetest.registered_items[qst:get_name()]
+
+            if is_no_ammo then
+                found_arrow_stack_def = item_def
+            end
 
             if not selected_bg_added and j == _idx then
                 selected_bg_added = true
@@ -1603,7 +1718,7 @@ function XBowsQuiver.udate_or_create_hud(self, player, inv_list, idx)
                     hud_elem_type = 'image',
                     position = {x = 1, y = 0.5},
                     offset = {x = -308 + (j * 74), y = 2},
-                    text = 'x_bows_quiver_hotbar_selected.png',
+                    text = 'x_bows_hotbar_selected.png',
                     scale = {x = 1, y = 1},
                     alignment = {x = 1, y = 0 },
                 })
@@ -1625,7 +1740,7 @@ function XBowsQuiver.udate_or_create_hud(self, player, inv_list, idx)
                     hud_elem_type = 'text',
                     position = {x = 1, y = 0.5},
                     offset = {x = -244 + (j * 74), y = 23},
-                    text = qst:get_count(),
+                    text = is_no_ammo and 0 or qst:get_count(),
                     alignment = -1,
                     scale = {x = 50, y = 10},
                     number = 0xFFFFFF,
@@ -1709,6 +1824,16 @@ function XBowsQuiver.get_or_create_detached_inv(self, quiver_id, player_name, qu
             ---@param stack ItemStack stack of item what was put
             ---@param player ObjectRef
             on_put = function(inv, listname, index, stack, player)
+                local quiver_inv_st = player:get_inventory():get_stack('x_bows:quiver_inv', 1)
+
+                if quiver_inv_st and quiver_inv_st:get_meta():get_string('quiver_id') == inv:get_location().name then
+                    if inv:is_empty('main') then
+                        self:show_3d_quiver(player, {is_empty = true})
+                    else
+                        self:show_3d_quiver(player)
+                    end
+                end
+
                 self:save(inv, player)
             end,
             ---@param inv InvRef detached inventory
@@ -1717,6 +1842,16 @@ function XBowsQuiver.get_or_create_detached_inv(self, quiver_id, player_name, qu
             ---@param stack ItemStack
             ---@param player ObjectRef
             on_take = function(inv, listname, index, stack, player)
+                local quiver_inv_st = player:get_inventory():get_stack('x_bows:quiver_inv', 1)
+
+                if quiver_inv_st and quiver_inv_st:get_meta():get_string('quiver_id') == inv:get_location().name then
+                    if inv:is_empty('main') then
+                        self:show_3d_quiver(player, {is_empty = true})
+                    else
+                        self:show_3d_quiver(player)
+                    end
+                end
+
                 self:save(inv, player)
             end,
        }, player_name)
@@ -1742,14 +1877,18 @@ function XBowsQuiver.get_formspec(self, name)
     local list_w = 8
     local list_pos_x = (list_w - width) / 2
 
-    local formspec =
-        'size['..list_w..',6]' ..
-        'list[detached:'..name..';main;'..list_pos_x..',0.3;'..width..',1;]'..
-        'list[current_player;main;0,'..(height + 0.85)..';'..list_w..',1;]'..
-        'list[current_player;main;0,'..(height + 2.08)..';'..list_w..',3;8]'..
-        'listring[detached:'..name..';main]'..
-        'listring[current_player;main]'..
-        default.get_hotbar_bg(0, height + 0.85)
+    local formspec = {
+        'size['..list_w..',6]' ,
+        'list[detached:'..name..';main;'..list_pos_x..',0.3;'..width..',1;]',
+        'list[current_player;main;0,'..(height + 0.85)..';'..list_w..',1;]',
+        'list[current_player;main;0,'..(height + 2.08)..';'..list_w..',3;8]',
+        'listring[detached:'..name..';main]',
+        'listring[current_player;main]'
+    }
+
+    if minetest.global_exists('default') then
+        formspec[#formspec + 1] = default.get_hotbar_bg(0, height + 0.85)
+    end
 
     --update formspec
     local inv = minetest.get_inventory({type='detached', name=name})
@@ -1760,12 +1899,13 @@ function XBowsQuiver.get_formspec(self, name)
 
     for i = 1, 3 do
         if not invlist or invlist[i]:is_empty() then
-            formspec = formspec ..
-                'image[' .. px .. ',' .. py .. ';1,1;x_bows_arrow_slot.png]'
+            formspec[#formspec + 1] = 'image[' .. px .. ',' .. py .. ';1,1;x_bows_arrow_slot.png]'
         end
 
         px = px + 1
     end
+
+    formspec = table.concat(formspec, '')
 
     return formspec
 end
@@ -1790,7 +1930,7 @@ function XBowsQuiver.get_string_from_inv(self, inv)
 
     return {
         inv_string = minetest.serialize(t),
-        content_description = content_description == '' and '\nEmpty' or content_description
+        content_description = content_description == '' and '\n' .. S('Empty') or content_description
     }
 end
 
@@ -1816,12 +1956,25 @@ end
 ---@param quiver_is_closed? boolean
 ---@return nil
 function XBowsQuiver.save(self, inv, player, quiver_is_closed)
-    local player_inv = player:get_inventory()
+    local player_inv = player:get_inventory()--[[@as InvRef]]
     local inv_loc = inv:get_location()
     local quiver_item_name = quiver_is_closed and 'x_bows:quiver' or 'x_bows:quiver_open'
+    local player_quiver_inv_stack = player_inv:get_stack('x_bows:quiver_inv', 1)
 
-    ---find matching quiver item in players inventory with the open formspec name
-    if player_inv and player_inv:contains_item('main', quiver_item_name) then
+    if not player_quiver_inv_stack:is_empty() and player_quiver_inv_stack:get_meta():get_string('quiver_id') == inv_loc.name then
+        local st_meta = player_quiver_inv_stack:get_meta()
+        ---save inventory items in quiver item meta
+        local string_from_inventory_result = self:get_string_from_inv(inv)
+
+        st_meta:set_string('quiver_items', string_from_inventory_result.inv_string)
+
+        ---update description
+        local new_description = player_quiver_inv_stack:get_short_description()..'\n'..string_from_inventory_result.content_description..'\n'
+
+        st_meta:set_string('description', new_description)
+        player_inv:set_stack('x_bows:quiver_inv', 1, player_quiver_inv_stack)
+    elseif player_inv and player_inv:contains_item('main', quiver_item_name) then
+        ---find matching quiver item in players inventory with the open formspec name
         local inv_list = player_inv:get_list('main')
 
         for i, st in ipairs(inv_list) do
@@ -1851,11 +2004,16 @@ end
 ---@param player ObjectRef
 ---@return boolean
 function XBowsQuiver.quiver_can_allow(self, inv, player)
-    local player_inv = player:get_inventory()
+    local player_inv = player:get_inventory()--[[@as InvRef]]
     local inv_loc = inv:get_location()
+    local player_quiver_inv_stack = player_inv:get_stack('x_bows:quiver_inv', 1)
 
-    ---find matching quiver item in players inventory with the open formspec name
-    if player_inv and player_inv:contains_item('main', 'x_bows:quiver_open') then
+    if not player_quiver_inv_stack:is_empty() and player_quiver_inv_stack:get_meta():get_string('quiver_id') == inv_loc.name then
+        ---find quiver in player `quiver_inv` inv list
+        return true
+    elseif player_inv and player_inv:contains_item('main', 'x_bows:quiver_open') then
+        ---find quiver in player `main` inv list
+        ---matching quiver item in players inventory with the open formspec name
         local inv_list = player_inv:get_list('main')
 
         for i, st in ipairs(inv_list) do
@@ -1882,7 +2040,7 @@ function XBows.open_quiver(self, itemstack, user)
 
     ---create inventory id and save it
     if quiver_id == '' then
-        quiver_id = itemstack:get_name()..'_'..uuid()
+        quiver_id = itemstack:get_name()..'_'..self.uuid()
         itemstack_meta:set_string('quiver_id', quiver_id)
     end
 
@@ -1902,4 +2060,305 @@ function XBows.open_quiver(self, itemstack, user)
 
     minetest.show_formspec(pname, quiver_id, XBowsQuiver:get_formspec(quiver_id))
     return itemstack
+end
+
+---Register sfinv page
+---@param self XBowsQuiver
+function XBowsQuiver.sfinv_register_page(self)
+    sfinv.register_page('x_bows:quiver_page', {
+        title = 'X Bows',
+        get = function(this, player, context)
+            local formspec = {
+                ---arrow
+                'label[0,0;' .. minetest.formspec_escape(S('Arrows')) .. ':]',
+                'list[current_player;x_bows:arrow_inv;0,0.5;1,1;]',
+                'image[0,0.5;1,1;x_bows_arrow_slot.png;]',
+                'listring[current_player;x_bows:arrow_inv]',
+                'listring[current_player;main]',
+                ---quiver
+                'label[3.5,0;' .. minetest.formspec_escape(S('Quiver')) .. ':]',
+                'list[current_player;x_bows:quiver_inv;3.5,0.5;1,1;]',
+                'image[3.5,0.5;1,1;x_bows_quiver_slot.png]',
+                'listring[current_player;x_bows:quiver_inv]',
+                'listring[current_player;main]',
+            }
+
+            local player_inv = player:get_inventory()
+            context._itemstack_arrow = player_inv:get_stack('x_bows:arrow_inv', 1)
+            context._itemstack_quiver = player_inv:get_stack('x_bows:quiver_inv', 1)
+
+            if context._itemstack_arrow and not context._itemstack_arrow:is_empty() then
+                local x_bows_registered_arrow_def = self.registered_arrows[context._itemstack_arrow:get_name()]
+
+                if x_bows_registered_arrow_def then
+                    formspec[#formspec + 1] = 'label[0,1.5;' .. minetest.formspec_escape(context._itemstack_arrow:get_short_description()) .. '\n'.. minetest.formspec_escape(x_bows_registered_arrow_def.custom.description_abilities) ..']'
+                end
+            end
+
+
+            if context._itemstack_quiver and not context._itemstack_quiver:is_empty() then
+                local st_meta = context._itemstack_quiver:get_meta()
+                local quiver_id = st_meta:get_string('quiver_id')
+
+                ---description
+                formspec[#formspec + 1] = 'label[3.5,1.5;' .. minetest.formspec_escape(context._itemstack_quiver:get_short_description()) .. ']'
+                formspec[#formspec + 1] = 'list[detached:'..quiver_id..';main;4.5,0.5;3,1;]'
+                formspec[#formspec + 1] = 'listring[detached:'..quiver_id..';main]'
+                formspec[#formspec + 1] = 'listring[current_player;main]'
+            end
+
+            return sfinv.make_formspec(player, context, table.concat(formspec, ''), true)
+        end
+    })
+end
+
+---Register i3 page
+function XBowsQuiver.i3_register_page(self)
+    i3.new_tab('x_bows:quiver_page', {
+        description = 'X Bows',
+        formspec = function(player, data, fs)
+            local formspec = {
+                ---arrow
+                'label[0.5,1;' .. minetest.formspec_escape(S('Arrows')) .. ':]',
+                'list[current_player;x_bows:arrow_inv;0.5,1.5;1,1;]',
+                'listring[current_player;x_bows:arrow_inv]',
+                'listring[current_player;main]',
+                ---quiver
+                'label[5,1;' .. minetest.formspec_escape(S('Quiver')) .. ':]',
+                'list[current_player;x_bows:quiver_inv;5,1.5;1,1;]',
+                'listring[current_player;x_bows:quiver_inv]',
+                'listring[current_player;main]',
+                ---main
+                'background9[0,0;10.23,12;i3_bg_full.png;false;12]',
+                'listcolors[#bababa50;#bababa99]',
+                'style_type[box;colors=#77777710,#77777710,#777,#777]',
+                'box[0.22,6.9;1,1;]',
+                'box[1.32,6.9;1,1;]',
+                'box[2.42,6.9;1,1;]',
+                'box[3.52,6.9;1,1;]',
+                'box[4.62,6.9;1,1;]',
+                'box[5.72,6.9;1,1;]',
+                'box[6.82,6.9;1,1;]',
+                'box[7.92,6.9;1,1;]',
+                'box[9.02,6.9;1,1;]',
+                'style_type[list;size=1;spacing=0.1]',
+                'list[current_player;main;0.22,6.9;9,1;]',
+                'style_type[list;size=1;spacing=0.1,0.1]',
+                'list[current_player;main;0.22,8.05;9,4;9]',
+                'style_type[list;size=1;spacing=0.15]',
+                'listring[current_player;craft]listring[current_player;main]'
+            }
+
+            local context = {}
+            local player_inv = player:get_inventory()
+            context._itemstack_arrow = player_inv:get_stack('x_bows:arrow_inv', 1)
+            context._itemstack_quiver = player_inv:get_stack('x_bows:quiver_inv', 1)
+
+            if context._itemstack_arrow and not context._itemstack_arrow:is_empty() then
+                local x_bows_registered_arrow_def = self.registered_arrows[context._itemstack_arrow:get_name()]
+
+                if x_bows_registered_arrow_def then
+                    formspec[#formspec + 1] = 'label[0.5,3;' .. minetest.formspec_escape(context._itemstack_arrow:get_short_description()) .. '\n'.. minetest.formspec_escape(x_bows_registered_arrow_def.custom.description_abilities) ..']'
+                end
+            end
+
+
+            if context._itemstack_quiver and not context._itemstack_quiver:is_empty() then
+                local st_meta = context._itemstack_quiver:get_meta()
+                local quiver_id = st_meta:get_string('quiver_id')
+
+                ---description
+                formspec[#formspec + 1] = 'label[5,3;' .. minetest.formspec_escape(context._itemstack_quiver:get_short_description()) .. ']'
+                formspec[#formspec + 1] = 'list[detached:'..quiver_id..';main;6.3,1.5;3,1;]'
+                formspec[#formspec + 1] = 'listring[detached:'..quiver_id..';main]'
+                formspec[#formspec + 1] = 'listring[current_player;main]'
+            end
+
+            formspec = table.concat(formspec, '')
+
+            fs(formspec)
+        end
+    })
+end
+
+---Register i3 page
+function XBowsQuiver.ui_register_page(self)
+    unified_inventory.register_page('x_bows:quiver_page', {
+        get_formspec = function(player, data, fs)
+            local formspec = {
+                unified_inventory.style_full.standard_inv_bg,
+                'listcolors[#00000000;#00000000]',
+                ---arrow
+                'label[0.5,0.5;' .. minetest.formspec_escape(S('Arrows')) .. ':]',
+                unified_inventory.single_slot(0.4,0.9),
+                'list[current_player;x_bows:arrow_inv;0.5,1;1,1;]',
+                'listring[current_player;x_bows:arrow_inv]',
+                'listring[current_player;main]',
+                ---quiver
+                'label[5,0.5;' .. minetest.formspec_escape(S('Quiver')) .. ':]',
+                unified_inventory.single_slot(4.9,0.9),
+                'list[current_player;x_bows:quiver_inv;5,1;1,1;]',
+                'listring[current_player;x_bows:quiver_inv]',
+                'listring[current_player;main]',
+            }
+
+            local context = {}
+            context._itemstack_arrow = player:get_inventory():get_stack('x_bows:arrow_inv', 1)
+            context._itemstack_quiver = player:get_inventory():get_stack('x_bows:quiver_inv', 1)
+
+            if context._itemstack_arrow and not context._itemstack_arrow:is_empty() then
+                local x_bows_registered_arrow_def = self.registered_arrows[context._itemstack_arrow:get_name()]
+
+                if x_bows_registered_arrow_def then
+                    formspec[#formspec + 1] = 'label[0.5,2.5;' .. minetest.formspec_escape(context._itemstack_arrow:get_short_description()) .. '\n'.. minetest.formspec_escape(x_bows_registered_arrow_def.custom.description_abilities) ..']'
+                end
+            end
+
+
+            if context._itemstack_quiver and not context._itemstack_quiver:is_empty() then
+                local st_meta = context._itemstack_quiver:get_meta()
+                local quiver_id = st_meta:get_string('quiver_id')
+
+                ---description
+                formspec[#formspec + 1] = 'label[5,2.5;' .. minetest.formspec_escape(context._itemstack_quiver:get_short_description()) .. ']'
+                formspec[#formspec + 1] = unified_inventory.single_slot(6.4,0.9)
+                formspec[#formspec + 1] = unified_inventory.single_slot(7.65,0.9)
+                formspec[#formspec + 1] = unified_inventory.single_slot(8.9,0.9)
+                formspec[#formspec + 1] = 'list[detached:'..quiver_id..';main;6.5,1;3,1;]'
+                formspec[#formspec + 1] = 'listring[detached:'..quiver_id..';main]'
+                formspec[#formspec + 1] = 'listring[current_player;main]'
+            end
+
+            return {
+                formspec = table.concat(formspec, '')
+            }
+        end
+    })
+
+    unified_inventory.register_button('x_bows:quiver_page', {
+        type = 'image',
+        image = "x_bows_bow_wood_charged.png",
+        tooltip = 'X Bows',
+    })
+end
+
+function XBowsQuiver.show_3d_quiver(self, player, props)
+    local _props = props or {}
+    local p_name = player:get_player_name()
+    local quiver_texture = 'x_bows_quiver_mesh.png'
+    local player_textures
+
+    if _props.is_empty then
+        quiver_texture = 'x_bows_quiver_empty_mesh.png'
+    end
+
+    if self._3d_armor then
+        minetest.after(0.1, function()
+            player_textures = {
+                armor.textures[p_name].skin,
+                armor.textures[p_name].armor,
+                armor.textures[p_name].wielditem,
+                quiver_texture
+            }
+
+            if player_textures then
+                if _props.is_empty and not self.quiver_empty_state[player:get_player_name()] then
+                    self.quiver_empty_state[player:get_player_name()] = true
+                    player_api.set_textures(player, player_textures)
+                elseif not _props.is_empty and self.quiver_empty_state[player:get_player_name()] then
+                    self.quiver_empty_state[player:get_player_name()] = false
+                    player_api.set_textures(player, player_textures)
+                end
+            end
+        end)
+
+        return
+    elseif self.u_skins then
+        local u_skin_texture = u_skins.u_skins[p_name]
+
+        player_textures = {
+            u_skin_texture .. '.png',
+            quiver_texture
+        }
+    elseif self.wardrobe and wardrobe.playerSkins and wardrobe.playerSkins[p_name] then
+        player_textures = {
+            wardrobe.playerSkins[p_name],
+            quiver_texture
+        }
+    else
+        local textures = player_api.get_textures(player)
+
+        ---cleanup
+        for index, value in ipairs(textures) do
+            if value == 'x_bows_quiver_blank_mesh.png' or value == 'x_bows_quiver_mesh.png' or value == 'x_bows_quiver_empty_mesh.png' then
+                table.remove(textures, index)
+            end
+        end
+
+        table.insert(textures, quiver_texture)
+
+        player_textures = textures
+    end
+
+    if player_textures then
+        if _props.is_empty and not self.quiver_empty_state[player:get_player_name()] then
+            self.quiver_empty_state[player:get_player_name()] = true
+            player_api.set_textures(player, player_textures)
+        elseif not _props.is_empty and self.quiver_empty_state[player:get_player_name()] then
+            self.quiver_empty_state[player:get_player_name()] = false
+            player_api.set_textures(player, player_textures)
+        end
+    end
+end
+
+function XBowsQuiver.hide_3d_quiver(self, player)
+    local p_name = player:get_player_name()
+    local player_textures
+
+    if self._3d_armor then
+        minetest.after(0.1, function()
+            player_textures = {
+                armor.textures[p_name].skin,
+                armor.textures[p_name].armor,
+                armor.textures[p_name].wielditem,
+                'x_bows_quiver_blank_mesh.png'
+            }
+
+            if player_textures then
+                player_api.set_textures(player, player_textures)
+            end
+
+        end)
+
+        return
+    elseif self.u_skins then
+        local u_skin_texture = u_skins.u_skins[p_name]
+
+        player_textures = {
+            u_skin_texture .. '.png',
+            'x_bows_quiver_blank_mesh.png'
+        }
+    elseif self.wardrobe and wardrobe.playerSkins and wardrobe.playerSkins[p_name] then
+        player_textures = {
+            wardrobe.playerSkins[p_name],
+            'x_bows_quiver_blank_mesh.png'
+        }
+    else
+        local textures = player_api.get_textures(player)
+
+        ---cleanup
+        for index, value in ipairs(textures) do
+            if value == 'x_bows_quiver_mesh.png' or value == 'x_bows_quiver_blank_mesh.png' or value == 'x_bows_quiver_empty_mesh.png' then
+                table.remove(textures, index)
+            end
+        end
+
+        table.insert(textures, 'x_bows_quiver_blank_mesh.png')
+
+        player_textures = textures
+    end
+
+    if player_textures then
+        player_api.set_textures(player, player_textures)
+    end
 end

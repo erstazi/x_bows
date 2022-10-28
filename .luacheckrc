@@ -60,5 +60,11 @@ read_globals = {
     "hb",
     "mesecon",
     "armor",
-    "default"
+    "default",
+    "i3",
+    "unified_inventory",
+    "player_api",
+    "u_skins",
+    "wardrobe",
+    "3d_armor"
 }
