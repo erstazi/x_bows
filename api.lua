@@ -53,7 +53,8 @@ XBows.__index = XBows
 ---@type XBowsQuiver
 XBowsQuiver = {
     hud_item_ids = {},
-    after_job = {}
+    after_job = {},
+    quiver_empty_state = {}
 }
 XBowsQuiver.__index = XBowsQuiver
 setmetatable(XBowsQuiver, XBows)
@@ -604,6 +605,12 @@ function XBows.shoot(self, itemstack, user, pointed_thing)
 
     if is_arrow_from_quiver == 1 then
         XBowsQuiver:udate_or_create_hud(user, detached_inv:get_list('main'), found_arrow_stack_idx)
+
+        if detached_inv:is_empty('main') then
+            XBowsQuiver:show_3d_quiver(user, {is_empty = true})
+        else
+            XBowsQuiver:show_3d_quiver(user)
+        end
     else
         local inv = user:get_inventory()--[[@as InvRef]]
         if not inv:is_empty('x_bows:arrow_inv') then
@@ -1813,6 +1820,16 @@ function XBowsQuiver.get_or_create_detached_inv(self, quiver_id, player_name, qu
             ---@param stack ItemStack stack of item what was put
             ---@param player ObjectRef
             on_put = function(inv, listname, index, stack, player)
+                local quiver_inv_st = player:get_inventory():get_stack('x_bows:quiver_inv', 1)
+
+                if quiver_inv_st and quiver_inv_st:get_meta():get_string('quiver_id') == inv:get_location().name then
+                    if inv:is_empty('main') then
+                        self:show_3d_quiver(player, {is_empty = true})
+                    else
+                        self:show_3d_quiver(player)
+                    end
+                end
+
                 self:save(inv, player)
             end,
             ---@param inv InvRef detached inventory
@@ -1821,6 +1838,16 @@ function XBowsQuiver.get_or_create_detached_inv(self, quiver_id, player_name, qu
             ---@param stack ItemStack
             ---@param player ObjectRef
             on_take = function(inv, listname, index, stack, player)
+                local quiver_inv_st = player:get_inventory():get_stack('x_bows:quiver_inv', 1)
+
+                if quiver_inv_st and quiver_inv_st:get_meta():get_string('quiver_id') == inv:get_location().name then
+                    if inv:is_empty('main') then
+                        self:show_3d_quiver(player, {is_empty = true})
+                    else
+                        self:show_3d_quiver(player)
+                    end
+                end
+
                 self:save(inv, player)
             end,
        }, player_name)
@@ -2206,9 +2233,15 @@ function XBowsQuiver.ui_register_page(self)
     })
 end
 
-function XBows.show_3d_quiver(self, player)
+function XBowsQuiver.show_3d_quiver(self, player, props)
+    local _props = props or {}
     local p_name = player:get_player_name()
+    local quiver_texture = 'x_bows_quiver_mesh.png'
     local player_textures
+
+    if _props.is_empty then
+        quiver_texture = 'x_bows_quiver_empty_mesh.png'
+    end
 
     if self._3d_armor then
         minetest.after(0.1, function()
@@ -2216,11 +2249,17 @@ function XBows.show_3d_quiver(self, player)
                 armor.textures[p_name].skin,
                 armor.textures[p_name].armor,
                 armor.textures[p_name].wielditem,
-                'x_bows_quiver_mesh.png'
+                quiver_texture
             }
 
             if player_textures then
-                player_api.set_textures(player, player_textures)
+                if _props.is_empty and not self.quiver_empty_state[player:get_player_name()] then
+                    self.quiver_empty_state[player:get_player_name()] = true
+                    player_api.set_textures(player, player_textures)
+                elseif not _props.is_empty and self.quiver_empty_state[player:get_player_name()] then
+                    self.quiver_empty_state[player:get_player_name()] = false
+                    player_api.set_textures(player, player_textures)
+                end
             end
         end)
 
@@ -2230,34 +2269,40 @@ function XBows.show_3d_quiver(self, player)
 
         player_textures = {
             u_skin_texture .. '.png',
-            'x_bows_quiver_mesh.png'
+            quiver_texture
         }
     elseif self.wardrobe and wardrobe.playerSkins and wardrobe.playerSkins[p_name] then
         player_textures = {
             wardrobe.playerSkins[p_name],
-            'x_bows_quiver_mesh.png'
+            quiver_texture
         }
     else
         local textures = player_api.get_textures(player)
 
         ---cleanup
         for index, value in ipairs(textures) do
-            if value == 'x_bows_quiver_empty_mesh.png' or value == 'x_bows_quiver_mesh.png' then
+            if value == 'x_bows_quiver_blank_mesh.png' or value == 'x_bows_quiver_mesh.png' or value == 'x_bows_quiver_empty_mesh.png' then
                 table.remove(textures, index)
             end
         end
 
-        table.insert(textures, 'x_bows_quiver_mesh.png')
+        table.insert(textures, quiver_texture)
 
         player_textures = textures
     end
 
     if player_textures then
-        player_api.set_textures(player, player_textures)
+        if _props.is_empty and not self.quiver_empty_state[player:get_player_name()] then
+            self.quiver_empty_state[player:get_player_name()] = true
+            player_api.set_textures(player, player_textures)
+        elseif not _props.is_empty and self.quiver_empty_state[player:get_player_name()] then
+            self.quiver_empty_state[player:get_player_name()] = false
+            player_api.set_textures(player, player_textures)
+        end
     end
 end
 
-function XBows.hide_3d_quiver(self, player)
+function XBowsQuiver.hide_3d_quiver(self, player)
     local p_name = player:get_player_name()
     local player_textures
 
@@ -2267,7 +2312,7 @@ function XBows.hide_3d_quiver(self, player)
                 armor.textures[p_name].skin,
                 armor.textures[p_name].armor,
                 armor.textures[p_name].wielditem,
-                'x_bows_quiver_empty_mesh.png'
+                'x_bows_quiver_blank_mesh.png'
             }
 
             if player_textures then
@@ -2282,24 +2327,24 @@ function XBows.hide_3d_quiver(self, player)
 
         player_textures = {
             u_skin_texture .. '.png',
-            'x_bows_quiver_empty_mesh.png'
+            'x_bows_quiver_blank_mesh.png'
         }
     elseif self.wardrobe and wardrobe.playerSkins and wardrobe.playerSkins[p_name] then
         player_textures = {
             wardrobe.playerSkins[p_name],
-            'x_bows_quiver_empty_mesh.png'
+            'x_bows_quiver_blank_mesh.png'
         }
     else
         local textures = player_api.get_textures(player)
 
         ---cleanup
         for index, value in ipairs(textures) do
-            if value == 'x_bows_quiver_mesh.png' or value == 'x_bows_quiver_empty_mesh.png' then
+            if value == 'x_bows_quiver_mesh.png' or value == 'x_bows_quiver_blank_mesh.png' or value == 'x_bows_quiver_empty_mesh.png' then
                 table.remove(textures, index)
             end
         end
 
-        table.insert(textures, 'x_bows_quiver_empty_mesh.png')
+        table.insert(textures, 'x_bows_quiver_blank_mesh.png')
 
         player_textures = textures
     end

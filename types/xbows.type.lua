@@ -5,6 +5,9 @@
 ---@field mesecons string|nil
 ---@field playerphysics string|nil
 ---@field player_monoids string|nil
+---@field u_skins string|nil
+---@field wardrobe string|nil
+---@field _3d_armor string|nil
 ---@field registered_bows table<string, ItemDef|BowItemDefCustom>
 ---@field registered_arrows table<string, ItemDef|ArrowItemDefCustom>
 ---@field registered_quivers table<string, ItemDef|QuiverItemDefCustom>
@@ -47,6 +50,11 @@
 ---@field get_string_from_inv fun(self: XBowsQuiver, inv: InvRef): {['inv_string']: string, ['content_description']: string} Convert inventory of itemstacks to serialized string
 ---@field set_string_to_inv fun(self: XBowsQuiver, inv: InvRef, str: string): nil Set items from serialized string to inventory
 ---@field quiver_can_allow fun(self: XBowsQuiver, inv: InvRef, player: ObjectRef): boolean Check if we are allowing actions in the correct quiver inventory
+---@field show_3d_quiver fun(self: XBowsQuiver, player: ObjectRef, props?: {["is_empty"]: boolean|nil}): nil Applies full/empty quiver textures
+---@field hide_3d_quiver fun(self: XBowsQuiver, player: ObjectRef): nil Applies blank quiver textures - hiding the quiver
+---@field sfinv_register_page fun(): nil register inventoy mod page
+---@field i3_register_page fun(): nil register inventoy mod page
+---@field ui_register_page fun(): nil register inventoy mod page
 
 
 ---Custom field in ParticlespawnerDef

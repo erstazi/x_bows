@@ -20,7 +20,6 @@ dofile(path .. '/particle_effects.lua')
 dofile(path .. '/nodes.lua')
 dofile(path .. '/arrow.lua')
 dofile(path .. '/items.lua')
-dofile(path .. '/quiver.lua')
 
 if XBows.i3 then
     XBowsQuiver:i3_register_page()
@@ -50,17 +49,23 @@ minetest.register_on_joinplayer(function(player)
         local quiver_id = st_meta:get_string('quiver_id')
 
         ---create detached inventory
-        XBowsQuiver:get_or_create_detached_inv(
+        local detached_inv = XBowsQuiver:get_or_create_detached_inv(
             quiver_id,
             player:get_player_name(),
             st_meta:get_string('quiver_items')
         )
 
         ---set model textures
-        XBows:show_3d_quiver(player)
+        if detached_inv:is_empty('main') then
+            XBowsQuiver.quiver_empty_state[player:get_player_name()] = false
+            XBowsQuiver:show_3d_quiver(player, {is_empty = true})
+        else
+            XBowsQuiver.quiver_empty_state[player:get_player_name()] = true
+            XBowsQuiver:show_3d_quiver(player)
+        end
     else
         ---set model textures
-        XBows:hide_3d_quiver(player)
+        XBowsQuiver:hide_3d_quiver(player)
     end
 
     XBows:reset_charged_bow(player, true)
@@ -207,7 +212,7 @@ minetest.register_on_player_inventory_action(function(player, action, inventory,
             inventory:set_stack(inventory_info.to_list, inventory_info.to_index, stack)
         end
 
-        XBowsQuiver:get_or_create_detached_inv(
+        local detached_inv = XBowsQuiver:get_or_create_detached_inv(
             quiver_id,
             player:get_player_name(),
             st_meta:get_string('quiver_items')
@@ -222,7 +227,13 @@ minetest.register_on_player_inventory_action(function(player, action, inventory,
         end
 
         ---set player visual
-        XBows:show_3d_quiver(player)
+        if detached_inv:is_empty('main') then
+            XBowsQuiver.quiver_empty_state[player:get_player_name()] = false
+            XBowsQuiver:show_3d_quiver(player, {is_empty = true})
+        else
+            XBowsQuiver.quiver_empty_state[player:get_player_name()] = true
+            XBowsQuiver:show_3d_quiver(player)
+        end
     elseif action == 'move' and inventory_info.from_list == 'x_bows:quiver_inv' then
         local stack = inventory:get_stack(inventory_info.from_list, inventory_info.from_index)
 
@@ -236,7 +247,7 @@ minetest.register_on_player_inventory_action(function(player, action, inventory,
 
         ---set player visual
         if stack:is_empty() then
-            XBows:hide_3d_quiver(player)
+            XBowsQuiver:hide_3d_quiver(player)
         end
     elseif action == 'put' and inventory_info.listname == 'x_bows:quiver_inv' then
         if XBows.i3 then
@@ -254,6 +265,12 @@ minetest.register_on_player_inventory_action(function(player, action, inventory,
         else
             sfinv.set_player_inventory_formspec(player)
         end
+    end
+end)
+
+minetest.register_on_player_receive_fields(function(player, formname, fields)
+    if player and fields.quit then
+        XBowsQuiver:close_quiver(player, formname)
     end
 end)
 
