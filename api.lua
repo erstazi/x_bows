@@ -1352,12 +1352,14 @@ end
 ---@param damage number|integer
 ---@return boolean
 function XBowsEntityDef.on_punch(self, selfObj, puncher, time_from_last_punch, tool_capabilities, dir, damage)
-    local wood_sound_def = default.node_sound_wood_defaults()
+    local wood_sound_def = minetest.global_exists('default') and default.node_sound_wood_defaults() or nil
 
-    minetest.sound_play(wood_sound_def.dig.name, {
-        pos = selfObj.object:get_pos(),
-        gain = wood_sound_def.dig.gain
-    })
+    if wood_sound_def then
+        minetest.sound_play(wood_sound_def.dig.name, {
+            pos = selfObj.object:get_pos(),
+            gain = wood_sound_def.dig.gain
+        })
+    end
 
     return false
 end
