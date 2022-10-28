@@ -29,13 +29,17 @@ Video: https://youtu.be/pItpltmUoa8
 * quiver shows temporarily its inventory in HUD overlay when loading or shooting (quickview)
 * quiver item shows its content in infotext (hover over the item)
 * X Bows API for creating custom shooters and projectiles
+* 3d quiver shown in 3rd person view (compatible with 3d armor)
 
 ## How To
 
 ### Bow
 
 With the bow selected in hotbar and in your hand, press right click on mouse (PC) or the same action as when placing blocks, to load the bow.
-For bow to be loaded you have to have arrows in the main invetory. Charging bow will have slight sound effect and can be fired at any time with left click (PC)
+For bow to be loaded you have to have arrows in the arrow/quiver inventory - there should be extra tab in your inventory MOD to show arrow and quiver inventory slots.
+Arrows and quivers in the players main inventory don't count and will not be used.
+You have to have arrows and/or quiver in dedicated arrow/quiver inventory slots in order to charge the bow.
+Charging bow will have slight sound effect and can be fired at any time with left click (PC)
 or the same action as when you are digging a block. Waiting for full charge of the bow is recommended
 as it will give the arrow full speed (maximum shooting distance) and chance for critical arrow (double damage).
 
@@ -56,8 +60,8 @@ If you have `playerphysics` or `player_monoids` mod installed, charged bow will 
 
 ### Quiver
 
-Quiver item can hold inventory of arrows. When player has quiver in his/hers inventory, bow can take arrows from quiver, otherwise arrows outside of the quiver are used to load the bow.
-Though, if arrow from quivers are used to laod the bow, the arrows have additional speed and damage.
+Quiver item can hold inventory of arrows. When player has quiver in his/hers quiver inventory slot - there should be extra tab in your inventory MOD to show arrow and quiver inventory slots, bow can take arrows from quiver, otherwise arrows outside of the quiver are used to load the bow.
+Though, if arrows from quiver are used to load the bow, the arrows have additional speed and damage.
 If we are loading/shooting arrows from quiver, there is temporary quickview HUD overlay shown, peeking in to the quivers inventory from which the arrow was taken. Arrows used from quiver will be faster only when the bow is fully charged - see "How To - Bow" for more information on how to know when bow is fully charged.
 
 There are few indications on how to know when the bow shot arrow from quiver:
@@ -78,6 +82,12 @@ There are few indications on how to know when the bow shot arrow from quiver:
 - playerphysics (force sneak when holding charged bow)
 - player_monoids (force sneak when holding charged bow)
 - wool (quiver recipe)
+- i3
+- unified_inventory
+- simple_skins
+- u_skins
+- wardrobe
+- sfinv
 
 ## License:
 
@@ -106,8 +116,9 @@ Modified by SaKeL:
 
 **CC-BY-SA-3.0, by paramat**
 
-- x_bows_quiver_hotbar_selected.png
+- x_bows_hotbar_selected.png
 - x_bows_quiver_hotbar.png
+- x_bows_single_hotbar.png
 
 **LGPL-2.1-or-later, by SaKeL**
 
@@ -115,6 +126,10 @@ Modified by SaKeL:
 - x_bows_quiver_open.png
 - x_bows_arrow_slot.png
 - x_bows_arrow_mesh.png
+- x_bows_quiver_mesh.png
+- x_bows_quiver_empty_mesh.png
+- x_bows_quiver_blank_mesh.png
+- x_bows_quiver_slot.png
 
 ### Sounds
 
@@ -160,9 +175,20 @@ Modified by SaKeL:
 
 ### Models
 
-****LGPL-2.1-or-later, by SaKeL**
+**LGPL-2.1-or-later, by SaKeL**
 
 - x_bows_arrow.obj
+- x_bows_arrow.blend
+
+**Original model by MirceaKitsune (CC BY-SA 3.0).**
+**Various alterations and fixes by kilbith, sofar, xunto, Rogier-5, TeTpaAka, Desour, stujones11, An0n3m0us (CC BY-SA 3.0):**
+
+Modified by SaKeL (added quiver):
+
+- x_bows_3d_armor_character.b3d
+- x_bows_3d_armor_character.blend
+- x_bows_character.b3d
+- x_bows_character.blend
 
 ## Installation
 
