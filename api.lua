@@ -1875,14 +1875,18 @@ function XBowsQuiver.get_formspec(self, name)
     local list_w = 8
     local list_pos_x = (list_w - width) / 2
 
-    local formspec =
-        'size['..list_w..',6]' ..
-        'list[detached:'..name..';main;'..list_pos_x..',0.3;'..width..',1;]'..
-        'list[current_player;main;0,'..(height + 0.85)..';'..list_w..',1;]'..
-        'list[current_player;main;0,'..(height + 2.08)..';'..list_w..',3;8]'..
-        'listring[detached:'..name..';main]'..
-        'listring[current_player;main]'..
-        default.get_hotbar_bg(0, height + 0.85)
+    local formspec = {
+        'size['..list_w..',6]' ,
+        'list[detached:'..name..';main;'..list_pos_x..',0.3;'..width..',1;]',
+        'list[current_player;main;0,'..(height + 0.85)..';'..list_w..',1;]',
+        'list[current_player;main;0,'..(height + 2.08)..';'..list_w..',3;8]',
+        'listring[detached:'..name..';main]',
+        'listring[current_player;main]'
+    }
+
+    if minetest.global_exists('default') then
+        formspec[#formspec + 1] = default.get_hotbar_bg(0, height + 0.85)
+    end
 
     --update formspec
     local inv = minetest.get_inventory({type='detached', name=name})
@@ -1893,12 +1897,13 @@ function XBowsQuiver.get_formspec(self, name)
 
     for i = 1, 3 do
         if not invlist or invlist[i]:is_empty() then
-            formspec = formspec ..
-                'image[' .. px .. ',' .. py .. ';1,1;x_bows_arrow_slot.png]'
+            formspec[#formspec + 1] = 'image[' .. px .. ',' .. py .. ';1,1;x_bows_arrow_slot.png]'
         end
 
         px = px + 1
     end
+
+    formspec = table.concat(formspec, '')
 
     return formspec
 end
