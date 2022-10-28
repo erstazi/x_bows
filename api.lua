@@ -1,3 +1,5 @@
+local S = minetest.get_translator(minetest.get_current_modname())
+
 sfinv = sfinv--[[@as Sfinv]]
 
 ---Check if table contains value
@@ -180,20 +182,20 @@ function XBows.register_bow(self, name, def, override)
     def.custom.gravity = def.custom.gravity or -10
 
     if def.custom.crit_chance then
-        def.description = def.description .. '\n' .. minetest.colorize('#00FF00', 'Critical Arrow Chance: '
+        def.description = def.description .. '\n' .. minetest.colorize('#00FF00', S('Critical Arrow Chance') ..': '
             .. (1 / def.custom.crit_chance) * 100 .. '%')
     end
 
-    def.description = def.description .. '\n' .. minetest.colorize('#00BFFF', 'Strength: '
+    def.description = def.description .. '\n' .. minetest.colorize('#00BFFF', S('Strength') .. ': '
         .. def.custom.strength)
 
     if def.custom.allowed_ammunition then
         local allowed_amm_desc = table.concat(def.custom.allowed_ammunition, '\n')
 
         if allowed_amm_desc ~= '' then
-            def.description = def.description .. '\nAllowed ammunition:\n' .. allowed_amm_desc
+            def.description = def.description .. '\n' .. S('Allowed ammunition') .. ':\n' .. allowed_amm_desc
         else
-            def.description = def.description .. '\nAllowed ammunition: none'
+            def.description = def.description .. '\n' .. S('Allowed ammunition') .. ': ' .. S('none')
         end
     end
 
@@ -301,8 +303,8 @@ function XBows.register_arrow(self, name, def)
         max_drop_level = 0,
         damage_groups = {fleshy=2}
     }
-    def.custom.description_abilities = minetest.colorize('#00FF00', 'Damage: '
-        .. def.custom.tool_capabilities.damage_groups.fleshy) .. '\n' .. minetest.colorize('#00BFFF', 'Charge Time: '
+    def.custom.description_abilities = minetest.colorize('#00FF00', S('Damage') .. ': '
+        .. def.custom.tool_capabilities.damage_groups.fleshy) .. '\n' .. minetest.colorize('#00BFFF', S('Charge Time') .. ': '
         .. def.custom.tool_capabilities.full_punch_interval .. 's')
     def.groups = mergeTables({arrow = 1, flammable = 1}, def.groups or {})
     def.custom.particle_effect = def.custom.particle_effect or 'arrow'
@@ -359,13 +361,13 @@ function XBows.register_quiver(self, name, def)
     def.custom.groups_charged = mergeTables({quiver = 1, quiver_open = 1, flammable = 1, not_in_creative_inventory = 1}, def.groups or {})
 
     if def.custom.faster_arrows then
-        def.description = def.description .. '\n' .. minetest.colorize('#00FF00', 'Faster Arrows: ' .. (1 / def.custom.faster_arrows) * 100 .. '%')
-        def.short_description = def.short_description .. '\n' .. minetest.colorize('#00FF00', 'Faster Arrows: ' .. (1 / def.custom.faster_arrows) * 100 .. '%')
+        def.description = def.description .. '\n' .. minetest.colorize('#00FF00', S('Faster Arrows') .. ': ' .. (1 / def.custom.faster_arrows) * 100 .. '%')
+        def.short_description = def.short_description .. '\n' .. minetest.colorize('#00FF00', S('Faster Arrows') .. ': ' .. (1 / def.custom.faster_arrows) * 100 .. '%')
     end
 
     if def.custom.add_damage then
-        def.description = def.description .. '\n' .. minetest.colorize('#FF8080', 'Arrow Damage: +' .. def.custom.add_damage)
-        def.short_description = def.short_description .. '\n' .. minetest.colorize('#FF8080', 'Arrow Damage: +' .. def.custom.add_damage)
+        def.description = def.description .. '\n' .. minetest.colorize('#FF8080', S('Arrow Damage') .. ': +' .. def.custom.add_damage)
+        def.short_description = def.short_description .. '\n' .. minetest.colorize('#FF8080', S('Arrow Damage') .. ': +' .. def.custom.add_damage)
     end
 
     self.registered_quivers[def.custom.name] = def
@@ -1648,7 +1650,7 @@ function XBowsQuiver.udate_or_create_hud(self, player, inv_list, idx)
     if is_no_ammo then
         item_def = {
             inventory_image = 'x_bows_arrow_slot.png',
-            short_description = 'No Ammo!'
+            short_description = S('No Ammo') .. '!'
         }
     end
 
@@ -1928,7 +1930,7 @@ function XBowsQuiver.get_string_from_inv(self, inv)
 
     return {
         inv_string = minetest.serialize(t),
-        content_description = content_description == '' and '\nEmpty' or content_description
+        content_description = content_description == '' and '\n' .. S('Empty') or content_description
     }
 end
 
@@ -2068,13 +2070,13 @@ function XBowsQuiver.sfinv_register_page(self)
         get = function(this, player, context)
             local formspec = {
                 ---arrow
-                'label[0,0;Arrows:]',
+                'label[0,0;' .. minetest.formspec_escape(S('Arrows')) .. ':]',
                 'list[current_player;x_bows:arrow_inv;0,0.5;1,1;]',
                 'image[0,0.5;1,1;x_bows_arrow_slot.png;]',
                 'listring[current_player;x_bows:arrow_inv]',
                 'listring[current_player;main]',
                 ---quiver
-                'label[3.5,0;Quiver:]',
+                'label[3.5,0;' .. minetest.formspec_escape(S('Quiver')) .. ':]',
                 'list[current_player;x_bows:quiver_inv;3.5,0.5;1,1;]',
                 'image[3.5,0.5;1,1;x_bows_quiver_slot.png]',
                 'listring[current_player;x_bows:quiver_inv]',
@@ -2117,12 +2119,12 @@ function XBowsQuiver.i3_register_page(self)
         formspec = function(player, data, fs)
             local formspec = {
                 ---arrow
-                'label[0.5,1;Arrows:]',
+                'label[0.5,1;' .. minetest.formspec_escape(S('Arrows')) .. ':]',
                 'list[current_player;x_bows:arrow_inv;0.5,1.5;1,1;]',
                 'listring[current_player;x_bows:arrow_inv]',
                 'listring[current_player;main]',
                 ---quiver
-                'label[5,1;Quiver:]',
+                'label[5,1;' .. minetest.formspec_escape(S('Quiver')) .. ':]',
                 'list[current_player;x_bows:quiver_inv;5,1.5;1,1;]',
                 'listring[current_player;x_bows:quiver_inv]',
                 'listring[current_player;main]',
@@ -2187,13 +2189,13 @@ function XBowsQuiver.ui_register_page(self)
                 unified_inventory.style_full.standard_inv_bg,
                 'listcolors[#00000000;#00000000]',
                 ---arrow
-                'label[0.5,0.5;Arrows:]',
+                'label[0.5,0.5;' .. minetest.formspec_escape(S('Arrows')) .. ':]',
                 unified_inventory.single_slot(0.4,0.9),
                 'list[current_player;x_bows:arrow_inv;0.5,1;1,1;]',
                 'listring[current_player;x_bows:arrow_inv]',
                 'listring[current_player;main]',
                 ---quiver
-                'label[5,0.5;Quiver:]',
+                'label[5,0.5;' .. minetest.formspec_escape(S('Quiver')) .. ':]',
                 unified_inventory.single_slot(4.9,0.9),
                 'list[current_player;x_bows:quiver_inv;5,1;1,1;]',
                 'listring[current_player;x_bows:quiver_inv]',

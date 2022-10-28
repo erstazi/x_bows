@@ -1,6 +1,8 @@
+local S = minetest.get_translator(minetest.get_current_modname())
+
 XBows:register_bow('bow_wood', {
-    description = 'Wooden Bow',
-    short_description = 'Wooden Bow',
+    description = S('Wooden Bow'),
+    short_description = S('Wooden Bow'),
     custom = {
         uses = 385,
         crit_chance = 10,
@@ -22,8 +24,8 @@ XBows:register_bow('bow_wood', {
 })
 
 XBows:register_arrow('arrow_wood', {
-    description = 'Arrow Wood',
-    short_description = 'Arrow Wood',
+    description = S('Arrow Wood'),
+    short_description = S('Arrow Wood'),
     inventory_image = 'x_bows_arrow_wood.png',
     custom = {
         recipe = {
@@ -41,8 +43,8 @@ XBows:register_arrow('arrow_wood', {
 })
 
 XBows:register_arrow('arrow_stone', {
-    description = 'Arrow Stone',
-    short_description = 'Arrow Stone',
+    description = S('Arrow Stone'),
+    short_description = S('Arrow Stone'),
     inventory_image = 'x_bows_arrow_stone.png',
     custom = {
         recipe = {
@@ -59,8 +61,8 @@ XBows:register_arrow('arrow_stone', {
 })
 
 XBows:register_arrow('arrow_bronze', {
-    description = 'Arrow Bronze',
-    short_description = 'Arrow Bronze',
+    description = S('Arrow Bronze'),
+    short_description = S('Arrow Bronze'),
     inventory_image = 'x_bows_arrow_bronze.png',
     custom = {
         recipe = {
@@ -77,8 +79,8 @@ XBows:register_arrow('arrow_bronze', {
 })
 
 XBows:register_arrow('arrow_steel', {
-    description = 'Arrow Steel',
-    short_description = 'Arrow Steel',
+    description = S('Arrow Steel'),
+    short_description = S('Arrow Steel'),
     inventory_image = 'x_bows_arrow_steel.png',
     custom = {
         recipe = {
@@ -95,8 +97,8 @@ XBows:register_arrow('arrow_steel', {
 })
 
 XBows:register_arrow('arrow_mese', {
-    description = 'Arrow Mese',
-    short_description = 'Arrow Mese',
+    description = S('Arrow Mese'),
+    short_description = S('Arrow Mese'),
     inventory_image = 'x_bows_arrow_mese.png',
     custom = {
         recipe = {
@@ -113,8 +115,8 @@ XBows:register_arrow('arrow_mese', {
 })
 
 XBows:register_arrow('arrow_diamond', {
-    description = 'Arrow Diamond',
-    short_description = 'Arrow Diamond',
+    description = S('Arrow Diamond'),
+    short_description = S('Arrow Diamond'),
     inventory_image = 'x_bows_arrow_diamond.png',
     custom = {
         recipe = {
@@ -131,11 +133,11 @@ XBows:register_arrow('arrow_diamond', {
 })
 
 XBows:register_quiver('quiver', {
-    description = 'Quiver \n\n Empty\n',
-    short_description = 'Quiver',
+    description = S('Quiver') .. '\n\n' .. S('Empty') ..'\n',
+    short_description = S('Quiver'),
     custom = {
-        description = 'Quiver \n\n Empty\n',
-        short_description = 'Quiver',
+        description = S('Quiver') .. '\n\n' .. S('Empty') ..'\n',
+        short_description = S('Quiver'),
         recipe = {
             {'group:arrow', 'group:arrow', 'group:arrow'},
             {'group:arrow', 'wool:brown', 'group:arrow'},

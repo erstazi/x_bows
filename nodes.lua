@@ -1,5 +1,8 @@
+local S = minetest.get_translator(minetest.get_current_modname())
+
 minetest.register_node('x_bows:target', {
-    description = 'Target',
+    description = S('Target'),
+    short_description = S('Target'),
     tiles = {'x_bows_target.png'},
     is_ground_content = false,
     groups = {snappy=3, flammable=4, fall_damage_add_percent = -30},
