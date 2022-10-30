@@ -32,6 +32,7 @@
 ---@field open_quiver fun(self: XBowsQuiver, itemstack: ItemStack, user: ObjectRef): ItemStack Open quiver
 ---@field uuid fun(): string Creates UUID
 ---@field fallback_quiver boolean If no invenotory mod is detected then fallback solution will be used
+---@field show_damage_numbers fun(self: XBows, pos: Vector, damaga: number, is_crit?: boolean): nil Builds textures and shows textures in particle spawner
 
 
 ---XBowsQuiver class extended from XBows
