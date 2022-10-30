@@ -44,7 +44,8 @@ XBows = {
     registered_entities = {},
     player_bow_sneak = {},
     settings = {
-        x_bows_attach_arrows_to_entities = minetest.settings:get_bool('x_bows_attach_arrows_to_entities', false)
+        x_bows_attach_arrows_to_entities = minetest.settings:get_bool('x_bows_attach_arrows_to_entities', false),
+        x_bows_show_damage_numbers = minetest.settings:get_bool('x_bows_show_damage_numbers', false)
     },
     charge_sound_after_job = {},
     fallback_quiver = not minetest.global_exists('sfinv') and  not minetest.global_exists('unified_inventory') and not minetest.global_exists('i3')
@@ -1118,6 +1119,8 @@ function XBowsEntityDef.on_step(self, selfObj, dtime)
 
             selfObj._caused_damage = _damage
             selfObj._caused_knockback = knockback
+
+            XBows:show_damage_numbers(selfObj.object:get_pos(), _damage, selfObj._is_critical_hit)
 
             -- already dead (entity)
             if not pointed_thing.ref:get_luaentity() and not pointed_thing.ref:is_player() then
@@ -2373,5 +2376,64 @@ function XBowsQuiver.hide_3d_quiver(self, player)
 
     if player_textures then
         player_api.set_textures(player, player_textures)
+    end
+end
+
+local function split(str)
+    if #str > 0 then
+        return str:sub(1,1), split(str:sub(2))
+    end
+end
+
+---Show damage numbers
+function XBows.show_damage_numbers(self, pos, damage, is_crit)
+    if not pos or not self.settings.x_bows_show_damage_numbers then
+        return
+    end
+
+    ---get damage texture
+    local dmgstr = tostring(math.round(damage))
+    local results = {split(dmgstr)}
+    local texture = ''
+    local dmg_nr_offset = 0
+
+    for i, value in ipairs(results) do
+        if i == 1 then
+            texture = texture .. '[combine:' .. 7 * #results .. 'x' .. 9 * #results .. ':0,0=dmg_' .. value .. '.png'
+        else
+            texture = texture .. ':' .. dmg_nr_offset .. ',0=dmg_' .. value .. '.png'
+        end
+
+        dmg_nr_offset = dmg_nr_offset + 7
+    end
+
+    if texture and texture ~= '' then
+        local size = 7
+
+        if is_crit then
+            size = 14
+            texture = texture .. '^[colorize:#FF0000:255'
+        else
+            texture = texture .. '^[colorize:#FFFF00:127'
+        end
+
+        ---show damage texture
+        minetest.add_particlespawner({
+            amount = 1,
+            time = 0.01,
+            minpos = {x = pos.x, y = pos.y + 1, z = pos.z},
+            maxpos = {x = pos.x, y = pos.y + 2, z = pos.z},
+            minvel = {x = math.random(-1, 1), y = 5, z = math.random(-1, 1)},
+            maxvel = {x = math.random(-1, 1), y = 5, z = math.random(-1, 1)},
+            minacc = {x = math.random(-1, 1), y = -7, z = math.random(-1, 1)},
+            maxacc = {x = math.random(-1, 1), y = -7, z = math.random(-1, 1)},
+            minexptime = 2,
+            maxexptime = 2,
+            minsize = size,
+            maxsize = size,
+            texture = texture,
+            collisiondetection = true,
+            glow = 10
+        })
     end
 end
