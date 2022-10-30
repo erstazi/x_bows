@@ -154,3 +154,51 @@
 ---@class EntityAnimationDef
 ---@field idle {frame_range?: {["x"]: number, ["y"]: number}, frame_speed?: number, frame_blend?: number, frame_loop?: boolean}
 ---@field on_hit_node {frame_range?: {["x"]: number, ["y"]: number}, frame_speed?: number, frame_blend?: number, frame_loop?: boolean}
+
+---Arrow object and custom attributes
+---@class EnityCustomAttrDef
+---@field object ObjectRef
+---@field _velocity Vector
+---@field _old_pos Vector
+---@field _attached boolean
+---@field _attached_to {["type"]: string, ["pos"]: Vector | nil}
+---@field _has_particles boolean
+---@field _lifetimer number
+---@field _nodechecktimer number
+---@field _is_drowning boolean
+---@field _in_liquid boolean
+---@field _shot_from_pos Vector
+---@field _arrow_name string
+---@field _bow_name string
+---@field _user_name string
+---@field _user ObjectRef
+---@field _tflp number
+---@field _tool_capabilities ToolCapabilitiesDef
+---@field _is_critical_hit boolean
+---@field _faster_arrows_multiplier number
+---@field _add_damage number
+---@field _caused_damage number
+---@field _caused_knockback number
+---@field _arrow_particle_effect string
+---@field _arrow_particle_effect_crit string
+---@field _arrow_particle_effect_fast string
+---@field _sound_hit string
+---@field _player_look_dir Vector
+---@field _acc_x number
+---@field _acc_y number
+---@field _acc_z number
+---@field _strength number
+---@field name string
+---@field _rotation_factor number | fun(): number
+---@field _step_count number
+
+---Staticdata attributes
+---@class EnityStaticDataAttrDef
+---@field _arrow_name string
+---@field _bow_name string
+---@field _user_name string
+---@field _is_critical_hit boolean
+---@field _tool_capabilities ToolCapabilitiesDef
+---@field _tflp number
+---@field _add_damage number
+---@field _faster_arrows_multiplier number | nil

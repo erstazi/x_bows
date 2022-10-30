@@ -31,12 +31,19 @@
 ---@field move_to fun(self: ObjectRef, pos: Vector, continuous?: boolean): nil Does an interpolated move for Lua entities for visually smooth transitions. If `continuous` is true, the Lua entity will not be moved to the current position before starting the interpolated move. For players this does the same as `set_pos`,`continuous` is ignored.
 ---@field set_hp fun(self: ObjectRef, hp: number, reason: table): nil set number of health points See reason in register_on_player_hpchange Is limited to the range of 0 ... 65535 (2^16 - 1) For players: HP are also limited by `hp_max` specified in object properties
 ---@field set_animation fun(self: ObjectRef, frame_range?: {["x"]: number, ["y"]: number}, frame_speed?: number, frame_blend?: number, frame_loop?: boolean): nil `frame_range`: table {x=num, y=num}, default: `{x=1, y=1}`, `frame_speed`: number, default: `15.0`, `frame_blend`: number, default: `0.0`, `frame_loop`: boolean, default: `true`
+---@field get_velocity fun(self: ObjectRef): Vector returns the velocity, a vector.
+---@field set_rotation fun(self: ObjectRef, rot: Vector): nil `rot` is a vector (radians). X is pitch (elevation), Y is yaw (heading) and Z is roll (bank).
+---@field set_pos fun(self: ObjectRef, pos: Vector): nil
+
 
 ---Moving things in the game are generally these.
 ---This is basically a reference to a C++ `ServerActiveObject`.
 ---@class ObjectRefLuaEntityRef
 ---@field set_velocity fun(self: ObjectRef, vel: Vector): nil `vel` is a vector, e.g. `{x=0.0, y=2.3, z=1.0}`
 ---@field remove fun(): nil remove object, The object is removed after returning from Lua. However the `ObjectRef` itself instantly becomes unusable with all further method calls having no effect and returning `nil`.
+---@field get_rotation fun(self: ObjectRef): Vector returns the rotation, a vector (radians)
+---@field get_attach fun(self: ObjectRef): any Returns parent, bone, position, rotation, forced_visible, or nil if it isn't attached.
+---@field set_attach fun(self: ObjectRef, parent: ObjectRef, bone?: string, position?: Vector, rotation?: Vector, forced_visible?: boolean): any Returns parent, bone, position, rotation, forced_visible, or nil if it isn't attached.
 
 ---`ObjectRef` armor groups
 ---@class ObjectRefArmorGroups
