@@ -236,6 +236,7 @@ function XBows.register_bow(self, name, def, override)
         wield_image = def.custom.wield_image_charged or def.custom.inventory_image_charged,
         groups = def.custom.groups_charged,
         wield_scale = {x = 2, y = 2, z = 1.5},
+        range = 0,
         ---@param itemstack ItemStack
         ---@param user ObjectRef|nil
         ---@param pointed_thing PointedThingDef
@@ -605,6 +606,7 @@ function XBows.shoot(self, itemstack, user, pointed_thing)
         user:get_player_name()
     )
 
+    ---Handle HUD and 3d Quiver
     if is_arrow_from_quiver == 1 then
         XBowsQuiver:udate_or_create_hud(user, detached_inv:get_list('main'), found_arrow_stack_idx)
 
@@ -618,7 +620,7 @@ function XBows.shoot(self, itemstack, user, pointed_thing)
         if not inv:is_empty('x_bows:arrow_inv') then
             XBowsQuiver:udate_or_create_hud(user, inv:get_list('x_bows:arrow_inv'))
         else
-            ---no ammo (fake stack)
+            ---no ammo (fake stack just for the HUD)
             XBowsQuiver:udate_or_create_hud(user, {ItemStack({
                 name = 'x_bows:no_ammo'
             })})
@@ -637,16 +639,6 @@ function XBows.shoot(self, itemstack, user, pointed_thing)
     local bow_name = x_bows_registered_bow_charged_def.custom.name
     local uses = x_bows_registered_bow_charged_def.custom.uses
     local crit_chance = x_bows_registered_bow_charged_def.custom.crit_chance
-    local bow_strength = x_bows_registered_bow_charged_def.custom.strength
-    local bow_strength_min = x_bows_registered_bow_charged_def.custom.strength_min
-    local bow_strength_max = x_bows_registered_bow_charged_def.custom.strength_max
-    local acc_x_min = x_bows_registered_bow_charged_def.custom.acc_x_min
-    local acc_y_min = x_bows_registered_bow_charged_def.custom.acc_y_min
-    local acc_z_min = x_bows_registered_bow_charged_def.custom.acc_z_min
-    local acc_x_max = x_bows_registered_bow_charged_def.custom.acc_x_max
-    local acc_y_max = x_bows_registered_bow_charged_def.custom.acc_y_max
-    local acc_z_max = x_bows_registered_bow_charged_def.custom.acc_z_max
-    local gravity = x_bows_registered_bow_charged_def.custom.gravity
     ---Arrow
     local projectile_entity = x_bows_registered_arrow_def.custom.projectile_entity
     ---Quiver
@@ -655,11 +647,12 @@ function XBows.shoot(self, itemstack, user, pointed_thing)
     local _tool_capabilities = x_bows_registered_arrow_def.custom.tool_capabilities
     local quiver_xbows_def = x_bows_registered_quiver_def
 
+    ---@type EnityStaticDataAttrDef
     local staticdata = {
         _arrow_name = arrow_name,
         _bow_name = bow_name,
-        user_name = user:get_player_name(),
-        is_critical_hit = false,
+        _user_name = user:get_player_name(),
+        _is_critical_hit = false,
         _tool_capabilities = _tool_capabilities,
         _tflp = tflp,
         _add_damage = 0
@@ -668,13 +661,13 @@ function XBows.shoot(self, itemstack, user, pointed_thing)
     ---crits, only on full punch interval
     if crit_chance and crit_chance > 1 and tflp >= _tool_capabilities.full_punch_interval then
         if math.random(1, crit_chance) == 1 then
-            staticdata.is_critical_hit = true
+            staticdata._is_critical_hit = true
         end
     end
 
     ---speed multiply
     if quiver_xbows_def and quiver_xbows_def.custom.faster_arrows and quiver_xbows_def.custom.faster_arrows > 1 then
-        staticdata.faster_arrows_multiplier = quiver_xbows_def.custom.faster_arrows
+        staticdata._faster_arrows_multiplier = quiver_xbows_def.custom.faster_arrows
     end
 
     ---add quiver damage
@@ -684,20 +677,23 @@ function XBows.shoot(self, itemstack, user, pointed_thing)
 
     ---sound
     local sound_name = x_bows_registered_bow_charged_def.custom.sound_shoot
-    if staticdata.is_critical_hit then
+    if staticdata._is_critical_hit then
         sound_name = x_bows_registered_bow_charged_def.custom.sound_shoot_crit
     end
 
-    meta:set_string('arrow_itemstack_string', '')
-    itemstack:set_name(bow_name)
+    ---stop punching close objects/nodes when shooting
+    minetest.after(0.2, function()
+        if user:get_wielded_item():get_name() == itemstack:get_name() then
+            user:set_wielded_item(ItemStack({name = bow_name, wear = itemstack:get_wear()}))
+        end
+    end)
 
-    local pos = user:get_pos()
-    local dir = user:get_look_dir()
+    local player_pos = user:get_pos()
     local obj = minetest.add_entity(
         {
-            x = pos.x,
-            y = pos.y + 1.5,
-            z = pos.z
+            x = player_pos.x,
+            y = player_pos.y + 1.5,
+            z = player_pos.z
         },
         projectile_entity,
         minetest.serialize(staticdata)
@@ -706,44 +702,6 @@ function XBows.shoot(self, itemstack, user, pointed_thing)
     if not obj then
         return itemstack
     end
-
-    local strength_multiplier = tflp
-
-    if strength_multiplier > _tool_capabilities.full_punch_interval then
-        strength_multiplier = 1
-
-        ---faster arrow, only on full punch interval
-        if staticdata.faster_arrows_multiplier then
-            strength_multiplier = strength_multiplier + (strength_multiplier / staticdata.faster_arrows_multiplier)
-        end
-    end
-
-    if bow_strength_max and bow_strength_min then
-        bow_strength = math.random(bow_strength_min, bow_strength_max)
-    end
-
-    ---acceleration
-    local acc_x = dir.x
-    local acc_y = gravity
-    local acc_z = dir.z
-
-    if acc_x_min and acc_x_max then
-        acc_x = math.random(acc_x_min, acc_x_max)
-    end
-
-    if acc_y_min and acc_y_max then
-        acc_y = math.random(acc_y_min, acc_y_max)
-    end
-
-    if acc_z_min and acc_z_max then
-        acc_z = math.random(acc_z_min, acc_z_max)
-    end
-
-    local strength = bow_strength * strength_multiplier
-
-    obj:set_velocity(vector.multiply(dir, strength))
-    obj:set_acceleration({x = acc_x, y = acc_y, z = acc_z})
-    obj:set_yaw(minetest.dir_to_yaw(dir))
 
     if not self:is_creative(user:get_player_name()) then
         itemstack:add_wear(65535 / uses)
@@ -843,24 +801,9 @@ local function limit(x, min, max)
     return math.min(math.max(x, min), max)
 end
 
----Gets collision box
----@param obj ObjectRef
----@return number[]
-local function get_obj_box(obj)
-    local box
-
-    if obj:is_player() then
-        box = obj:get_properties().collisionbox or {-0.5, 0.0, -0.5, 0.5, 1.0, 0.5}
-    else
-        box = obj:get_luaentity().collisionbox or {-0.5, -0.5, -0.5, 0.5, 0.5, 0.5}
-    end
-
-    return box
-end
-
 ---Function receive a "luaentity" table as `self`. Called when the object is instantiated.
 ---@param self EntityDef|EntityDefCustom|XBows
----@param selfObj table
+---@param selfObj EnityCustomAttrDef
 ---@param staticdata string
 ---@param dtime_s? integer|number
 ---@return nil
@@ -870,7 +813,7 @@ function XBowsEntityDef.on_activate(self, selfObj, staticdata, dtime_s)
         return
     end
 
-    local _staticdata = minetest.deserialize(staticdata)
+    local _staticdata = minetest.deserialize(staticdata)--[[@as EnityStaticDataAttrDef]]
 
     -- set/reset - do not inherit from previous entity table
     selfObj._velocity = {x = 0, y = 0, z = 0}
@@ -888,12 +831,12 @@ function XBowsEntityDef.on_activate(self, selfObj, staticdata, dtime_s)
     selfObj._shot_from_pos = selfObj.object:get_pos()
     selfObj._arrow_name = _staticdata._arrow_name
     selfObj._bow_name = _staticdata._bow_name
-    selfObj._user_name = _staticdata.user_name
-    selfObj.user = minetest.get_player_by_name(_staticdata.user_name)
+    selfObj._user_name = _staticdata._user_name
+    selfObj._user = minetest.get_player_by_name(_staticdata._user_name)
     selfObj._tflp = _staticdata._tflp
     selfObj._tool_capabilities = _staticdata._tool_capabilities
-    selfObj._is_critical_hit = _staticdata.is_critical_hit
-    selfObj._faster_arrows_multiplier = _staticdata.faster_arrows_multiplier
+    selfObj._is_critical_hit = _staticdata._is_critical_hit
+    selfObj._faster_arrows_multiplier = _staticdata._faster_arrows_multiplier
     selfObj._add_damage = _staticdata._add_damage
     selfObj._caused_damage = 0
     selfObj._caused_knockback = 0
@@ -903,9 +846,58 @@ function XBowsEntityDef.on_activate(self, selfObj, staticdata, dtime_s)
     selfObj._arrow_particle_effect_crit = x_bows_registered_arrow_def.custom.particle_effect_crit
     selfObj._arrow_particle_effect_fast = x_bows_registered_arrow_def.custom.particle_effect_fast
 
+    ---Bow Def
     local x_bows_registered_bow_def = self.registered_bows[selfObj._bow_name]
     selfObj._sound_hit = x_bows_registered_bow_def.custom.sound_hit
+    local bow_strength = x_bows_registered_bow_def.custom.strength
+    local acc_x_min = x_bows_registered_bow_def.custom.acc_x_min
+    local acc_y_min = x_bows_registered_bow_def.custom.acc_y_min
+    local acc_z_min = x_bows_registered_bow_def.custom.acc_z_min
+    local acc_x_max = x_bows_registered_bow_def.custom.acc_x_max
+    local acc_y_max = x_bows_registered_bow_def.custom.acc_y_max
+    local acc_z_max = x_bows_registered_bow_def.custom.acc_z_max
+    local gravity = x_bows_registered_bow_def.custom.gravity
+    local bow_strength_min = x_bows_registered_bow_def.custom.strength_min
+    local bow_strength_max = x_bows_registered_bow_def.custom.strength_max
 
+    ---acceleration
+    selfObj._player_look_dir = selfObj._user:get_look_dir()
+
+    selfObj._acc_x = selfObj._player_look_dir.x
+    selfObj._acc_y = gravity
+    selfObj._acc_z = selfObj._player_look_dir.z
+
+    if acc_x_min and acc_x_max then
+        selfObj._acc_x = math.random(acc_x_min, acc_x_max)
+    end
+
+    if acc_y_min and acc_y_max then
+        selfObj._acc_y = math.random(acc_y_min, acc_y_max)
+    end
+
+    if acc_z_min and acc_z_max then
+        selfObj._acc_z = math.random(acc_z_min, acc_z_max)
+    end
+
+    ---strength
+    local strength_multiplier = selfObj._tflp
+
+    if strength_multiplier > selfObj._tool_capabilities.full_punch_interval then
+        strength_multiplier = 1
+
+        ---faster arrow, only on full punch interval
+        if selfObj._faster_arrows_multiplier then
+            strength_multiplier = strength_multiplier + (strength_multiplier / selfObj._faster_arrows_multiplier)
+        end
+    end
+
+    if bow_strength_max and bow_strength_min then
+        bow_strength = math.random(bow_strength_min, bow_strength_max)
+    end
+
+    selfObj._strength = bow_strength * strength_multiplier
+
+    ---rotation factor
     local x_bows_registered_entity_def = self.registered_entities[selfObj.name]
     selfObj._rotation_factor = x_bows_registered_entity_def._custom.rotation_factor
 
@@ -913,14 +905,18 @@ function XBowsEntityDef.on_activate(self, selfObj, staticdata, dtime_s)
         selfObj._rotation_factor = selfObj._rotation_factor()
     end
 
+    ---add infotext
     selfObj.object:set_properties({
         infotext = selfObj._arrow_name,
     })
 
-
+    ---idle animation
     if x_bows_registered_entity_def and x_bows_registered_entity_def._custom.animations.idle then
         selfObj.object:set_animation(unpack(x_bows_registered_entity_def._custom.animations.idle))
     end
+
+    ---counter, e.g. for initial values set `on_step`
+    selfObj._step_count = 0
 
     ---Callbacks
     local on_after_activate_callback = x_bows_registered_arrow_def.custom.on_after_activate
@@ -932,7 +928,7 @@ end
 
 ---Function receive a "luaentity" table as `self`. Called when the object dies.
 ---@param self XBows
----@param selfObj table
+---@param selfObj EnityCustomAttrDef
 ---@param killer ObjectRef|nil
 ---@return nil
 function XBowsEntityDef.on_death(self, selfObj, killer)
@@ -946,10 +942,20 @@ end
 
 --- Function receive a "luaentity" table as `self`. Called on every server tick, after movement and collision processing. `dtime`: elapsed time since last call. `moveresult`: table with collision info (only available if physical=true).
 ---@param self XBows
----@param selfObj table
+---@param selfObj EnityCustomAttrDef
 ---@param dtime number
 ---@return nil
 function XBowsEntityDef.on_step(self, selfObj, dtime)
+    selfObj._step_count = selfObj._step_count + 1
+
+    if selfObj._step_count == 1 then
+        ---initialize
+        ---this has to be done here for raycast to kick-in asap
+        selfObj.object:set_velocity(vector.multiply(selfObj._player_look_dir, selfObj._strength))
+        selfObj.object:set_acceleration({x = selfObj._acc_x, y = selfObj._acc_y, z = selfObj._acc_z})
+        selfObj.object:set_yaw(minetest.dir_to_yaw(selfObj._player_look_dir))
+    end
+
     local pos = selfObj.object:get_pos()
     selfObj._old_pos = selfObj._old_pos or pos
     local ray = minetest.raycast(selfObj._old_pos, pos, true, true)
@@ -1029,7 +1035,7 @@ function XBowsEntityDef.on_step(self, selfObj, dtime)
             and pointed_thing.ref ~= selfObj.object
             and pointed_thing.ref:get_hp() > 0
             and (
-                (pointed_thing.ref:is_player() and pointed_thing.ref:get_player_name() ~= selfObj.user:get_player_name())
+                (pointed_thing.ref:is_player() and pointed_thing.ref:get_player_name() ~= selfObj._user:get_player_name())
                 or (
                     pointed_thing.ref:get_luaentity()
                     and pointed_thing.ref:get_luaentity().physical
@@ -1041,24 +1047,15 @@ function XBowsEntityDef.on_step(self, selfObj, dtime)
         then
             if pointed_thing.ref:is_player() then
                 minetest.sound_play('x_bows_arrow_successful_hit', {
-                    to_player = selfObj.user:get_player_name(),
+                    to_player = selfObj._user:get_player_name(),
                     gain = 0.3
                 })
             else
                 minetest.sound_play(selfObj._sound_hit, {
-                    to_player = selfObj.user:get_player_name(),
+                    to_player = selfObj._user:get_player_name(),
                     gain = 0.6
                 })
             end
-
-            -- store these here before punching in case pointed_thing.ref dies
-            local collisionbox = get_obj_box(pointed_thing.ref)
-            local xmin = collisionbox[1] * 100
-            local ymin = collisionbox[2] * 100
-            local zmin = collisionbox[3] * 100
-            local xmax = collisionbox[4] * 100
-            local ymax = collisionbox[5] * 100
-            local zmax = collisionbox[6] * 100
 
             selfObj.object:set_velocity({x = 0, y = 0, z = 0})
             selfObj.object:set_acceleration({x = 0, y = 0, z = 0})
@@ -1136,7 +1133,6 @@ function XBowsEntityDef.on_step(self, selfObj, dtime)
 
             -- attach arrow prepare
             local rotation = {x = 0, y = 0, z = 0}
-            local position = {x = 0, y = 0, z = 0}
 
             if in_pos.x == 1 then
                 -- x = 0
@@ -1145,10 +1141,6 @@ function XBowsEntityDef.on_step(self, selfObj, dtime)
                 rotation.x = math.random(-10, 10)
                 rotation.y = math.random(-100, -80)
                 rotation.z = math.random(-10, 10)
-
-                position.x = xmax / 10
-                position.y = math.random(ymin, ymax) / 10
-                position.z = math.random(zmin, zmax) / 10
             elseif in_pos.x == -1 then
                 -- x = 0
                 -- y = 90
@@ -1156,10 +1148,6 @@ function XBowsEntityDef.on_step(self, selfObj, dtime)
                 rotation.x = math.random(-10, 10)
                 rotation.y = math.random(80, 100)
                 rotation.z = math.random(-10, 10)
-
-                position.x = xmin / 10
-                position.y = math.random(ymin, ymax) / 10
-                position.z = math.random(zmin, zmax) / 10
             elseif in_pos.y == 1 then
                 -- x = -90
                 -- y = 0
@@ -1167,10 +1155,6 @@ function XBowsEntityDef.on_step(self, selfObj, dtime)
                 rotation.x = math.random(-100, -80)
                 rotation.y = math.random(-10, 10)
                 rotation.z = math.random(-190, -170)
-
-                position.x = math.random(xmin, xmax) / 10
-                position.y = ymax / 10
-                position.z = math.random(zmin, zmax) / 10
             elseif in_pos.y == -1 then
                 -- x = 90
                 -- y = 0
@@ -1178,10 +1162,6 @@ function XBowsEntityDef.on_step(self, selfObj, dtime)
                 rotation.x = math.random(80, 100)
                 rotation.y = math.random(-10, 10)
                 rotation.z = math.random(170, 190)
-
-                position.x = math.random(xmin, xmax) / 10
-                position.y = ymin / 10
-                position.z = math.random(zmin, zmax) / 10
             elseif in_pos.z == 1 then
                 -- x = 180
                 -- y = 0
@@ -1189,10 +1169,6 @@ function XBowsEntityDef.on_step(self, selfObj, dtime)
                 rotation.x = math.random(170, 190)
                 rotation.y = math.random(-10, 10)
                 rotation.z = math.random(170, 190)
-
-                position.x = math.random(xmin, xmax) / 10
-                position.y = math.random(ymin, ymax) / 10
-                position.z = zmax / 10
             elseif in_pos.z == -1 then
                 -- x = -180
                 -- y = 180
@@ -1200,10 +1176,6 @@ function XBowsEntityDef.on_step(self, selfObj, dtime)
                 rotation.x = math.random(-190, -170)
                 rotation.y = math.random(170, 190)
                 rotation.z = math.random(-190, -170)
-
-                position.x = math.random(xmin, xmax) / 10
-                position.y = math.random(ymin, ymax) / 10
-                position.z = zmin / 10
             end
 
             if not XBows.settings.x_bows_attach_arrows_to_entities and not pointed_thing.ref:is_player() then
@@ -1211,14 +1183,35 @@ function XBowsEntityDef.on_step(self, selfObj, dtime)
                 return
             end
 
+            ---normalize arrow scale when attached to scaled entity (prevents huge arrows when attached to scaled up entity models)
+            local obj_props = selfObj.object:get_properties()
+            local obj_to_props = pointed_thing.ref:get_properties()
+            local vs = vector.divide(obj_props.visual_size, obj_to_props.visual_size)
+
+            selfObj.object:set_properties({visual_size = vs})
+
             -- attach arrow
-            selfObj.object:set_attach(
-                pointed_thing.ref,
-                '',
-                position,
-                rotation,
-                true
+            local position = vector.subtract(
+                ip_pos,
+                pointed_thing.ref:get_pos()
             )
+
+            if pointed_thing.ref:is_player() then
+                position = vector.multiply(position, 10)
+            end
+
+            ---`after` here prevents visual glitch when the arrow still shows as huge for a split second
+            ---before the new calculated scale is applied
+            minetest.after(0, function()
+                selfObj.object:set_attach(
+                    pointed_thing.ref,
+                    '',
+                    position,
+                    rotation,
+                    true
+                )
+            end)
+
             selfObj._attached = true
             selfObj._attached_to.type = pointed_thing.type
             selfObj._attached_to.pos = position
@@ -1329,6 +1322,24 @@ function XBowsEntityDef.on_step(self, selfObj, dtime)
                     on_hit_node_callback(selfObj, pointed_thing)
                 end
 
+                local new_pos = selfObj.object:get_pos()
+
+                minetest.add_particlespawner({
+                    amount = 5,
+                    time = 0.25,
+                    minpos = {x = new_pos.x - 0.4, y = new_pos.y + 0.2, z = new_pos.z - 0.4},
+                    maxpos = {x = new_pos.x + 0.4, y = new_pos.y + 0.3, z = new_pos.z + 0.4},
+                    minvel = {x = 0, y = 3, z = 0},
+                    maxvel = {x = 0, y = 4, z = 0},
+                    minacc = {x = 0, y = -28, z = 0},
+                    maxacc = {x = 0, y = -32, z = 0},
+                    minexptime = 1,
+                    maxexptime = 1.5,
+                    node = {name = node_def.name},
+                    collisiondetection = true,
+                    object_collision = true,
+                })
+
                 minetest.sound_play(selfObj._sound_hit, {
                     pos = pointed_thing.under,
                     gain = 0.6,
@@ -1346,7 +1357,7 @@ end
 
 ---Function receive a "luaentity" table as `self`. Called when somebody punches the object. Note that you probably want to handle most punches using the automatic armor group system. Can return `true` to prevent the default damage mechanism.
 ---@param self XBows
----@param selfObj table
+---@param selfObj EnityCustomAttrDef
 ---@param puncher ObjectRef|nil
 ---@param time_from_last_punch number|integer|nil
 ---@param tool_capabilities ToolCapabilitiesDef

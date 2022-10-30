@@ -13,3 +13,4 @@
 ---@field round fun(v: Vector): Vector Returns a vector, each dimension rounded to nearest integer. At a multiple of 0.5, rounds away from zero.
 ---@field new fun(a, b?, c?): Vector Returns a new vector `(a, b, c)`.
 ---@field direction fun(p1: Vector, p2: Vector): Vector Returns a vector of length 1 with direction `p1` to `p2`. If `p1` and `p2` are identical, returns `(0, 0, 0)`.
+---@field divide fun(v: Vector, s: Vector | number): Vector Returns a scaled vector. Deprecated: If `s` is a vector: Returns the Schur quotient.
