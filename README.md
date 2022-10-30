@@ -130,6 +130,16 @@ Modified by SaKeL:
 - x_bows_quiver_empty_mesh.png
 - x_bows_quiver_blank_mesh.png
 - x_bows_quiver_slot.png
+- x_bows_dmg_0.png
+- x_bows_dmg_1.png
+- x_bows_dmg_2.png
+- x_bows_dmg_3.png
+- x_bows_dmg_4.png
+- x_bows_dmg_5.png
+- x_bows_dmg_6.png
+- x_bows_dmg_7.png
+- x_bows_dmg_8.png
+- x_bows_dmg_9.png
 
 ### Sounds
 

@@ -2379,13 +2379,15 @@ function XBowsQuiver.hide_3d_quiver(self, player)
     end
 end
 
+---string split to characters
+---@param str string
+---@return string[] | nil
 local function split(str)
     if #str > 0 then
         return str:sub(1,1), split(str:sub(2))
     end
 end
 
----Show damage numbers
 function XBows.show_damage_numbers(self, pos, damage, is_crit)
     if not pos or not self.settings.x_bows_show_damage_numbers then
         return
@@ -2399,9 +2401,9 @@ function XBows.show_damage_numbers(self, pos, damage, is_crit)
 
     for i, value in ipairs(results) do
         if i == 1 then
-            texture = texture .. '[combine:' .. 7 * #results .. 'x' .. 9 * #results .. ':0,0=dmg_' .. value .. '.png'
+            texture = texture .. '[combine:' .. 7 * #results .. 'x' .. 9 * #results .. ':0,0=x_bows_dmg_' .. value .. '.png'
         else
-            texture = texture .. ':' .. dmg_nr_offset .. ',0=dmg_' .. value .. '.png'
+            texture = texture .. ':' .. dmg_nr_offset .. ',0=x_bows_dmg_' .. value .. '.png'
         end
 
         dmg_nr_offset = dmg_nr_offset + 7
