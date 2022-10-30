@@ -1324,21 +1324,23 @@ function XBowsEntityDef.on_step(self, selfObj, dtime)
 
                 local new_pos = selfObj.object:get_pos()
 
-                minetest.add_particlespawner({
-                    amount = 5,
-                    time = 0.25,
-                    minpos = {x = new_pos.x - 0.4, y = new_pos.y + 0.2, z = new_pos.z - 0.4},
-                    maxpos = {x = new_pos.x + 0.4, y = new_pos.y + 0.3, z = new_pos.z + 0.4},
-                    minvel = {x = 0, y = 3, z = 0},
-                    maxvel = {x = 0, y = 4, z = 0},
-                    minacc = {x = 0, y = -28, z = 0},
-                    maxacc = {x = 0, y = -32, z = 0},
-                    minexptime = 1,
-                    maxexptime = 1.5,
-                    node = {name = node_def.name},
-                    collisiondetection = true,
-                    object_collision = true,
-                })
+                if new_pos then
+                    minetest.add_particlespawner({
+                        amount = 5,
+                        time = 0.25,
+                        minpos = {x = new_pos.x - 0.4, y = new_pos.y + 0.2, z = new_pos.z - 0.4},
+                        maxpos = {x = new_pos.x + 0.4, y = new_pos.y + 0.3, z = new_pos.z + 0.4},
+                        minvel = {x = 0, y = 3, z = 0},
+                        maxvel = {x = 0, y = 4, z = 0},
+                        minacc = {x = 0, y = -28, z = 0},
+                        maxacc = {x = 0, y = -32, z = 0},
+                        minexptime = 1,
+                        maxexptime = 1.5,
+                        node = {name = node_def.name},
+                        collisiondetection = true,
+                        object_collision = true,
+                    })
+                end
 
                 minetest.sound_play(selfObj._sound_hit, {
                     pos = pointed_thing.under,
