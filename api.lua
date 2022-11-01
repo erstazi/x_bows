@@ -45,7 +45,8 @@ XBows = {
     player_bow_sneak = {},
     settings = {
         x_bows_attach_arrows_to_entities = minetest.settings:get_bool('x_bows_attach_arrows_to_entities', false),
-        x_bows_show_damage_numbers = minetest.settings:get_bool('x_bows_show_damage_numbers', false)
+        x_bows_show_damage_numbers = minetest.settings:get_bool('x_bows_show_damage_numbers', false),
+        x_bows_show_3d_quiver = minetest.settings:get_bool('x_bows_show_3d_quiver', true)
     },
     charge_sound_after_job = {},
     fallback_quiver = not minetest.global_exists('sfinv') and  not minetest.global_exists('unified_inventory') and not minetest.global_exists('i3')
@@ -2259,6 +2260,10 @@ function XBowsQuiver.ui_register_page(self)
 end
 
 function XBowsQuiver.show_3d_quiver(self, player, props)
+    if not XBows.settings.x_bows_show_3d_quiver then
+        return
+    end
+
     local _props = props or {}
     local p_name = player:get_player_name()
     local quiver_texture = 'x_bows_quiver_mesh.png'
@@ -2328,6 +2333,10 @@ function XBowsQuiver.show_3d_quiver(self, player, props)
 end
 
 function XBowsQuiver.hide_3d_quiver(self, player)
+    if not XBows.settings.x_bows_show_3d_quiver then
+        return
+    end
+
     local p_name = player:get_player_name()
     local player_textures
 
