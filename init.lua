@@ -1,13 +1,13 @@
 -- X Bows
 -- by SaKeL
 
-minetest = minetest--[[@as Minetest]]
-ItemStack = ItemStack--[[@as ItemStack]]
-vector = vector--[[@as Vector]]
-default = default--[[@as MtgDefault]]
-sfinv = sfinv--[[@as Sfinv]]
-unified_inventory = unified_inventory--[[@as UnifiedInventory]]
-player_api = player_api--[[@as MtgPlayerApi]]
+minetest = minetest.global_exists('minetest') and minetest--[[@as Minetest]]
+ItemStack = minetest.global_exists('ItemStack') and ItemStack--[[@as ItemStack]]
+vector = minetest.global_exists('vector') and vector--[[@as Vector]]
+default = minetest.global_exists('default') and default--[[@as MtgDefault]]
+sfinv = minetest.global_exists('sfinv') and sfinv--[[@as Sfinv]]
+unified_inventory = minetest.global_exists('unified_inventory') and unified_inventory--[[@as UnifiedInventory]]
+player_api = minetest.global_exists('player_api') and player_api--[[@as MtgPlayerApi]]
 
 math.randomseed(tonumber(tostring(os.time()):reverse():sub(1, 9))--[[@as number]])
 
@@ -34,7 +34,10 @@ minetest.register_on_joinplayer(function(player)
     local inv_arrow = player:get_inventory()--[[@as InvRef]]
 
     if XBows.settings.x_bows_show_3d_quiver then
-        if XBows._3d_armor then
+        ---Order matters here
+        if XBows.skinsdb then
+            player_api.set_model(player, 'skinsdb_3d_armor_character_5.b3d')
+        elseif XBows._3d_armor then
             player_api.set_model(player, 'x_bows_3d_armor_character.b3d')
         else
             player_api.set_model(player, 'x_bows_character.b3d')
@@ -74,13 +77,17 @@ minetest.register_on_joinplayer(function(player)
     XBowsQuiver:close_quiver(player)
 end)
 
-local model_name = 'x_bows_character.b3d'
-if XBows._3d_armor then
-    ---3d armor
-    model_name = 'x_bows_3d_armor_character.b3d'
-end
-
 if XBows.settings.x_bows_show_3d_quiver then
+    local model_name = 'x_bows_character.b3d'
+
+    if XBows.skinsdb then
+        ---skinsdb
+        model_name = 'skinsdb_3d_armor_character_5.b3d'
+    elseif XBows._3d_armor then
+        ---3d armor
+        model_name = 'x_bows_3d_armor_character.b3d'
+    end
+
     player_api.register_model(model_name, {
         animation_speed = 30,
         textures = {'character.png'},
@@ -268,6 +275,11 @@ minetest.register_on_player_inventory_action(function(player, action, inventory,
             unified_inventory.set_inventory_formspec(player, 'x_bows:quiver_page')
         else
             sfinv.set_player_inventory_formspec(player)
+        end
+
+        ---set player visual
+        if inventory:is_empty(inventory_info.listname) then
+            XBowsQuiver:hide_3d_quiver(player)
         end
     end
 end)

@@ -67,5 +67,7 @@ read_globals = {
     "player_api",
     "u_skins",
     "wardrobe",
-    "3d_armor"
+    "3d_armor",
+    "skinsdb",
+    "skins"
 }
