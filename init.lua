@@ -33,7 +33,7 @@ minetest.register_on_joinplayer(function(player)
     local inv_quiver = player:get_inventory()--[[@as InvRef]]
     local inv_arrow = player:get_inventory()--[[@as InvRef]]
 
-    if XBows.settings.x_bows_show_3d_quiver then
+    if XBows.settings.x_bows_show_3d_quiver and XBows.player_api then
         ---Order matters here
         if XBows.skinsdb then
             player_api.set_model(player, 'skinsdb_3d_armor_character_5.b3d')
@@ -77,7 +77,7 @@ minetest.register_on_joinplayer(function(player)
     XBowsQuiver:close_quiver(player)
 end)
 
-if XBows.settings.x_bows_show_3d_quiver then
+if XBows.settings.x_bows_show_3d_quiver and XBows.player_api then
     local model_name = 'x_bows_character.b3d'
 
     if XBows.skinsdb then

@@ -38,6 +38,7 @@ XBows = {
     wardrobe = minetest.get_modpath('wardrobe'),
     _3d_armor = minetest.get_modpath('3d_armor'),
     skinsdb = minetest.get_modpath('skinsdb'),
+    player_api = minetest.get_modpath('player_api'),
     registered_bows = {},
     registered_arrows = {},
     registered_quivers = {},
@@ -2261,7 +2262,7 @@ function XBowsQuiver.ui_register_page(self)
 end
 
 function XBowsQuiver.show_3d_quiver(self, player, props)
-    if not XBows.settings.x_bows_show_3d_quiver then
+    if not XBows.settings.x_bows_show_3d_quiver or not XBows.player_api then
         return
     end
 
@@ -2361,7 +2362,7 @@ function XBowsQuiver.show_3d_quiver(self, player, props)
 end
 
 function XBowsQuiver.hide_3d_quiver(self, player)
-    if not XBows.settings.x_bows_show_3d_quiver then
+    if not XBows.settings.x_bows_show_3d_quiver or not XBows.player_api then
         return
     end
 

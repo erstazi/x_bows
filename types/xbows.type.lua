@@ -9,6 +9,7 @@
 ---@field wardrobe string|nil
 ---@field _3d_armor string|nil
 ---@field skinsdb string|nil
+---@field player_api string|nil
 ---@field registered_bows table<string, ItemDef|BowItemDefCustom>
 ---@field registered_arrows table<string, ItemDef|ArrowItemDefCustom>
 ---@field registered_quivers table<string, ItemDef|QuiverItemDefCustom>

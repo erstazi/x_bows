@@ -88,6 +88,8 @@ There are few indications on how to know when the bow shot arrow from quiver:
 - u_skins
 - wardrobe
 - sfinv
+- skinsdb
+- player_api (shows 3d quiver)
 
 ## License:
 
