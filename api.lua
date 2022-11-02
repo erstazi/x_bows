@@ -687,7 +687,9 @@ function XBows.shoot(self, itemstack, user, pointed_thing)
 
     ---stop punching close objects/nodes when shooting
     minetest.after(0.2, function()
-        if user:get_wielded_item():get_name() == itemstack:get_name() then
+        local wield_item = user:get_wielded_item()
+
+        if wield_item:get_count() > 0 and wield_item:get_name() == itemstack:get_name() then
             user:set_wielded_item(ItemStack({name = bow_name, wear = itemstack:get_wear()}))
         end
     end)
@@ -707,15 +709,23 @@ function XBows.shoot(self, itemstack, user, pointed_thing)
         return itemstack
     end
 
-    if not self:is_creative(user:get_player_name()) then
-        itemstack:add_wear(65535 / uses)
-    end
-
     minetest.sound_play(sound_name, {
         gain = 0.3,
         pos = user:get_pos(),
         max_hear_distance = 10
     })
+
+    if not self:is_creative(user:get_player_name()) then
+        itemstack:add_wear(65535 / uses)
+    end
+
+    if itemstack:get_count() == 0 then
+        minetest.sound_play('default_tool_breaks', {
+            gain = 0.3,
+            pos = user:get_pos(),
+            max_hear_distance = 10
+        })
+    end
 
     return itemstack
 end
