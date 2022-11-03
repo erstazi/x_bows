@@ -3,3 +3,4 @@ docs/build
 *.blend1
 *.blend2
 *.old
+node_modules

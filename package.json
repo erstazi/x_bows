@@ -1,0 +1,32 @@
+{
+    "name": "x_bows",
+    "version": "1.0.0",
+    "description": "Adds bow and arrows to Minetest.",
+    "main": "index.js",
+    "type": "module",
+    "directories": {
+        "doc": "docs"
+    },
+    "engines": {
+        "node": ">=16.0.0",
+        "npm": ">=8.0.0"
+    },
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1",
+        "push:ci": "node ./scripts/deploy"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://juraj_vajda@bitbucket.org/minetest_gamers/x_bows.git"
+    },
+    "author": "SaKeL",
+    "license": "LGPL-2.1-or-later",
+    "bugs": {
+        "url": "https://bitbucket.org/minetest_gamers/x_bows/issues"
+    },
+    "homepage": "https://bitbucket.org/minetest_gamers/x_bows#readme",
+    "devDependencies": {
+        "node-fetch": "^3.2.10",
+        "yargs": "^17.6.1"
+    }
+}

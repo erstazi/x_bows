@@ -1,23 +1,57 @@
 image: atlassian/default-image:3
 
 pipelines:
-  pull-requests:
-    "**":
-      - step:
-          name: Lint code
-          script:
-            - apt-get update
-            - apt-get -y install lua5.1
-            - apt-get -y install luarocks
-            - luarocks install luacheck
-            - luacheck .
-  branches:
-    master:
-      - step:
-          name: Lint code
-          script:
-            - apt-get update
-            - apt-get -y install lua5.1
-            - apt-get -y install luarocks
-            - luarocks install luacheck
-            - luacheck .
+    pull-requests:
+        "**":
+            - step:
+                name: Lint code
+                script:
+                    - apt-get update
+                    - apt-get -y install lua5.1
+                    - apt-get -y install luarocks
+                    - luarocks install luacheck
+                    - luacheck .
+    branches:
+        master:
+            - step:
+                name: Lint code
+                script:
+                    - apt-get update
+                    - apt-get -y install lua5.1
+                    - apt-get -y install luarocks
+                    - luarocks install luacheck
+                    - luacheck .
+    tags:
+        "*":
+            - step:
+                name: Lint code
+                script:
+                    - apt-get update
+                    - apt-get -y install lua5.1
+                    - apt-get -y install luarocks
+                    - luarocks install luacheck
+                    - luacheck .
+            - step:
+                name: Install Node Dependencies
+                caches:
+                    - node-modules
+                    - npm
+                    - nvm
+                script:
+                    - nvm install v17.2.0
+                    - npm i -g npm@8
+                    - npm ci
+            - step:
+                name: Deploy to ContentDB
+                caches:
+                    - node-modules
+                    - npm
+                    - nvm
+                script:
+                    - nvm use v17.2.0
+                    - npm run push:ci -- --token=$CONTENT_DB_X_BOWS_TOKEN --title=$BITBUCKET_TAG
+definitions:
+    caches:
+        node-modules: ./node_modules
+        npm: ~/.npm
+        nvm: ~/.nvm
