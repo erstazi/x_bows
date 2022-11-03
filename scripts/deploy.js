@@ -21,11 +21,11 @@ try {
     })
     const data = await response.json()
 
+    console.log(data)
+
     if (!data.succes) {
         process.exit(1)
     }
-
-    console.log(data)
 } catch (error) {
     console.log(error)
     process.exit(1)
