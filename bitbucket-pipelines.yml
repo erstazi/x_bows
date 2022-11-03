@@ -23,14 +23,14 @@ pipelines:
                     - luacheck .
     tags:
         "*":
-            # - step:
-            #     name: Lint code
-            #     script:
-            #         - apt-get update
-            #         - apt-get -y install lua5.1
-            #         - apt-get -y install luarocks
-            #         - luarocks install luacheck
-            #         - luacheck .
+            - step:
+                name: Lint code
+                script:
+                    - apt-get update
+                    - apt-get -y install lua5.1
+                    - apt-get -y install luarocks
+                    - luarocks install luacheck
+                    - luacheck .
             - step:
                 name: Install Node Dependencies
                 caches:
