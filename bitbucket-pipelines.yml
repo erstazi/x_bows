@@ -23,15 +23,30 @@ pipelines:
                     - luacheck .
     tags:
         "*":
+            # - step:
+            #     name: Lint code
+            #     script:
+            #         - apt-get update
+            #         - apt-get -y install lua5.1
+            #         - apt-get -y install luarocks
+            #         - luarocks install luacheck
+            #         - luacheck .
             - step:
-                name: Lint code
+                name: Install Node Dependencies
+                caches:
+                    - node-modules
+                    - npm
+                    - nvm
                 script:
-                    - apt-get update
-                    - apt-get -y install lua5.1
-                    - apt-get -y install luarocks
-                    - luarocks install luacheck
-                    - luacheck .
+                    - nvm install v17.2.0
+                    - npm i -g npm@8
+                    - npm ci
             - step:
                 name: Deploy to ContentDB
                 script:
-                    - curl --location --request POST 'https://content.minetest.net/api/packages/SaKeL/x_bows/releases/new/' --header 'Authorization:Bearer "'"$CONTENT_DB_X_BOWS_TOKEN"'"' --header 'Content-Type:application/json' --data-raw '{"method":"git", "title":"'"$BITBUCKET_TAG"'", "ref":"master"}'
+                    - npm run push:ci -- --token=$CONTENT_DB_X_BOWS_TOKEN --title=$BITBUCKET_TAG
+definitions:
+    caches:
+        node-modules: ./node_modules
+        npm: ~/.npm
+        nvm: ~/.nvm
