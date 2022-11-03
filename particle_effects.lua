@@ -13,10 +13,10 @@ XBows:register_particle_effect('arrow', {
         length = 1,
     },
     glow = 1,
-    minvel = {x = 0, y = -0.1, z = 0},
-    maxvel = {x = 0, y = -0.1, z = 0},
-    minacc = {x = 0, y = -0.1, z = 0},
-    maxacc = {x = 0, y = -0.1, z = 0}
+    minvel = { x = 0, y = -0.1, z = 0 },
+    maxvel = { x = 0, y = -0.1, z = 0 },
+    minacc = { x = 0, y = -0.1, z = 0 },
+    maxacc = { x = 0, y = -0.1, z = 0 }
 })
 
 XBows:register_particle_effect('arrow_crit', {
@@ -34,10 +34,10 @@ XBows:register_particle_effect('arrow_crit', {
         length = 1,
     },
     glow = 1,
-    minvel = {x = 0, y = -0.1, z = 0},
-    maxvel = {x = 0, y = -0.1, z = 0},
-    minacc = {x = 0, y = -0.1, z = 0},
-    maxacc = {x = 0, y = -0.1, z = 0}
+    minvel = { x = 0, y = -0.1, z = 0 },
+    maxvel = { x = 0, y = -0.1, z = 0 },
+    minacc = { x = 0, y = -0.1, z = 0 },
+    maxacc = { x = 0, y = -0.1, z = 0 }
 })
 
 XBows:register_particle_effect('arrow_fast', {
@@ -55,19 +55,19 @@ XBows:register_particle_effect('arrow_fast', {
         length = 1,
     },
     glow = 1,
-    minvel = {x = 0, y = -0.1, z = 0},
-    maxvel = {x = 0, y = -0.1, z = 0},
-    minacc = {x = 0, y = -0.1, z = 0},
-    maxacc = {x = 0, y = -0.1, z = 0}
+    minvel = { x = 0, y = -0.1, z = 0 },
+    maxvel = { x = 0, y = -0.1, z = 0 },
+    minacc = { x = 0, y = -0.1, z = 0 },
+    maxacc = { x = 0, y = -0.1, z = 0 }
 })
 
 XBows:register_particle_effect('bubble', {
     amount = 1,
     time = 1,
-    minvel = {x=1, y=1, z=0},
-    maxvel = {x=1, y=1, z=0},
-    minacc = {x=1, y=1, z=1},
-    maxacc = {x=1, y=1, z=1},
+    minvel = { x = 1, y = 1, z = 0 },
+    maxvel = { x = 1, y = 1, z = 0 },
+    minacc = { x = 1, y = 1, z = 1 },
+    maxacc = { x = 1, y = 1, z = 1 },
     minexptime = 0.2,
     maxexptime = 0.5,
     minsize = 0.5,

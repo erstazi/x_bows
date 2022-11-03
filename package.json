@@ -13,7 +13,8 @@
     },
     "scripts": {
         "test": "echo \"Error: no test specified\" && exit 1",
-        "push:ci": "node ./scripts/deploy"
+        "push:ci": "node ./scripts/deploy",
+        "lua-diagnostics": "node ./scripts/lls-check"
     },
     "repository": {
         "type": "git",
@@ -26,6 +27,7 @@
     },
     "homepage": "https://bitbucket.org/minetest_gamers/x_bows#readme",
     "devDependencies": {
+        "jaguar": "^6.0.1",
         "node-fetch": "^3.2.10",
         "yargs": "^17.6.1"
     }

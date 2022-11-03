@@ -1,3 +1,4 @@
+---@diagnostic disable: codestyle-check
 ---https://github.com/sumneko/lua-language-server/wiki
 
 --- In a game, a certain number of these must be set to tell core mapgens which of the game's nodes are to be used for core mapgen generation.

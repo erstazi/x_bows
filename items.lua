@@ -7,9 +7,9 @@ XBows:register_bow('bow_wood', {
         uses = 385,
         crit_chance = 10,
         recipe = {
-            {'', 'default:stick', 'farming:string'},
-            {'default:stick', '', 'farming:string'},
-            {'', 'default:stick', 'farming:string'}
+            { '', 'default:stick', 'farming:string' },
+            { 'default:stick', '', 'farming:string' },
+            { '', 'default:stick', 'farming:string' }
         },
         fuel_burntime = 3,
         allowed_ammunition = {
@@ -29,14 +29,14 @@ XBows:register_arrow('arrow_wood', {
     inventory_image = 'x_bows_arrow_wood.png',
     custom = {
         recipe = {
-            {'default:flint'},
-            {'group:stick'},
-            {'group:wool'}
+            { 'default:flint' },
+            { 'group:stick' },
+            { 'group:wool' }
         },
         tool_capabilities = {
             full_punch_interval = 1,
             max_drop_level = 0,
-            damage_groups = {fleshy=2}
+            damage_groups = { fleshy = 2 }
         },
         fuel_burntime = 1
     }
@@ -48,14 +48,14 @@ XBows:register_arrow('arrow_stone', {
     inventory_image = 'x_bows_arrow_stone.png',
     custom = {
         recipe = {
-            {'default:flint'},
-            {'group:stone'},
-            {'group:wool'}
+            { 'default:flint' },
+            { 'group:stone' },
+            { 'group:wool' }
         },
         tool_capabilities = {
             full_punch_interval = 1.2,
             max_drop_level = 0,
-            damage_groups = {fleshy=4}
+            damage_groups = { fleshy = 4 }
         }
     }
 })
@@ -66,14 +66,14 @@ XBows:register_arrow('arrow_bronze', {
     inventory_image = 'x_bows_arrow_bronze.png',
     custom = {
         recipe = {
-            {'default:flint'},
-            {'default:bronze_ingot'},
-            {'group:wool'}
+            { 'default:flint' },
+            { 'default:bronze_ingot' },
+            { 'group:wool' }
         },
         tool_capabilities = {
             full_punch_interval = 0.8,
             max_drop_level = 1,
-            damage_groups = {fleshy=6}
+            damage_groups = { fleshy = 6 }
         }
     }
 })
@@ -84,14 +84,14 @@ XBows:register_arrow('arrow_steel', {
     inventory_image = 'x_bows_arrow_steel.png',
     custom = {
         recipe = {
-            {'default:flint'},
-            {'default:steel_ingot'},
-            {'group:wool'}
+            { 'default:flint' },
+            { 'default:steel_ingot' },
+            { 'group:wool' }
         },
         tool_capabilities = {
             full_punch_interval = 0.7,
             max_drop_level = 1,
-            damage_groups = {fleshy=6}
+            damage_groups = { fleshy = 6 }
         }
     }
 })
@@ -102,14 +102,14 @@ XBows:register_arrow('arrow_mese', {
     inventory_image = 'x_bows_arrow_mese.png',
     custom = {
         recipe = {
-            {'default:flint'},
-            {'default:mese_crystal'},
-            {'group:wool'}
+            { 'default:flint' },
+            { 'default:mese_crystal' },
+            { 'group:wool' }
         },
         tool_capabilities = {
             full_punch_interval = 0.7,
             max_drop_level = 1,
-            damage_groups = {fleshy=7}
+            damage_groups = { fleshy = 7 }
         }
     }
 })
@@ -120,28 +120,28 @@ XBows:register_arrow('arrow_diamond', {
     inventory_image = 'x_bows_arrow_diamond.png',
     custom = {
         recipe = {
-            {'default:flint'},
-            {'default:diamond'},
-            {'group:wool'}
+            { 'default:flint' },
+            { 'default:diamond' },
+            { 'group:wool' }
         },
         tool_capabilities = {
             full_punch_interval = 0.7,
             max_drop_level = 1,
-            damage_groups = {fleshy=8}
+            damage_groups = { fleshy = 8 }
         }
     }
 })
 
 XBows:register_quiver('quiver', {
-    description = S('Quiver') .. '\n\n' .. S('Empty') ..'\n',
+    description = S('Quiver') .. '\n\n' .. S('Empty') .. '\n',
     short_description = S('Quiver'),
     custom = {
-        description = S('Quiver') .. '\n\n' .. S('Empty') ..'\n',
+        description = S('Quiver') .. '\n\n' .. S('Empty') .. '\n',
         short_description = S('Quiver'),
         recipe = {
-            {'group:arrow', 'group:arrow', 'group:arrow'},
-            {'group:arrow', 'wool:brown', 'group:arrow'},
-            {'group:arrow', 'group:arrow', 'group:arrow'}
+            { 'group:arrow', 'group:arrow', 'group:arrow' },
+            { 'group:arrow', 'wool:brown', 'group:arrow' },
+            { 'group:arrow', 'group:arrow', 'group:arrow' }
         },
         recipe_count = 1,
         faster_arrows = 5,

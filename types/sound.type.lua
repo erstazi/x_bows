@@ -1,3 +1,4 @@
+---@diagnostic disable: codestyle-check
 ---https://github.com/sumneko/lua-language-server/wiki
 
 ---Specifies a sound name, gain (=volume) and pitch. This is either a string or a table. In string form, you just specify the sound name or the empty string for no sound.

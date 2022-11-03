@@ -1,3 +1,4 @@
+---@diagnostic disable: codestyle-check
 ---Sfinv API
 ---@class Sfinv
 ---@field register_page fun(name: string, def: SfinvDef): nil Register a page

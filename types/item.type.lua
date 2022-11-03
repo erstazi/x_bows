@@ -1,3 +1,4 @@
+---@diagnostic disable: codestyle-check
 ---https://github.com/sumneko/lua-language-server/wiki
 
 ---Minetest item definition. Used by `minetest.register_node`, `minetest.register_craftitem`, and `minetest.register_tool`.

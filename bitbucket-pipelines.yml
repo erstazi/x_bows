@@ -4,33 +4,35 @@ pipelines:
     pull-requests:
         "**":
             - step:
-                name: Lint code
+                name: Install Node Dependencies
+                caches:
+                    - node-modules
+                    - npm
+                    - nvm
                 script:
-                    - apt-get update
-                    - apt-get -y install lua5.1
-                    - apt-get -y install luarocks
-                    - luarocks install luacheck
-                    - luacheck .
+                    - nvm install v17.2.0
+                    - npm i -g npm@8
+                    - npm ci
+            - parallel:
+                - step:
+                    name: Lua Check
+                    script:
+                        - apt-get update
+                        - apt-get -y install lua5.1
+                        - apt-get -y install luarocks
+                        - luarocks install luacheck
+                        - luacheck .
+                - step:
+                    name: Lua Diagnostics
+                    caches:
+                        - node-modules
+                        - npm
+                        - nvm
+                    script:
+                        - nvm use v17.2.0
+                        - npm run lua-diagnostics
     branches:
         master:
-            - step:
-                name: Lint code
-                script:
-                    - apt-get update
-                    - apt-get -y install lua5.1
-                    - apt-get -y install luarocks
-                    - luarocks install luacheck
-                    - luacheck .
-    tags:
-        "*":
-            - step:
-                name: Lint code
-                script:
-                    - apt-get update
-                    - apt-get -y install lua5.1
-                    - apt-get -y install luarocks
-                    - luarocks install luacheck
-                    - luacheck .
             - step:
                 name: Install Node Dependencies
                 caches:
@@ -41,6 +43,54 @@ pipelines:
                     - nvm install v17.2.0
                     - npm i -g npm@8
                     - npm ci
+            - parallel:
+                - step:
+                    name: Lua Check
+                    script:
+                        - apt-get update
+                        - apt-get -y install lua5.1
+                        - apt-get -y install luarocks
+                        - luarocks install luacheck
+                        - luacheck .
+                - step:
+                    name: Lua Diagnostics
+                    caches:
+                        - node-modules
+                        - npm
+                        - nvm
+                    script:
+                        - nvm use v17.2.0
+                        - npm run lua-diagnostics
+    tags:
+        "*":
+            - step:
+                name: Install Node Dependencies
+                caches:
+                    - node-modules
+                    - npm
+                    - nvm
+                script:
+                    - nvm install v17.2.0
+                    - npm i -g npm@8
+                    - npm ci
+            - parallel:
+                - step:
+                    name: Lua Check
+                    script:
+                        - apt-get update
+                        - apt-get -y install lua5.1
+                        - apt-get -y install luarocks
+                        - luarocks install luacheck
+                        - luacheck .
+                - step:
+                    name: Lua Diagnostics
+                    caches:
+                        - node-modules
+                        - npm
+                        - nvm
+                    script:
+                        - nvm use v17.2.0
+                        - npm run lua-diagnostics
             - step:
                 name: Deploy to ContentDB
                 caches:

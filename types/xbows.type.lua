@@ -1,3 +1,4 @@
+---@diagnostic disable: codestyle-check
 ---Base class XBows
 ---@class XBows
 ---@field pvp boolean
@@ -16,7 +17,7 @@
 ---@field registered_particle_spawners table<string, ParticlespawnerDef|ParticlespawnerDefCustom>
 ---@field registered_entities table<string, XBowsEntityDef>
 ---@field player_bow_sneak table<string, table<string, boolean>>
----@field settings {["x_bows_attach_arrows_to_entities"]: boolean, ["x_bows_show_damage_numbers"]: boolean, ["x_bows_show_3d_quiver"]: boolean}
+---@field settings {["x_bows_attach_arrows_to_entities"]: boolean | nil, ["x_bows_show_damage_numbers"]: boolean | nil, ["x_bows_show_3d_quiver"]: boolean | nil}
 ---@field quiver table Quiver class
 ---@field charge_sound_after_job table<string, JobTable>
 ---@field is_allowed_ammunition fun(self: XBows, weapon_name: string, ammo_name: string): boolean Check if ammunition is allowed to charge this weapon

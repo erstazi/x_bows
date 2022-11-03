@@ -1,3 +1,4 @@
+---@diagnostic disable: codestyle-check
 ---https://github.com/sumneko/lua-language-server/wiki
 
 ------All `vector.*` functions allow vectors `{x = X, y = Y, z = Z}` without metatables. Returned vectors always have a metatable set.

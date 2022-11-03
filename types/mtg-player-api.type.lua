@@ -1,3 +1,4 @@
+---@diagnostic disable: codestyle-check
 ---The player API can register player models and update the player's appearance.
 ---@class MtgPlayerApi
 ---@field globalstep fun(dtime: number, ...): nil The function called by the globalstep that controls player animations. You can override this to replace the globalstep with your own implementation. Receives all args that minetest.register_globalstep() passes
