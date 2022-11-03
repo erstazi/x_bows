@@ -1,15 +1,15 @@
 -- X Bows
 -- by SaKeL
 
-minetest = minetest.global_exists('minetest') and minetest--[[@as Minetest]]
-ItemStack = minetest.global_exists('ItemStack') and ItemStack--[[@as ItemStack]]
-vector = minetest.global_exists('vector') and vector--[[@as Vector]]
-default = minetest.global_exists('default') and default--[[@as MtgDefault]]
-sfinv = minetest.global_exists('sfinv') and sfinv--[[@as Sfinv]]
-unified_inventory = minetest.global_exists('unified_inventory') and unified_inventory--[[@as UnifiedInventory]]
-player_api = minetest.global_exists('player_api') and player_api--[[@as MtgPlayerApi]]
+minetest = minetest.global_exists('minetest') and minetest --[[@as Minetest]]
+ItemStack = minetest.global_exists('ItemStack') and ItemStack --[[@as ItemStack]]
+vector = minetest.global_exists('vector') and vector --[[@as Vector]]
+default = minetest.global_exists('default') and default --[[@as MtgDefault]]
+sfinv = minetest.global_exists('sfinv') and sfinv --[[@as Sfinv]]
+unified_inventory = minetest.global_exists('unified_inventory') and unified_inventory --[[@as UnifiedInventory]]
+player_api = minetest.global_exists('player_api') and player_api --[[@as MtgPlayerApi]]
 
-math.randomseed(tonumber(tostring(os.time()):reverse():sub(1, 9))--[[@as number]])
+math.randomseed(tonumber(tostring(os.time()):reverse():sub(1, 9))--[[@as number]] )
 
 local path = minetest.get_modpath('x_bows')
 local mod_start_time = minetest.get_us_time()
@@ -30,8 +30,8 @@ else
 end
 
 minetest.register_on_joinplayer(function(player)
-    local inv_quiver = player:get_inventory()--[[@as InvRef]]
-    local inv_arrow = player:get_inventory()--[[@as InvRef]]
+    local inv_quiver = player:get_inventory() --[[@as InvRef]]
+    local inv_arrow = player:get_inventory() --[[@as InvRef]]
 
     if XBows.settings.x_bows_show_3d_quiver and XBows.player_api then
         ---Order matters here
@@ -63,7 +63,7 @@ minetest.register_on_joinplayer(function(player)
         ---set model textures
         if detached_inv:is_empty('main') then
             XBowsQuiver.quiver_empty_state[player:get_player_name()] = false
-            XBowsQuiver:show_3d_quiver(player, {is_empty = true})
+            XBowsQuiver:show_3d_quiver(player, { is_empty = true })
         else
             XBowsQuiver.quiver_empty_state[player:get_player_name()] = true
             XBowsQuiver:show_3d_quiver(player)
@@ -90,19 +90,19 @@ if XBows.settings.x_bows_show_3d_quiver and XBows.player_api then
 
     player_api.register_model(model_name, {
         animation_speed = 30,
-        textures = {'character.png'},
+        textures = { 'character.png' },
         animations = {
             -- Standard animations.
-            stand = {x = 0, y = 79},
-            lay = {x = 162, y = 166, eye_height = 0.3, override_local = true,
-            collisionbox = {-0.6, 0.0, -0.6, 0.6, 0.3, 0.6}},
-            walk = {x = 168, y = 187},
-            mine = {x = 189, y = 198},
-            walk_mine = {x = 200, y = 219},
-            sit = {x = 81, y = 160, eye_height = 0.8, override_local = true,
-            collisionbox = {-0.3, 0.0, -0.3, 0.3, 1.0, 0.3}}
+            stand = { x = 0, y = 79 },
+            lay = { x = 162, y = 166, eye_height = 0.3, override_local = true,
+            collisionbox = { -0.6, 0.0, -0.6, 0.6, 0.3, 0.6 } },
+            walk = { x = 168, y = 187 },
+            mine = { x = 189, y = 198 },
+            walk_mine = { x = 200, y = 219 },
+            sit = { x = 81, y = 160, eye_height = 0.8, override_local = true,
+            collisionbox = { -0.3, 0.0, -0.3, 0.3, 1.0, 0.3 } }
         },
-        collisionbox = {-0.3, 0.0, -0.3, 0.3, 1.7, 0.3},
+        collisionbox = { -0.3, 0.0, -0.3, 0.3, 1.7, 0.3 },
         stepheight = 0.6,
         eye_height = 1.47
     })
@@ -218,7 +218,7 @@ minetest.register_on_player_inventory_action(function(player, action, inventory,
         local quiver_id = st_meta:get_string('quiver_id')
 
         if quiver_id == '' then
-            quiver_id = stack:get_name()..'_'..XBows.uuid()
+            quiver_id = stack:get_name() .. '_' .. XBows.uuid()
             st_meta:set_string('quiver_id', quiver_id)
             inventory:set_stack(inventory_info.to_list, inventory_info.to_index, stack)
         end
@@ -240,7 +240,7 @@ minetest.register_on_player_inventory_action(function(player, action, inventory,
         ---set player visual
         if detached_inv:is_empty('main') then
             XBowsQuiver.quiver_empty_state[player:get_player_name()] = false
-            XBowsQuiver:show_3d_quiver(player, {is_empty = true})
+            XBowsQuiver:show_3d_quiver(player, { is_empty = true })
         else
             XBowsQuiver.quiver_empty_state[player:get_player_name()] = true
             XBowsQuiver:show_3d_quiver(player)
@@ -311,7 +311,9 @@ minetest.register_globalstep(function(dtime)
                 XBows.player_bow_sneak[player_name] = {}
             end
 
-            if minetest.get_item_group(wielded_stack_name, 'bow_charged') ~= 0 and not XBows.player_bow_sneak[player_name].sneak then
+            if minetest.get_item_group(wielded_stack_name, 'bow_charged') ~= 0
+                and not XBows.player_bow_sneak[player_name].sneak
+            then
                 --charged weapon
                 if XBows.playerphysics then
                     playerphysics.add_physics_factor(player, 'speed', 'x_bows:bow_charged_speed', 0.25)
@@ -321,7 +323,9 @@ minetest.register_globalstep(function(dtime)
 
                 XBows.player_bow_sneak[player_name].sneak = true
                 player:set_fov(0.9, true, 0.4)
-            elseif minetest.get_item_group(wielded_stack_name, 'bow_charged') == 0 and XBows.player_bow_sneak[player_name].sneak then
+            elseif minetest.get_item_group(wielded_stack_name, 'bow_charged') == 0
+                and XBows.player_bow_sneak[player_name].sneak
+            then
                 if XBows.playerphysics then
                     playerphysics.remove_physics_factor(player, 'speed', 'x_bows:bow_charged_speed')
                 elseif XBows.player_monoids then
@@ -341,4 +345,4 @@ end)
 
 local mod_end_time = (minetest.get_us_time() - mod_start_time) / 1000000
 
-print('[Mod] x_bows loaded.. ['.. mod_end_time ..'s]')
+print('[Mod] x_bows loaded.. [' .. mod_end_time .. 's]')

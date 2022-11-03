@@ -14,6 +14,15 @@ if (argv.local) {
     command = 'lua-language-server'
 }
 
+// Delete directory recursively
+try {
+    fs.rmSync(logPath, { recursive: true, force: true })
+    console.log(`Removed folder: ${logPath}`)
+} catch (err) {
+    console.error(`Error while deleting ${logPath}.`)
+    console.error(err)
+}
+
 exec(`${command}  --logpath "${logPath}" --check "${checkPath}"`, (error, stdout, stderr) => {
     if (error) {
         console.log(`error: ${error.message}`)
@@ -25,20 +34,20 @@ exec(`${command}  --logpath "${logPath}" --check "${checkPath}"`, (error, stdout
         return
     }
 
-    const rawdata = fs.readFileSync('./logs/check.json')
-    const diagnosticsJson = JSON.parse(rawdata)
-
-    Object.keys(diagnosticsJson).forEach((key) => {
-        console.log(key)
-
-        diagnosticsJson[key].forEach((errObj) => {
-            console.log(`line: ${errObj.range.start.line} - ${errObj.message}`)
-        })
-    })
-
     console.log(`stdout: ${stdout}`)
 
-    if (Object.keys(diagnosticsJson).length) {
+    if (fs.existsSync('./logs/check.json')) {
+        const rawdata = fs.readFileSync('./logs/check.json')
+        const diagnosticsJson = JSON.parse(rawdata)
+
+        Object.keys(diagnosticsJson).forEach((key) => {
+            console.log(key)
+
+            diagnosticsJson[key].forEach((errObj) => {
+                console.log(`line: ${errObj.range.start.line} - ${errObj.message}`)
+            })
+        })
+
         console.error('Fix the errors/warnings above.')
         process.exit(1)
     }
