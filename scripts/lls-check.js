@@ -3,52 +3,86 @@ import * as fs from 'node:fs'
 import {exec} from 'node:child_process'
 import yargs from 'yargs/yargs'
 import {hideBin} from 'yargs/helpers'
+import jaguar from 'jaguar'
 
 const argv = yargs(hideBin(process.argv)).argv
+const cwd = process.cwd()
+const logPath = path.join(cwd, 'logs')
 
-const logPath = path.join(process.cwd(), 'logs')
-const checkPath = process.cwd()
-let command = './bin/lua-language-server-3.5.6-linux-x64/bin/lua-language-server'
+// Extract lua language server
+const from = path.join(cwd, 'bin/lua-language-server-3.5.6-linux-x64.tar.gz');
+const to = path.join(cwd, 'bin', 'lua-language-server-3.5.6-linux-x64');
+const extract = jaguar.extract(from, to)
 
-if (argv.local) {
-    command = 'lua-language-server'
-}
+extract.on('file', (name) => {
+    console.log(name)
+})
 
-// Delete directory recursively
-try {
-    fs.rmSync(logPath, { recursive: true, force: true })
-    console.log(`Removed folder: ${logPath}`)
-} catch (err) {
-    console.error(`Error while deleting ${logPath}.`)
-    console.error(err)
-}
+extract.on('progress', (percent) => {
+    console.log(percent + '%')
+})
 
-exec(`${command}  --logpath "${logPath}" --check "${checkPath}"`, (error, stdout, stderr) => {
-    if (error) {
-        console.log(`error: ${error.message}`)
-        return
+extract.on('error', (error) => {
+    console.error(error)
+    process.exit(1)
+})
+
+extract.on('end', () => {
+    console.log('done')
+
+    // Delete directory recursively
+    try {
+        fs.rmSync(logPath, { recursive: true, force: true })
+        console.log(`Removed folder: ${logPath}`)
+    } catch (err) {
+        console.error(`Error while deleting ${logPath}.`)
+        console.error(err)
     }
 
-    if (stderr) {
-        console.log(`stderr: ${stderr}`)
-        return
+    let command = './bin/lua-language-server-3.5.6-linux-x64/bin/lua-language-server'
+
+    if (argv.local) {
+        command = 'lua-language-server'
     }
 
-    console.log(`stdout: ${stdout}`)
+    exec(`${command}  --logpath "${logPath}" --check "${cwd}"`, (error, stdout, stderr) => {
+        if (error) {
+            console.log(`error: ${error.message}`)
+            return
+        }
 
-    if (fs.existsSync('./logs/check.json')) {
-        const rawdata = fs.readFileSync('./logs/check.json')
-        const diagnosticsJson = JSON.parse(rawdata)
+        if (stderr) {
+            console.log(`stderr: ${stderr}`)
+            return
+        }
 
-        Object.keys(diagnosticsJson).forEach((key) => {
-            console.log(key)
+        console.log(`stdout: ${stdout}`)
 
-            diagnosticsJson[key].forEach((errObj) => {
-                console.log(`line: ${errObj.range.start.line} - ${errObj.message}`)
+        if (fs.existsSync('./logs/check.json')) {
+            const rawdata = fs.readFileSync('./logs/check.json')
+            const diagnosticsJson = JSON.parse(rawdata)
+
+            Object.keys(diagnosticsJson).forEach((key) => {
+                console.log(key)
+
+                diagnosticsJson[key].forEach((errObj) => {
+                    console.log(`line: ${errObj.range.start.line} - ${errObj.message}`)
+                })
             })
-        })
 
-        console.error('Fix the errors/warnings above.')
-        process.exit(1)
-    }
+            console.error('Fix the errors/warnings above.')
+            process.exit(1)
+        }
+
+        // Delete directory recursively
+        const llsFolder = path.join(cwd, 'bin', 'lua-language-server-3.5.6-linux-x64')
+        try {
+            fs.rmSync(llsFolder, { recursive: true, force: true })
+            console.log(`Removed folder: ${llsFolder}`)
+        } catch (err) {
+            console.error(`Error while deleting ${llsFolder}.`)
+            console.error(err)
+            process.exit(1)
+        }
+    })
 })

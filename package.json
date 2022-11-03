@@ -27,6 +27,7 @@
     },
     "homepage": "https://bitbucket.org/minetest_gamers/x_bows#readme",
     "devDependencies": {
+        "jaguar": "^6.0.1",
         "node-fetch": "^3.2.10",
         "yargs": "^17.6.1"
     }
