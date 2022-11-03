@@ -14,13 +14,17 @@ const from = path.join(cwd, 'bin/lua-language-server-3.5.6-linux-x64.tar.gz');
 const to = path.join(cwd, 'bin', 'lua-language-server-3.5.6-linux-x64');
 const extract = jaguar.extract(from, to)
 
-extract.on('file', (name) => {
-    console.log(name)
+// extract.on('file', (name) => {
+//     console.log(name)
+// })
+
+extract.on('start', () => {
+    console.log('Extracting...')
 })
 
-extract.on('progress', (percent) => {
-    console.log(percent + '%')
-})
+// extract.on('progress', (percent) => {
+//     console.log(percent + '%')
+// })
 
 extract.on('error', (error) => {
     console.error(error)
@@ -28,7 +32,7 @@ extract.on('error', (error) => {
 })
 
 extract.on('end', () => {
-    console.log('done')
+    console.log('Extracting: Done')
 
     // Delete directory recursively
     try {
@@ -48,15 +52,15 @@ extract.on('end', () => {
     exec(`${command}  --logpath "${logPath}" --check "${cwd}"`, (error, stdout, stderr) => {
         if (error) {
             console.log(`error: ${error.message}`)
-            return
+            process.exit(1)
         }
 
         if (stderr) {
             console.log(`stderr: ${stderr}`)
-            return
+            process.exit(1)
         }
 
-        console.log(`stdout: ${stdout}`)
+        console.log(`\n${stdout}`)
 
         if (fs.existsSync('./logs/check.json')) {
             const rawdata = fs.readFileSync('./logs/check.json')
@@ -76,6 +80,7 @@ extract.on('end', () => {
 
         // Delete directory recursively
         const llsFolder = path.join(cwd, 'bin', 'lua-language-server-3.5.6-linux-x64')
+
         try {
             fs.rmSync(llsFolder, { recursive: true, force: true })
             console.log(`Removed folder: ${llsFolder}`)
