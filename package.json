@@ -13,7 +13,8 @@
     },
     "scripts": {
         "test": "echo \"Error: no test specified\" && exit 1",
-        "push:ci": "node ./scripts/deploy"
+        "push:ci": "node ./scripts/deploy",
+        "lua-diagnostics": "node ./scripts/lls-check"
     },
     "repository": {
         "type": "git",

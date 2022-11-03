@@ -1,3 +1,4 @@
+---@diagnostic disable: codestyle-check
 ---Base class XBows
 ---@class XBows
 ---@field pvp boolean

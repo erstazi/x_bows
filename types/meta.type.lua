@@ -1,3 +1,4 @@
+---@diagnostic disable: codestyle-check
 ---https://github.com/sumneko/lua-language-server/wiki
 
 ---@alias ItemStackMetaRef MetaDataRef|ItemStackMetaRefAbstract

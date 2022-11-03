@@ -1,3 +1,4 @@
+---@diagnostic disable: codestyle-check
 ---https://github.com/sumneko/lua-language-server/wiki
 
 ---A native C++ format with many helper methods. Useful for converting between formats.

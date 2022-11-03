@@ -5,3 +5,4 @@ docs/build
 *.old
 node_modules
 *.log
+logs

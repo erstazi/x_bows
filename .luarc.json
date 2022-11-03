@@ -18,7 +18,8 @@
             "/.vscode",
             "/meta",
             "/.git",
-            "/docs"
+            "/docs",
+            "/bin"
         ],
         "checkThirdParty": false
     },
@@ -28,7 +29,7 @@
         }
     },
     "type": {
-        "castNumberToInteger": false
+        "castNumberToInteger": true
     },
     "doc": {
         "privateName": [
@@ -51,10 +52,49 @@
             "unbalanced": "Any",
             "unused": "Any"
         },
-        "ignoredFiles": "Opened",
-        "libraryFiles": "Opened",
+        "ignoredFiles": "Disable",
+        "libraryFiles": "Disable",
         "neededFileStatus": {
             "codestyle-check": "Any"
-        }
+        },
+        "disableScheme": [
+            "git",
+            "type"
+        ],
+        "globals": [
+            "DIR_DELIM",
+            "INIT",
+            "minetest",
+            "core",
+            "dump",
+            "dump2",
+            "Raycast",
+            "Settings",
+            "PseudoRandom",
+            "PerlinNoise",
+            "VoxelManip",
+            "SecureRandom",
+            "VoxelArea",
+            "PerlinNoiseMap",
+            "PcgRandom",
+            "ItemStack",
+            "AreaStore",
+            "unpack",
+            "vector",
+            "player_monoids",
+            "playerphysics",
+            "hb",
+            "mesecon",
+            "armor",
+            "default",
+            "i3",
+            "unified_inventory",
+            "player_api",
+            "u_skins",
+            "wardrobe",
+            "3d_armor",
+            "skinsdb",
+            "skins"
+        ]
     }
 }
