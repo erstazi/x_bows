@@ -51,7 +51,7 @@ XBows = {
         x_bows_show_3d_quiver = minetest.settings:get_bool('x_bows_show_3d_quiver', true)
     },
     charge_sound_after_job = {},
-    fallback_quiver = not minetest.global_exists('sfinv') and  not minetest.global_exists('unified_inventory') and not minetest.global_exists('i3')
+    fallback_quiver = not minetest.global_exists('sfinv') and not minetest.global_exists('unified_inventory') and not minetest.global_exists('i3')
 }
 
 XBows.__index = XBows

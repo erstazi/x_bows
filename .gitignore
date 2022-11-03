@@ -4,3 +4,4 @@ docs/build
 *.blend2
 *.old
 node_modules
+*.log

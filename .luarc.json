@@ -1,0 +1,60 @@
+{
+    "$schema": "https://raw.githubusercontent.com/sumneko/vscode-lua/master/setting/schema.json",
+    "runtime": {
+        "version": "Lua 5.1",
+        "path": [
+            "?.lua",
+            "?/init.lua"
+        ],
+        "pathStrict": true
+    },
+    "workspace": {
+        "maxPreload": 1600,
+        "preloadFileSize": 1000,
+        "ignoreDir": [
+            "/locale/",
+            "/libs/",
+            "/3rd",
+            "/.vscode",
+            "/meta",
+            "/.git",
+            "/docs"
+        ],
+        "checkThirdParty": false
+    },
+    "typeFormat": {
+        "config": {
+            "format_line": "false"
+        }
+    },
+    "type": {
+        "castNumberToInteger": false
+    },
+    "doc": {
+        "privateName": [
+            "_*"
+        ]
+    },
+    "diagnostics": {
+        "disable": [
+            "close-non-object"
+        ],
+        "groupFileStatus": {
+            "ambiguity": "Any",
+            "await": "Any",
+            "duplicate": "Any",
+            "global": "Any",
+            "luadoc": "Any",
+            "redefined": "Any",
+            "strict": "Any",
+            "type-check": "Any",
+            "unbalanced": "Any",
+            "unused": "Any"
+        },
+        "ignoredFiles": "Opened",
+        "libraryFiles": "Opened",
+        "neededFileStatus": {
+            "codestyle-check": "Any"
+        }
+    }
+}
