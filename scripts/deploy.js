@@ -23,7 +23,7 @@ try {
 
     console.log(data)
 
-    if (!data.succes) {
+    if (!data.success) {
         process.exit(1)
     }
 } catch (error) {
