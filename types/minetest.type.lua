@@ -12,7 +12,7 @@
 ---@field register_craft fun(recipe: CraftRecipeDef): nil
 ---@field register_craftitem fun(name: string, item_definition: ItemDef): nil
 ---@field add_entity fun(pos: Vector, name: string, staticdata?: string): ObjectRef|nil  Spawn Lua-defined entity at position. Returns `ObjectRef`, or `nil` if failed.
----@field get_node fun(pod: Vector): NodeDef Returns the node at the given position as table in the format `{name="node_name", param1=0, param2=0}`, returns `{name="ignore", param1=0, param2=0}` for unloaded areas.
+---@field get_node fun(pos: Vector): NodeDef Returns the node at the given position as table in the format `{name="node_name", param1=0, param2=0}`, returns `{name="ignore", param1=0, param2=0}` for unloaded areas.
 ---@field registered_nodes table<string, NodeDef|ItemDef> Map of registered node definitions, indexed by name
 ---@field after fun(time: number|integer, func: fun(...), ...): JobTable Call the function `func` after `time` seconds, may be fractional. Optional: Variable number of arguments that are passed to `func`.
 ---@field sound_play fun(spec: SimpleSoundSpec|string, parameters: SoundParamDef, ephemeral?: boolean): any Returns a `handle`. Ephemeral sounds will not return a handle and can't be stopped or faded. It is recommend to use this for short sounds that happen in response to player actions (e.g. door closing).
