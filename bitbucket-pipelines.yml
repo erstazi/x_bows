@@ -34,4 +34,4 @@ pipelines:
             - step:
                 name: Deploy to ContentDB
                 script:
-                    - curl --location --request POST 'https://content.minetest.net/api/packages/SaKeL/x_bows/releases/new/' --header 'Authorization:Bearer $CONTENT_DB_X_BOWS_TOKEN' --header "'"Content-Type:application/json"'" --data-raw '{"method":"git", "title":"'"$BITBUCKET_TAG"'", "ref":"master"}'
+                    - curl --location --request POST 'https://content.minetest.net/api/packages/SaKeL/x_bows/releases/new/' --header 'Authorization:Bearer "'"$CONTENT_DB_X_BOWS_TOKEN"'"' --header 'Content-Type:application/json' --data-raw '{"method":"git", "title":"'"$BITBUCKET_TAG"'", "ref":"master"}'
