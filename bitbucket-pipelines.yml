@@ -24,11 +24,14 @@ pipelines:
     tags:
         "*":
             - step:
-                name: Deploy to ContentDB
+                name: Lint code
                 script:
                     - apt-get update
                     - apt-get -y install lua5.1
                     - apt-get -y install luarocks
                     - luarocks install luacheck
                     - luacheck .
-                    - curl --location --request POST 'https://content.minetest.net/api/packages/SaKeL/x_bows/releases/new/' --header 'Authorization:Bearer $CONTENT_DB_X_BOWS_TOKEN' --header 'Content-Type:application/json' --data-raw '{"method":"git", "title":"$BITBUCKET_TAG", "ref":"master"}'
+            - step:
+                name: Deploy to ContentDB
+                script:
+                    - curl --location --request POST 'https://content.minetest.net/api/packages/SaKeL/x_bows/releases/new/' --header 'Authorization:Bearer $CONTENT_DB_X_BOWS_TOKEN' --header "'"Content-Type:application/json"'" --data-raw '{"method":"git", "title":"'"$BITBUCKET_TAG"'", "ref":"master"}'
