@@ -3,6 +3,16 @@ image: atlassian/default-image:3
 pipelines:
     pull-requests:
         "**":
+            - step:
+                name: Install Node Dependencies
+                caches:
+                    - node-modules
+                    - npm
+                    - nvm
+                script:
+                    - nvm install v17.2.0
+                    - npm i -g npm@8
+                    - npm ci
             - parallel:
                 - step:
                     name: Lua Check
@@ -23,6 +33,16 @@ pipelines:
                         - npm run lua-diagnostics
     branches:
         master:
+            - step:
+                name: Install Node Dependencies
+                caches:
+                    - node-modules
+                    - npm
+                    - nvm
+                script:
+                    - nvm install v17.2.0
+                    - npm i -g npm@8
+                    - npm ci
             - parallel:
                 - step:
                     name: Lua Check
@@ -43,6 +63,16 @@ pipelines:
                         - npm run lua-diagnostics
     tags:
         "*":
+            - step:
+                name: Install Node Dependencies
+                caches:
+                    - node-modules
+                    - npm
+                    - nvm
+                script:
+                    - nvm install v17.2.0
+                    - npm i -g npm@8
+                    - npm ci
             - parallel:
                 - step:
                     name: Lua Check
@@ -61,16 +91,6 @@ pipelines:
                     script:
                         - nvm use v17.2.0
                         - npm run lua-diagnostics
-            - step:
-                name: Install Node Dependencies
-                caches:
-                    - node-modules
-                    - npm
-                    - nvm
-                script:
-                    - nvm install v17.2.0
-                    - npm i -g npm@8
-                    - npm ci
             - step:
                 name: Deploy to ContentDB
                 caches:
