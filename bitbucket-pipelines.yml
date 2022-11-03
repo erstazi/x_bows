@@ -43,7 +43,12 @@ pipelines:
                     - npm ci
             - step:
                 name: Deploy to ContentDB
+                caches:
+                    - node-modules
+                    - npm
+                    - nvm
                 script:
+                    - nvm use v17.2.0
                     - npm run push:ci -- --token=$CONTENT_DB_X_BOWS_TOKEN --title=$BITBUCKET_TAG
 definitions:
     caches:
