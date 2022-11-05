@@ -204,4 +204,4 @@ Modified by SaKeL (added quiver):
 
 ## Installation
 
-see: http://wiki.minetest.com/wiki/Installing_Mods
+see: https://wiki.minetest.net/Installing_Mods

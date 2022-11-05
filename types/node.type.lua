@@ -18,6 +18,8 @@
 ---@field liquid_viscosity number|integer Controls speed at which the liquid spreads/flows (max. 7).
 -- 0 is fastest, 7 is slowest. By default, this also slows down movement of players inside the node (can be overridden using `move_resistance`)
 ---@field walkable boolean If true, objects collide with node.
+---@field after_dig_node fun(pos: Vector, oldnode: NodeDef, oldmetadata: table, digger: ObjectRef): nil  oldmetadata is in table format. Called after destructing node when node was dug using minetest.node_dig / minetest.dig_node., default: nil
+---@field paramtype2 string
 
 ---Textures of node; +Y, -Y, +X, -X, +Z, -Z. List can be shortened to needed length.
 ---@class NodeTilesDef

@@ -2,6 +2,9 @@
 ---https://github.com/sumneko/lua-language-server/wiki
 
 ---Minetest game farming mod
+---@class MtgFarming
+---@field hoe_on_use fun(itemstack: ItemStack, user: ObjectRef, pointed_thing: PointedThingDef, uses: number): ItemStack | nil
+---@field place_seed fun(itemstack: ItemStack, placer: ObjectRef, pointed_thing: PointedThingDef, plantname: string): ItemStack Seed placement
 
 ----Node definition. Used by `minetest.register_node`.
 ---@class NodeDefMtgFarming
