@@ -185,7 +185,7 @@ function XBows.register_bow(self, name, def, override)
     def.short_description = def.short_description
     def.description = override and def.short_description or (def.description or name)
     def.custom.uses = def.custom.uses or 150
-    def.groups = mergeTables({ bow = 1, flammable = 1 }, def.groups or {})
+    def.groups = mergeTables({ bow = 1, flammable = 1, enchantability = 1 }, def.groups or {})
     def.custom.groups_charged = mergeTables(
         { bow_charged = 1, flammable = 1, not_in_creative_inventory = 1 },
         def.groups or {}
@@ -683,6 +683,9 @@ function XBows.shoot(self, itemstack, user, pointed_thing)
     local _tool_capabilities = x_bows_registered_arrow_def.custom.tool_capabilities
     local quiver_xbows_def = x_bows_registered_quiver_def
 
+    ---X Enchanting
+    local x_enchanting = minetest.deserialize(meta:get_string('x_enchanting')) or {}
+
     ---@type EnityStaticDataAttrDef
     local staticdata = {
         _arrow_name = arrow_name,
@@ -691,7 +694,8 @@ function XBows.shoot(self, itemstack, user, pointed_thing)
         _is_critical_hit = false,
         _tool_capabilities = _tool_capabilities,
         _tflp = tflp,
-        _add_damage = 0
+        _add_damage = 0,
+        _x_enchanting = x_enchanting
     }
 
     ---crits, only on full punch interval
@@ -722,7 +726,8 @@ function XBows.shoot(self, itemstack, user, pointed_thing)
         local wield_item = user:get_wielded_item()
 
         if wield_item:get_count() > 0 and wield_item:get_name() == itemstack:get_name() then
-            user:set_wielded_item(ItemStack({ name = bow_name, wear = itemstack:get_wear() }))
+            local new_stack = ItemStack(mergeTables(itemstack:to_table(), { name = bow_name }))
+            user:set_wielded_item(new_stack)
         end
     end)
 
@@ -906,6 +911,9 @@ function XBowsEntityDef.on_activate(self, selfObj, staticdata, dtime_s)
     local bow_strength_min = x_bows_registered_bow_def.custom.strength_min
     local bow_strength_max = x_bows_registered_bow_def.custom.strength_max
 
+    ---X Enchanting
+    selfObj._x_enchanting = _staticdata._x_enchanting
+
     ---acceleration
     selfObj._player_look_dir = selfObj._user:get_look_dir()
 
@@ -958,7 +966,7 @@ function XBowsEntityDef.on_activate(self, selfObj, staticdata, dtime_s)
 
     ---idle animation
     if x_bows_registered_entity_def and x_bows_registered_entity_def._custom.animations.idle then
-        selfObj.object:set_animation(unpack(x_bows_registered_entity_def._custom.animations.idle))
+        selfObj.object:set_animation(unpack(x_bows_registered_entity_def._custom.animations.idle)--[[@as table]] )
     end
 
     ---counter, e.g. for initial values set `on_step`
@@ -980,6 +988,11 @@ end
 function XBowsEntityDef.on_death(self, selfObj, killer)
     if not selfObj._old_pos then
         selfObj.object:remove()
+        return
+    end
+
+    -- Infinity enchantment - arrows cannot be retrieved
+    if selfObj._x_enchanting.infinity and selfObj._x_enchanting.infinity.value > 0 then
         return
     end
 
@@ -1115,7 +1128,13 @@ function XBowsEntityDef.on_step(self, selfObj, dtime)
             local _damage = 0
 
             if selfObj._add_damage then
+                -- add damage from quiver
                 _damage = _damage + selfObj._add_damage
+            end
+
+            if selfObj._x_enchanting.power then
+                -- add damage from enchantment
+                _damage = _damage + _damage * (selfObj._x_enchanting.power.value / 100)
             end
 
             for group, base_damage in pairs(selfObj._tool_capabilities.damage_groups) do
@@ -1146,11 +1165,23 @@ function XBowsEntityDef.on_step(self, selfObj, dtime)
                 _damage
             )
 
-            pointed_thing.ref:add_velocity({
-                x = dir.x * knockback * -1,
-                y = 7,
-                z = dir.z * knockback * -1
-            })
+            if selfObj._x_enchanting.punch then
+                -- add knockback from enchantment
+                -- the `punch.value` multiplier is too strong so divide it by half
+                knockback = knockback * (selfObj._x_enchanting.punch.value / 2)
+
+                pointed_thing.ref:add_velocity({
+                    x = dir.x * knockback * -1,
+                    y = 7,
+                    z = dir.z * knockback * -1
+                })
+            else
+                pointed_thing.ref:add_velocity({
+                    x = dir.x * knockback * -1,
+                    y = 5,
+                    z = dir.z * knockback * -1
+                })
+            end
 
             pointed_thing.ref:punch(
                 selfObj.object,
@@ -1161,7 +1192,7 @@ function XBowsEntityDef.on_step(self, selfObj, dtime)
                 },
                 {
                     x = dir.x * -1,
-                    y = 7,
+                    y = -7,
                     z = dir.z * -1
                 }
             )
@@ -1368,7 +1399,9 @@ function XBowsEntityDef.on_step(self, selfObj, dtime)
                 ---Wiggle
                 local x_bows_registered_entity_def = self.registered_entities[selfObj.name]
                 if x_bows_registered_entity_def and x_bows_registered_entity_def._custom.animations.on_hit_node then
-                    selfObj.object:set_animation(unpack(x_bows_registered_entity_def._custom.animations.on_hit_node))
+                    selfObj.object:set_animation(
+                        unpack(x_bows_registered_entity_def._custom.animations.on_hit_node)--[[@as table]]
+                    )
                 end
 
                 ---API callbacks
@@ -1593,7 +1626,12 @@ function XBowsQuiver.get_itemstack_arrow_from_quiver(self, player)
                         found_arrow_stack = qst:take_item()
                         found_arrow_stack_idx = j
 
-                        if not self:is_creative(player_name) then
+                        ---X Enchanting
+                        local wielded_stack_meta = wielded_stack:get_meta()
+                        local is_infinity = wielded_stack_meta:get_float('is_infinity')
+
+                        if not self:is_creative(player_name) and is_infinity == 0 then
+                            -- take item will be set
                             detached_inv:set_list('main', detached_inv_list)
                             self:save(detached_inv, player, true)
                         end
@@ -2168,16 +2206,17 @@ function XBowsQuiver.sfinv_register_page(self)
                 'listring[current_player;main]',
             }
 
-            local player_inv = player:get_inventory()
+            local player_inv = player:get_inventory() --[[@as InvRef]]
             context._itemstack_arrow = player_inv:get_stack('x_bows:arrow_inv', 1)
             context._itemstack_quiver = player_inv:get_stack('x_bows:quiver_inv', 1)
 
             if context._itemstack_arrow and not context._itemstack_arrow:is_empty() then
                 local x_bows_registered_arrow_def = self.registered_arrows[context._itemstack_arrow:get_name()]
+                local short_description = context._itemstack_arrow:get_short_description()
 
-                if x_bows_registered_arrow_def then
+                if x_bows_registered_arrow_def and short_description then
                     formspec[#formspec + 1] = 'label[0,1.5;' ..
-                        minetest.formspec_escape(context._itemstack_arrow:get_short_description()) .. '\n' ..
+                        minetest.formspec_escape(short_description) .. '\n' ..
                         minetest.formspec_escape(x_bows_registered_arrow_def.custom.description_abilities) .. ']'
                 end
             end
@@ -2186,10 +2225,14 @@ function XBowsQuiver.sfinv_register_page(self)
             if context._itemstack_quiver and not context._itemstack_quiver:is_empty() then
                 local st_meta = context._itemstack_quiver:get_meta()
                 local quiver_id = st_meta:get_string('quiver_id')
+                local short_description = context._itemstack_quiver:get_short_description()
 
                 ---description
-                formspec[#formspec + 1] = 'label[3.5,1.5;' ..
-                    minetest.formspec_escape(context._itemstack_quiver:get_short_description()) .. ']'
+                if short_description then
+                    formspec[#formspec + 1] = 'label[3.5,1.5;' ..
+                        minetest.formspec_escape(short_description) .. ']'
+                end
+
                 formspec[#formspec + 1] = 'list[detached:' .. quiver_id .. ';main;4.5,0.5;3,1;]'
                 formspec[#formspec + 1] = 'listring[detached:' .. quiver_id .. ';main]'
                 formspec[#formspec + 1] = 'listring[current_player;main]'

@@ -195,6 +195,7 @@
 ---@field name string
 ---@field _rotation_factor number | fun(): number
 ---@field _step_count number
+---@field _x_enchanting table<string, {["value"]: number | nil}>
 
 ---Staticdata attributes
 ---@class EnityStaticDataAttrDef
@@ -206,3 +207,4 @@
 ---@field _tflp number
 ---@field _add_damage number
 ---@field _faster_arrows_multiplier number | nil
+---@field _x_enchanting table<string, {["value"]: number | nil}>
