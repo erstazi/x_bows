@@ -2212,10 +2212,11 @@ function XBowsQuiver.sfinv_register_page(self)
 
             if context._itemstack_arrow and not context._itemstack_arrow:is_empty() then
                 local x_bows_registered_arrow_def = self.registered_arrows[context._itemstack_arrow:get_name()]
+                local short_description = context._itemstack_arrow:get_short_description()
 
-                if x_bows_registered_arrow_def then
+                if x_bows_registered_arrow_def and short_description then
                     formspec[#formspec + 1] = 'label[0,1.5;' ..
-                        minetest.formspec_escape(context._itemstack_arrow:get_short_description()) .. '\n' ..
+                        minetest.formspec_escape(short_description) .. '\n' ..
                         minetest.formspec_escape(x_bows_registered_arrow_def.custom.description_abilities) .. ']'
                 end
             end
@@ -2224,10 +2225,14 @@ function XBowsQuiver.sfinv_register_page(self)
             if context._itemstack_quiver and not context._itemstack_quiver:is_empty() then
                 local st_meta = context._itemstack_quiver:get_meta()
                 local quiver_id = st_meta:get_string('quiver_id')
+                local short_description = context._itemstack_quiver:get_short_description()
 
                 ---description
-                formspec[#formspec + 1] = 'label[3.5,1.5;' ..
-                    minetest.formspec_escape(context._itemstack_quiver:get_short_description()) .. ']'
+                if short_description then
+                    formspec[#formspec + 1] = 'label[3.5,1.5;' ..
+                        minetest.formspec_escape(short_description) .. ']'
+                end
+
                 formspec[#formspec + 1] = 'list[detached:' .. quiver_id .. ';main;4.5,0.5;3,1;]'
                 formspec[#formspec + 1] = 'listring[detached:' .. quiver_id .. ';main]'
                 formspec[#formspec + 1] = 'listring[current_player;main]'
