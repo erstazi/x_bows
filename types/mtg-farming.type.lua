@@ -5,6 +5,8 @@
 ---@class MtgFarming
 ---@field hoe_on_use fun(itemstack: ItemStack, user: ObjectRef, pointed_thing: PointedThingDef, uses: number): ItemStack | nil
 ---@field place_seed fun(itemstack: ItemStack, placer: ObjectRef, pointed_thing: PointedThingDef, plantname: string): ItemStack Seed placement
+---@field grow_plant fun(pos: Vector, elapsed: number): nil
+---@field register_plant fun(name: string, def: table): nil
 
 ----Node definition. Used by `minetest.register_node`.
 ---@class NodeDefMtgFarming
