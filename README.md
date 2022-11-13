@@ -30,6 +30,7 @@ Video: https://youtu.be/pItpltmUoa8
 * quiver item shows its content in infotext (hover over the item)
 * X Bows API for creating custom shooters and projectiles
 * 3d quiver shown in 3rd person view (compatible with 3d armor)
+* x_enchanting support
 
 ## How To
 
