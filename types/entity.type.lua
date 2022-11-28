@@ -14,3 +14,4 @@
 ---@field on_detach_child fun(self: table, child: ObjectRef): nil Function receive a "luaentity" table as `self`. `child`: an `ObjectRef` of the child that detaches
 ---@field on_detach fun(self: table, parent: ObjectRef|nil): nil Function receive a "luaentity" table as `self`. `parent`: an `ObjectRef` (can be `nil`) from where it got detached. This happens before the parent object is removed from the world.
 ---@field get_staticdata fun(self: table) Function receive a "luaentity" table as `self`. Should return a string that will be passed to `on_activate` when the object is instantiated the next time.
+---@field drops table Custom for mob drops
