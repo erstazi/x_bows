@@ -11,3 +11,5 @@ bitbucket-pipelines.yml export-ignore
 package.json export-ignore
 package-lock.json export-ignore
 screenshot*.png export-ignore
+i18n.py export-ignore
+config.ld export-ignore
