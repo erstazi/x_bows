@@ -2,7 +2,7 @@
 
 Adds bow and arrows with API. The goal of this Mod is to make most complete single bow with arrow what will work with MTG damage system, time from last punch as simple as possible. Eventually due to the damage tiers in MTG additional arrows were added.
 
-![screenshot](screenshot.1.png)
+![screenshot](screenshot.png)
 
 Video: https://youtu.be/pItpltmUoa8
 

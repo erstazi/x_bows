@@ -31,36 +31,6 @@ pipelines:
                     script:
                         - nvm use v17.2.0
                         - npm run lua-diagnostics
-    branches:
-        master:
-            - step:
-                name: Install Node Dependencies
-                caches:
-                    - node-modules
-                    - npm
-                    - nvm
-                script:
-                    - nvm install v17.2.0
-                    - npm i -g npm@8
-                    - npm ci
-            - parallel:
-                - step:
-                    name: Lua Check
-                    script:
-                        - apt-get update
-                        - apt-get -y install lua5.1
-                        - apt-get -y install luarocks
-                        - luarocks install luacheck
-                        - luacheck .
-                - step:
-                    name: Lua Diagnostics
-                    caches:
-                        - node-modules
-                        - npm
-                        - nvm
-                    script:
-                        - nvm use v17.2.0
-                        - npm run lua-diagnostics
     tags:
         "*":
             - step:
