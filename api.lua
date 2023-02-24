@@ -2213,7 +2213,7 @@ function XBowsQuiver.sfinv_register_page(self)
                 ---arrow
                 'label[0,0;' .. minetest.formspec_escape(S('Arrows')) .. ':]',
                 'list[current_player;x_bows:arrow_inv;0,0.5;1,1;]',
-                'image[0,0.5;1,1;x_bows_arrow_slot.png;]',
+                'image[0,0.5;1,1;x_bows_arrow_slot.png]',
                 'listring[current_player;x_bows:arrow_inv]',
                 'listring[current_player;main]',
                 ---quiver
