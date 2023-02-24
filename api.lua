@@ -428,6 +428,7 @@ function XBows.register_quiver(self, name, def)
         inventory_image = def.inventory_image or 'x_bows_quiver.png',
         wield_image = def.wield_image or 'x_bows_quiver.png',
         groups = def.groups,
+        wield_scale = { x = 2, y = 2, z = 1 },
         ---@param itemstack ItemStack
         ---@param user ObjectRef|nil
         ---@param pointed_thing PointedThingDef
@@ -462,6 +463,7 @@ function XBows.register_quiver(self, name, def)
         inventory_image = def.custom.inventory_image_open or 'x_bows_quiver_open.png',
         wield_image = def.custom.wield_image_open or 'x_bows_quiver_open.png',
         groups = def.custom.groups_charged,
+        wield_scale = { x = 2, y = 2, z = 1 },
         ---@param itemstack ItemStack
         ---@param dropper ObjectRef|nil
         ---@param pos Vector
