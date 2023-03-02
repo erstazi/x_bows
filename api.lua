@@ -932,7 +932,7 @@ function XBowsEntityDef.on_activate(self, selfObj, staticdata, dtime_s)
     local bow_strength_max = x_bows_registered_bow_def.custom.strength_max
 
     ---X Enchanting
-    selfObj._x_enchanting = _staticdata._x_enchanting
+    selfObj._x_enchanting = _staticdata._x_enchanting or {}
 
     ---acceleration
     selfObj._player_look_dir = selfObj._user:get_look_dir()
