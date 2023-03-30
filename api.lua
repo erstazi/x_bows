@@ -2265,8 +2265,9 @@ end
 
 ---Register i3 page
 function XBowsQuiver.i3_register_page(self)
-    i3.new_tab('x_bows:quiver_page', {
+    i3.new_tab('x_bows_quiver_page', {
         description = 'X Bows',
+        slots = true,
         formspec = function(player, data, fs)
             local formspec = {
                 ---arrow
@@ -2278,26 +2279,7 @@ function XBowsQuiver.i3_register_page(self)
                 'label[5,1;' .. minetest.formspec_escape(S('Quiver')) .. ':]',
                 'list[current_player;x_bows:quiver_inv;5,1.5;1,1;]',
                 'listring[current_player;x_bows:quiver_inv]',
-                'listring[current_player;main]',
-                ---main
-                'background9[0,0;10.23,12;i3_bg_full.png;false;12]',
-                'listcolors[#bababa50;#bababa99]',
-                'style_type[box;colors=#77777710,#77777710,#777,#777]',
-                'box[0.22,6.9;1,1;]',
-                'box[1.32,6.9;1,1;]',
-                'box[2.42,6.9;1,1;]',
-                'box[3.52,6.9;1,1;]',
-                'box[4.62,6.9;1,1;]',
-                'box[5.72,6.9;1,1;]',
-                'box[6.82,6.9;1,1;]',
-                'box[7.92,6.9;1,1;]',
-                'box[9.02,6.9;1,1;]',
-                'style_type[list;size=1;spacing=0.1]',
-                'list[current_player;main;0.22,6.9;9,1;]',
-                'style_type[list;size=1;spacing=0.1,0.1]',
-                'list[current_player;main;0.22,8.05;9,4;9]',
-                'style_type[list;size=1;spacing=0.15]',
-                'listring[current_player;craft]listring[current_player;main]'
+                'listring[current_player;main]'
             }
 
             local context = {}
@@ -2314,7 +2296,6 @@ function XBowsQuiver.i3_register_page(self)
                         minetest.formspec_escape(x_bows_registered_arrow_def.custom.description_abilities) .. ']'
                 end
             end
-
 
             if context._itemstack_quiver and not context._itemstack_quiver:is_empty() then
                 local st_meta = context._itemstack_quiver:get_meta()
