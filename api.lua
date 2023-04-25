@@ -651,6 +651,11 @@ function XBows.shoot(self, itemstack, user, pointed_thing)
     local tflp = (time_shoot - time_load) / 1000000
     ---@type ItemStack
     local arrow_itemstack = ItemStack(minetest.deserialize(meta:get_string('arrow_itemstack_string')))
+
+    if arrow_itemstack:is_empty() then
+        return itemstack
+    end
+
     local arrow_itemstack_meta = arrow_itemstack:get_meta()
     local arrow_name = arrow_itemstack:get_name()
     local is_arrow_from_quiver = arrow_itemstack_meta:get_int('is_arrow_from_quiver')
@@ -740,6 +745,9 @@ function XBows.shoot(self, itemstack, user, pointed_thing)
     if staticdata._is_critical_hit then
         sound_name = x_bows_registered_bow_charged_def.custom.sound_shoot_crit
     end
+
+    -- remove arrow meta to prevent multiple shots while waiting for async `after`
+    meta:set_string('arrow_itemstack_string', '')
 
     ---stop punching close objects/nodes when shooting
     minetest.after(0.2, function()
