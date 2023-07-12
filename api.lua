@@ -924,6 +924,9 @@ function XBowsEntityDef.on_activate(self, selfObj, staticdata, dtime_s)
     selfObj._arrow_particle_effect = x_bows_registered_arrow_def.custom.particle_effect
     selfObj._arrow_particle_effect_crit = x_bows_registered_arrow_def.custom.particle_effect_crit
     selfObj._arrow_particle_effect_fast = x_bows_registered_arrow_def.custom.particle_effect_fast
+    selfObj._flyby_sound_played = {
+        ['player_name'] = true
+    }
 
     ---Bow Def
     local x_bows_registered_bow_def = self.registered_bows[selfObj._bow_name]
@@ -994,7 +997,7 @@ function XBowsEntityDef.on_activate(self, selfObj, staticdata, dtime_s)
 
     ---idle animation
     if x_bows_registered_entity_def and x_bows_registered_entity_def._custom.animations.idle then
-        selfObj.object:set_animation(unpack(x_bows_registered_entity_def._custom.animations.idle)--[[@as table]] )
+        selfObj.object:set_animation(unpack(x_bows_registered_entity_def._custom.animations.idle)--[[@as table]])
     end
 
     ---counter, e.g. for initial values set `on_step`
@@ -1118,6 +1121,28 @@ function XBowsEntityDef.on_step(self, selfObj, dtime)
         local ip_pos = pointed_thing.intersection_point
         local in_pos = pointed_thing.intersection_normal
         selfObj.pointed_thing = pointed_thing
+
+        if not selfObj._attached then
+            for _, object in ipairs(minetest.get_objects_inside_radius(selfObj.object:get_pos(), 5)) do
+                if object:is_player()
+                    and object:get_hp() > 0
+                    and object:get_player_name() ~= selfObj._user:get_player_name()
+                    and not selfObj._flyby_sound_played[object:get_player_name()]
+                then
+                    selfObj._flyby_sound_played[object:get_player_name()] = true
+
+                    local p1 = selfObj.object:get_pos()
+                    local p2 = object:get_pos()
+                    local distance = math.round(vector.distance(p1, p2))
+                    local gain = 1 / distance
+
+                    minetest.sound_play('x_bows_arrow_flyby', {
+                        to_player = object:get_player_name(),
+                        gain = gain
+                    }, true)
+                end
+            end
+        end
 
         if pointed_thing.type == 'object'
             and pointed_thing.ref ~= selfObj.object

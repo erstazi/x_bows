@@ -543,6 +543,12 @@ GNU Lesser General Public License v2.1 or later
 - x_bows_quiver.8.ogg
 - x_bows_quiver.9.ogg
 
+**CC0-1.0, Kinoton**, https://freesound.org/people/Kinoton/sounds/427979/
+
+- x_bows_arrow_flyby.1.ogg
+- x_bows_arrow_flyby.2.ogg
+- x_bows_arrow_flyby.3.ogg
+
 ### Models
 
 **CC-BY-SA-4.0, by SaKeL**
