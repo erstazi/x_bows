@@ -16,14 +16,6 @@
     License along with this library; if not, write to juraj.vajda@gmail.com
 --]]
 
-minetest = minetest.global_exists('minetest') and minetest or {} --[[@as Minetest]]
-ItemStack = minetest.global_exists('ItemStack') and ItemStack or {} --[[@as ItemStack]]
-vector = minetest.global_exists('vector') and vector or {} --[[@as Vector]]
-default = minetest.global_exists('default') and default or {} --[[@as MtgDefault]]
-sfinv = minetest.global_exists('sfinv') and sfinv or {} --[[@as Sfinv]]
-unified_inventory = minetest.global_exists('unified_inventory') and unified_inventory or {} --[[@as UnifiedInventory]]
-player_api = minetest.global_exists('player_api') and player_api or {} --[[@as MtgPlayerApi]]
-
 math.randomseed(tonumber(tostring(os.time()):reverse():sub(1, 9))--[[@as number]] )
 
 local path = minetest.get_modpath('x_bows')
