@@ -19,7 +19,8 @@ globals = {
     'XBows',
     'XBowsQuiver',
     'XBowsEntityDefBase',
-    'XBowsEntityDefCustom'
+    'XBowsEntityDefCustom',
+    'sfinv'
 }
 
 read_globals = {
