@@ -2426,8 +2426,12 @@ function XBowsQuiver.show_3d_quiver(self, player, props)
     end
 
     if self.skinsdb then
-        minetest.after(1, function()
-            local textures = player_api.get_textures(player)
+        minetest.after(1, function(v_player)
+            if not v_player then
+                return
+            end
+
+            local textures = player_api.get_textures(v_player)
 
             ---cleanup
             for index, value in ipairs(textures) do
@@ -2443,15 +2447,15 @@ function XBowsQuiver.show_3d_quiver(self, player, props)
             player_textures = textures
 
             if player_textures then
-                if _props.is_empty and not self.quiver_empty_state[player:get_player_name()] then
-                    self.quiver_empty_state[player:get_player_name()] = true
-                    player_api.set_textures(player, player_textures)
-                elseif not _props.is_empty and self.quiver_empty_state[player:get_player_name()] then
-                    self.quiver_empty_state[player:get_player_name()] = false
-                    player_api.set_textures(player, player_textures)
+                if _props.is_empty and not self.quiver_empty_state[v_player:get_player_name()] then
+                    self.quiver_empty_state[v_player:get_player_name()] = true
+                    player_api.set_textures(v_player, player_textures)
+                elseif not _props.is_empty and self.quiver_empty_state[v_player:get_player_name()] then
+                    self.quiver_empty_state[v_player:get_player_name()] = false
+                    player_api.set_textures(v_player, player_textures)
                 end
             end
-        end)
+        end, player)
 
         return
     elseif self._3d_armor then
