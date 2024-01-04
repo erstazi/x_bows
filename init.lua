@@ -126,7 +126,7 @@ minetest.register_allow_player_inventory_action(function(player, action, invento
         else
             return 0
         end
-    elseif action == 'move' and inventory_info.from_list == 'x_bows:arrow_inv' then
+    elseif action == 'move' and inventory_info.from_list == 'x_bows:arrow_inv' and inventory_info.to_list ~= 'x_bows:quiver_inv' then
         local stack = inventory:get_stack(inventory_info.from_list, inventory_info.from_index)
 
         if minetest.get_item_group(stack:get_name(), 'arrow') ~= 0 then
