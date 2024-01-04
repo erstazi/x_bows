@@ -18,8 +18,6 @@
 
 local S = minetest.get_translator(minetest.get_current_modname())
 
-sfinv = sfinv --[[@as Sfinv]]
-
 ---Check if table contains value
 ---@param table table
 ---@param value string|number
