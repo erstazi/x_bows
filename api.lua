@@ -1152,7 +1152,7 @@ function XBowsEntityDef.on_step(self, selfObj, dtime)
                 )
                 or (
                     pointed_thing.ref:get_luaentity()
-                    and pointed_thing.ref:get_luaentity().physical
+                    -- and pointed_thing.ref:get_luaentity().physical
                     and pointed_thing.ref:get_luaentity().name ~= '__builtin:item'
                 )
             )
