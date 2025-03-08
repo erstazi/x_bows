@@ -48,6 +48,7 @@ XBows = {
     mesecons = minetest.get_modpath('mesecons'),
     playerphysics = minetest.get_modpath('playerphysics'),
     player_monoids = minetest.get_modpath('player_monoids'),
+    pova = minetest.get_modpath('pova'),
     i3 = minetest.get_modpath('i3'),
     unified_inventory = minetest.get_modpath('unified_inventory'),
     u_skins = minetest.get_modpath('u_skins'),
@@ -1840,7 +1841,7 @@ function XBowsQuiver.udate_or_create_hud(self, player, inv_list, idx)
 
     ---title image
     self.hud_item_ids[player_name].title_image = player:hud_add({
-        hud_elem_type = 'image',
+        type = 'image',
         position = { x = 1, y = 0.5 },
         offset = { x = -120, y = -140 },
         text = item_def.inventory_image,
@@ -1850,7 +1851,7 @@ function XBowsQuiver.udate_or_create_hud(self, player, inv_list, idx)
 
     ---title copy
     self.hud_item_ids[player_name].title_copy = player:hud_add({
-        hud_elem_type = 'text',
+        type = 'text',
         position = { x = 1, y = 0.5 },
         offset = { x = -120, y = -75 },
         text = item_def.short_description,
@@ -1861,7 +1862,7 @@ function XBowsQuiver.udate_or_create_hud(self, player, inv_list, idx)
 
     ---hotbar bg
     self.hud_item_ids[player_name].hotbar_bg = player:hud_add({
-        hud_elem_type = 'image',
+        type = 'image',
         position = { x = 1, y = 0.5 },
         offset = { x = -238, y = 0 },
         text = is_arrow and 'x_bows_single_hotbar.png' or 'x_bows_quiver_hotbar.png',
@@ -1882,7 +1883,7 @@ function XBowsQuiver.udate_or_create_hud(self, player, inv_list, idx)
 
                 ---ui selected bg
                 self.hud_item_ids[player_name].hotbar_selected = player:hud_add({
-                    hud_elem_type = 'image',
+                    type = 'image',
                     position = { x = 1, y = 0.5 },
                     offset = { x = -308 + (j * 74), y = 2 },
                     text = 'x_bows_hotbar_selected.png',
@@ -1894,7 +1895,7 @@ function XBowsQuiver.udate_or_create_hud(self, player, inv_list, idx)
             if found_arrow_stack_def then
                 ---arrow inventory image
                 table.insert(self.hud_item_ids[player_name].arrow_inv_img, player:hud_add({
-                    hud_elem_type = 'image',
+                    type = 'image',
                     position = { x = 1, y = 0.5 },
                     offset = { x = -300 + (j * 74), y = 0 },
                     text = found_arrow_stack_def.inventory_image,
@@ -1904,7 +1905,7 @@ function XBowsQuiver.udate_or_create_hud(self, player, inv_list, idx)
 
                 ---stack count
                 table.insert(self.hud_item_ids[player_name].stack_count, player:hud_add({
-                    hud_elem_type = 'text',
+                    type = 'text',
                     position = { x = 1, y = 0.5 },
                     offset = { x = -244 + (j * 74), y = 23 },
                     text = is_no_ammo and 0 or qst:get_count(),

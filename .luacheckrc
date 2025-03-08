@@ -3,24 +3,25 @@ allow_defined_top = true
 max_line_length = false
 
 exclude_files = {
-    './scripts',
-    './bin',
-    './logs',
-    './node_modules',
-    './sounds',
-    './textures',
-    './models',
-    './docs',
-    './locale',
-    './types',
+    "./scripts",
+    "./bin",
+    "./logs",
+    "./node_modules",
+    "./sounds",
+    "./textures",
+    "./models",
+    "./docs",
+    "./locale",
+    "./types",
 }
 
 globals = {
-    'XBows',
-    'XBowsQuiver',
-    'XBowsEntityDefBase',
-    'XBowsEntityDefCustom',
-    'sfinv'
+    "XBows",
+    "XBowsQuiver",
+    "XBowsEntityDefBase",
+    "XBowsEntityDefCustom",
+    "sfinv",
+    "pova"
 }
 
 read_globals = {

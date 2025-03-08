@@ -6,4 +6,4 @@ x_bows_show_damage_numbers (Show damage caused) bool false
 
 
 # Shows 3d quiver in 3rd person view (3d armor, and some skins MODs supported - see optional dependencies)
-x_bows_show_3d_quiver (Show 3D Quiver) bool true
+x_bows_show_3d_quiver (Show 3D Quiver) bool false
