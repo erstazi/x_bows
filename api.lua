@@ -2531,7 +2531,8 @@ function XBowsQuiver.hide_3d_quiver(self, player)
     local player_textures
 
     if self.skinsdb then
-        minetest.after(1, function(v_player)
+        minetest.after(1, function(v_name)
+            local v_player = core.get_player_by_name(v_name)
             if not v_player then
                 return
             end
@@ -2554,11 +2555,16 @@ function XBowsQuiver.hide_3d_quiver(self, player)
             if player_textures then
                 player_api.set_textures(v_player, player_textures)
             end
-        end, player)
+        end, p_name)
 
         return
     elseif self._3d_armor then
-        minetest.after(0.1, function()
+        minetest.after(0.1, function(v_name)
+            local v_player = core.get_player_by_name(v_name)
+            if not v_player then
+                return
+            end
+
             player_textures = {
                 armor.textures[p_name].skin,
                 armor.textures[p_name].armor,
@@ -2567,10 +2573,10 @@ function XBowsQuiver.hide_3d_quiver(self, player)
             }
 
             if player_textures then
-                player_api.set_textures(player, player_textures)
+                player_api.set_textures(v_player, player_textures)
             end
 
-        end)
+        end, p_name)
 
         return
     elseif self.u_skins then
