@@ -29,7 +29,7 @@ try {
         ref: 'master'
     }
 
-    const response = await fetch('https://content.minetest.net/api/packages/SaKeL/x_bows/releases/new/', {
+    const response = await fetch('https://content.luanti.org/api/packages/SaKeL/x_bows/releases/new/', {
         method: 'POST',
         body: JSON.stringify(body),
         headers: {
