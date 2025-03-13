@@ -27,6 +27,7 @@ dofile(path .. '/particle_effects.lua')
 dofile(path .. '/nodes.lua')
 dofile(path .. '/arrow.lua')
 dofile(path .. '/items.lua')
+dofile(path .. '/mod_support_bones.lua')
 
 if XBows.i3 then
     XBowsQuiver:i3_register_page()

@@ -21,7 +21,8 @@ globals = {
     "XBowsEntityDefBase",
     "XBowsEntityDefCustom",
     "sfinv",
-    "pova"
+    "pova",
+    "bones"
 }
 
 read_globals = {
