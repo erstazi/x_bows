@@ -16,11 +16,11 @@
     License along with this library; if not, write to juraj.vajda@gmail.com
 --]]
 
-local S = minetest.get_translator(minetest.get_current_modname())
+local S = core.get_translator(core.get_current_modname())
 
 local arrow_tail_recipe_material = 'group:wool'
 
-if minetest.get_modpath('animalia') then
+if core.get_modpath('animalia') then
     arrow_tail_recipe_material = 'group:feather'
 end
 

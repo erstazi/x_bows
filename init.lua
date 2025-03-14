@@ -18,8 +18,8 @@
 
 math.randomseed(tonumber(tostring(os.time()):reverse():sub(1, 9))--[[@as number]] )
 
-local path = minetest.get_modpath('x_bows')
-local mod_start_time = minetest.get_us_time()
+local path = core.get_modpath('x_bows')
+local mod_start_time = core.get_us_time()
 local bow_charged_timer = 0
 
 dofile(path .. '/api.lua')
@@ -37,7 +37,7 @@ else
     XBowsQuiver:sfinv_register_page()
 end
 
-minetest.register_on_joinplayer(function(player)
+core.register_on_joinplayer(function(player)
     local inv_quiver = player:get_inventory() --[[@as InvRef]]
     local inv_arrow = player:get_inventory() --[[@as InvRef]]
 
@@ -121,12 +121,12 @@ if XBows.settings.x_bows_show_3d_quiver and XBows.player_api then
 end
 
 ---formspec callbacks
-minetest.register_allow_player_inventory_action(function(player, action, inventory, inventory_info)
+core.register_allow_player_inventory_action(function(player, action, inventory, inventory_info)
     ---arrow inventory
     if action == 'move' and inventory_info.to_list == 'x_bows:arrow_inv' then
         local stack = inventory:get_stack(inventory_info.from_list, inventory_info.from_index)
 
-        if minetest.get_item_group(stack:get_name(), 'arrow') ~= 0 then
+        if core.get_item_group(stack:get_name(), 'arrow') ~= 0 then
             return inventory_info.count
         else
             return 0
@@ -134,19 +134,19 @@ minetest.register_allow_player_inventory_action(function(player, action, invento
     elseif action == 'move' and inventory_info.from_list == 'x_bows:arrow_inv' and inventory_info.to_list ~= 'x_bows:quiver_inv' then
         local stack = inventory:get_stack(inventory_info.from_list, inventory_info.from_index)
 
-        if minetest.get_item_group(stack:get_name(), 'arrow') ~= 0 then
+        if core.get_item_group(stack:get_name(), 'arrow') ~= 0 then
             return inventory_info.count
         else
             return 0
         end
     elseif action == 'put' and inventory_info.listname == 'x_bows:arrow_inv' then
-        if minetest.get_item_group(inventory_info.stack:get_name(), 'arrow') ~= 0 then
+        if core.get_item_group(inventory_info.stack:get_name(), 'arrow') ~= 0 then
             return inventory_info.stack:get_count()
         else
             return 0
         end
     elseif action == 'take' and inventory_info.listname == 'x_bows:arrow_inv' then
-        if minetest.get_item_group(inventory_info.stack:get_name(), 'arrow') ~= 0 then
+        if core.get_item_group(inventory_info.stack:get_name(), 'arrow') ~= 0 then
             return inventory_info.stack:get_count()
         else
             return 0
@@ -156,26 +156,26 @@ minetest.register_allow_player_inventory_action(function(player, action, invento
     ---quiver inventory
     if action == 'move' and inventory_info.to_list == 'x_bows:quiver_inv' then
         local stack = inventory:get_stack(inventory_info.from_list, inventory_info.from_index)
-        if minetest.get_item_group(stack:get_name(), 'quiver') ~= 0 then
+        if core.get_item_group(stack:get_name(), 'quiver') ~= 0 then
             return inventory_info.count
         else
             return 0
         end
     elseif action == 'move' and inventory_info.from_list == 'x_bows:quiver_inv' then
         local stack = inventory:get_stack(inventory_info.from_list, inventory_info.from_index)
-        if minetest.get_item_group(stack:get_name(), 'quiver') ~= 0 then
+        if core.get_item_group(stack:get_name(), 'quiver') ~= 0 then
             return inventory_info.count
         else
             return 0
         end
     elseif action == 'put' and inventory_info.listname == 'x_bows:quiver_inv' then
-        if minetest.get_item_group(inventory_info.stack:get_name(), 'quiver') ~= 0 then
+        if core.get_item_group(inventory_info.stack:get_name(), 'quiver') ~= 0 then
             return inventory_info.stack:get_count()
         else
             return 0
         end
     elseif action == 'take' and inventory_info.listname == 'x_bows:quiver_inv' then
-        if minetest.get_item_group(inventory_info.stack:get_name(), 'quiver') ~= 0 then
+        if core.get_item_group(inventory_info.stack:get_name(), 'quiver') ~= 0 then
             return inventory_info.stack:get_count()
         else
             return 0
@@ -185,7 +185,7 @@ minetest.register_allow_player_inventory_action(function(player, action, invento
     return inventory_info.count or inventory_info.stack:get_count()
 end)
 
-minetest.register_on_player_inventory_action(function(player, action, inventory, inventory_info)
+core.register_on_player_inventory_action(function(player, action, inventory, inventory_info)
     ---arrow
     if action == 'move' and inventory_info.to_list == 'x_bows:arrow_inv' then
         if XBows.i3 then
@@ -296,21 +296,21 @@ minetest.register_on_player_inventory_action(function(player, action, inventory,
     end
 end)
 
-minetest.register_on_player_receive_fields(function(player, formname, fields)
+core.register_on_player_receive_fields(function(player, formname, fields)
     if player and fields.quit then
         XBowsQuiver:close_quiver(player, formname)
     end
 end)
 
 ---backwards compatibility
-minetest.register_alias('x_bows:arrow_diamond_tipped_poison', 'x_bows:arrow_diamond')
+core.register_alias('x_bows:arrow_diamond_tipped_poison', 'x_bows:arrow_diamond')
 
 -- sneak, fov adjustments when bow is charged
-minetest.register_globalstep(function(dtime)
+core.register_globalstep(function(dtime)
     bow_charged_timer = bow_charged_timer + dtime
 
     if bow_charged_timer > 0.5 then
-        for _, player in ipairs(minetest.get_connected_players()) do
+        for _, player in ipairs(core.get_connected_players()) do
             local player_name = player:get_player_name()
             local wielded_stack = player:get_wielded_item()
             local wielded_stack_name = wielded_stack:get_name()
@@ -323,7 +323,7 @@ minetest.register_globalstep(function(dtime)
                 XBows.player_bow_sneak[player_name] = {}
             end
 
-            if minetest.get_item_group(wielded_stack_name, 'bow_charged') ~= 0
+            if core.get_item_group(wielded_stack_name, 'bow_charged') ~= 0
                 and not XBows.player_bow_sneak[player_name].sneak
             then
                 --charged weapon
@@ -338,7 +338,7 @@ minetest.register_globalstep(function(dtime)
 
                 XBows.player_bow_sneak[player_name].sneak = true
                 player:set_fov(0.9, true, 0.4)
-            elseif minetest.get_item_group(wielded_stack_name, 'bow_charged') == 0
+            elseif core.get_item_group(wielded_stack_name, 'bow_charged') == 0
                 and XBows.player_bow_sneak[player_name].sneak
             then
                 if XBows.playerphysics then
@@ -361,6 +361,6 @@ minetest.register_globalstep(function(dtime)
     end
 end)
 
-local mod_end_time = (minetest.get_us_time() - mod_start_time) / 1000000
+local mod_end_time = (core.get_us_time() - mod_start_time) / 1000000
 
 print('[Mod] x_bows loaded.. [' .. mod_end_time .. 's]')
