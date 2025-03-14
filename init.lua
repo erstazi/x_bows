@@ -85,6 +85,10 @@ minetest.register_on_joinplayer(function(player)
     XBowsQuiver:close_quiver(player)
 end)
 
+core.register_on_leaveplayer(function(player)
+    XBows.player_bow_sneak[player:get_player_name()] = nil
+end)
+
 if XBows.settings.x_bows_show_3d_quiver and XBows.player_api then
     local model_name = 'x_bows_character.b3d'
 
