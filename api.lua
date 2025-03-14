@@ -164,9 +164,32 @@ function XBows.reset_charged_bow(self, player, includeWielded)
 
             --return arrow
             if arrow_itemstack and not self:is_creative(player:get_player_name()) then
-                if inv:room_for_item('main', { name = arrow_itemstack:get_name() }) then
+                local arrow_meta = arrow_itemstack:get_meta()
+                local is_arrow_from_quiver = arrow_meta:get_int('is_arrow_from_quiver') ~= 0
+                local quiver_stack = inv:get_stack('x_bows:quiver_inv', 1)
+                local quiver_meta = quiver_stack:get_meta()
+                local quiver_id = arrow_meta:get_string('quiver_id')
+                local detached_inv = XBowsQuiver:get_or_create_detached_inv(
+                    quiver_id,
+                    player:get_player_name(),
+                    quiver_meta:get_string('quiver_items')
+                )
+
+                if is_arrow_from_quiver
+                    and detached_inv:room_for_item('main', { name = arrow_itemstack:get_name() })
+                    and not quiver_stack:is_empty()
+                then
+                    -- Add arrow back to quiver inventory
+                    detached_inv:add_item('main', arrow_itemstack:get_name())
+                    XBowsQuiver:save(detached_inv, player, true)
+                elseif inv:room_for_item('x_bows:arrow_inv', { name = arrow_itemstack:get_name() }) then
+                    -- Add arrow back to arrow inventory
+                    inv:add_item('x_bows:arrow_inv', arrow_itemstack:get_name())
+                    -- Add arrow back to main inventory
+                elseif inv:room_for_item('main', { name = arrow_itemstack:get_name() }) then
                     inv:add_item('main', arrow_itemstack:get_name())
                 else
+                    -- Drop the arrow on the ground (no space in any inventory)
                     core.item_drop(
                         ItemStack({ name = arrow_itemstack:get_name(), count = 1 }),
                         player,
