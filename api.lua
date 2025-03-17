@@ -1394,7 +1394,7 @@ function XBowsEntityDef.on_step(self, selfObj, dtime)
                 end
             end
 
-            if #children >= 5 then
+            if #children > 5 then
                 children[1]:remove()
             end
 
@@ -1476,8 +1476,8 @@ function XBowsEntityDef.on_step(self, selfObj, dtime)
                     end
                 end
 
-                if #children >= 5 then
-                    children[#children]:remove()
+                if #children > 5 then
+                    children[1]:remove()
                 end
 
                 ---Wiggle
