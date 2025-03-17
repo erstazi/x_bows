@@ -1799,13 +1799,6 @@ end
 ---@param player ObjectRef
 ---@return nil
 function XBowsQuiver.remove_hud(self, player)
-    local player_meta = player:get_meta()
-    local x_bows_show_hud_overlay = player_meta:get_string('x_bows_show_hud_overlay')
-
-    if x_bows_show_hud_overlay == 'false' then
-        return
-    end
-
     local player_name = player:get_player_name()
 
     if self.hud_item_ids[player_name] then
