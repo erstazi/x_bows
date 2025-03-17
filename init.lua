@@ -27,6 +27,7 @@ dofile(path .. '/particle_effects.lua')
 dofile(path .. '/nodes.lua')
 dofile(path .. '/arrow.lua')
 dofile(path .. '/items.lua')
+dofile(path .. '/privileges.lua')
 dofile(path .. '/mod_support_bones.lua')
 
 if XBows.i3 then
@@ -40,6 +41,18 @@ end
 core.register_on_joinplayer(function(player)
     local inv_quiver = player:get_inventory() --[[@as InvRef]]
     local inv_arrow = player:get_inventory() --[[@as InvRef]]
+    local player_meta = player:get_meta()
+    local x_bows_show_hud_overlay = player_meta:get_string('x_bows_show_hud_overlay')
+    local x_bows_show_damage_numbers_player = player_meta:get_string('x_bows_show_damage_numbers_player')
+
+    -- set dafault values
+    if x_bows_show_hud_overlay == '' then
+        player_meta:set_string('x_bows_show_hud_overlay', 'true')
+    end
+
+    if x_bows_show_damage_numbers_player == '' then
+        player_meta:set_string('x_bows_show_damage_numbers_player', 'false')
+    end
 
     if XBows.settings.x_bows_show_3d_quiver and XBows.player_api then
         ---Order matters here
@@ -297,8 +310,21 @@ core.register_on_player_inventory_action(function(player, action, inventory, inv
 end)
 
 core.register_on_player_receive_fields(function(player, formname, fields)
-    if player and fields.quit then
-        XBowsQuiver:close_quiver(player, formname)
+    if player then
+        if fields.quit then
+            XBowsQuiver:close_quiver(player, formname)
+        elseif fields.x_bows_settings_btn then
+            -- show settings page
+            XBowsQuiver:show_settings_page(player)
+        elseif formname == 'xbows_settings_page' and fields.x_bows_show_damage_numbers then
+            local player_meta = player:get_meta()
+
+            player_meta:set_string('x_bows_show_damage_numbers', fields.x_bows_show_damage_numbers)
+        elseif formname == 'xbows_settings_page' and fields.x_bows_show_hud_overlay then
+            local player_meta = player:get_meta()
+
+            player_meta:set_string('x_bows_show_hud_overlay', fields.x_bows_show_hud_overlay)
+        end
     end
 end)
 

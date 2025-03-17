@@ -1278,7 +1278,7 @@ function XBowsEntityDef.on_step(self, selfObj, dtime)
             selfObj._caused_damage = _damage
             selfObj._caused_knockback = knockback
 
-            XBows:show_damage_numbers(selfObj.object:get_pos(), _damage, selfObj._is_critical_hit)
+            XBows:show_damage_numbers(selfObj.object:get_pos(), _damage, selfObj._is_critical_hit, selfObj._user)
 
             -- already dead (entity)
             if not pointed_thing.ref:get_luaentity() and not pointed_thing.ref:is_player() then
@@ -1793,6 +1793,13 @@ end
 ---@param player ObjectRef
 ---@return nil
 function XBowsQuiver.remove_hud(self, player)
+    local player_meta = player:get_meta()
+    local x_bows_show_hud_overlay = player_meta:get_string('x_bows_show_hud_overlay')
+
+    if x_bows_show_hud_overlay == 'false' then
+        return
+    end
+
     local player_name = player:get_player_name()
 
     if self.hud_item_ids[player_name] then
@@ -1826,6 +1833,13 @@ end
 ---@param idx? number
 ---@return nil
 function XBowsQuiver.udate_or_create_hud(self, player, inv_list, idx)
+    local player_meta = player:get_meta()
+    local x_bows_show_hud_overlay = player_meta:get_string('x_bows_show_hud_overlay')
+
+    if x_bows_show_hud_overlay == 'false' then
+        return
+    end
+
     local _idx = idx or 1
     local player_name = player:get_player_name()
     local selected_bg_added = false
@@ -2282,6 +2296,9 @@ function XBowsQuiver.sfinv_register_page(self)
                 'image[3.5,0.5;1,1;x_bows_quiver_slot.png]',
                 'listring[current_player;x_bows:quiver_inv]',
                 'listring[current_player;main]',
+                ---settings button
+                'image_button[7,3.5;1,1;x_bows_settings_btn.png;x_bows_settings_btn;]',
+                'tooltip[x_bows_settings_btn;' .. minetest.formspec_escape(S('X Bows Settings')) .. ']'
             }
 
             local player_inv = player:get_inventory() --[[@as InvRef]]
@@ -2319,6 +2336,44 @@ function XBowsQuiver.sfinv_register_page(self)
             return sfinv.make_formspec(player, context, table.concat(formspec, ''), true)
         end
     })
+end
+
+function XBowsQuiver.show_settings_page(self, player)
+    local player_meta = player:get_meta()
+    local x_bows_show_damage_numbers_player = player_meta:get_string('x_bows_show_damage_numbers')
+    local x_bows_show_damage_numbers_settings = XBows.settings.x_bows_show_damage_numbers
+    local x_bows_show_damage_numbers_priv = core.check_player_privs(player, 'x_bows_show_damage_numbers')
+    local x_bows_show_hud_overlay = player_meta:get_string('x_bows_show_hud_overlay')
+    x_bows_show_damage_numbers_player = x_bows_show_damage_numbers_player == 'true' and 'true' or 'false'
+    x_bows_show_hud_overlay = x_bows_show_hud_overlay == 'true' and 'true' or 'false'
+    local line_height_default = 0.5
+    local line_height = line_height_default
+
+    local formspec = {
+        'size[11,5.5,false]',
+        'label[0.5,0.5;', S('X Bows Settings'), ']',
+        'button_exit[4.5,5;2,0.5;x_bows_settings_done_btn;', S('Done'), ']',
+    }
+
+    -- Show damage numbers
+    line_height = line_height * 2
+    formspec[#formspec + 1] = 'checkbox[0.5,' .. line_height .. ';x_bows_show_damage_numbers;' .. S('Show Damage Numbers') .. ';' .. x_bows_show_damage_numbers_player .. ']'
+    formspec[#formspec + 1] = 'tooltip[x_bows_show_damage_numbers;' .. S('Shows the amount of damage done to the mob or player with the arrow.') .. ']'
+
+    if not x_bows_show_damage_numbers_settings and not x_bows_show_damage_numbers_priv then
+        -- Server setting disabled but player setting enabled
+        line_height = line_height + line_height_default
+        formspec[#formspec + 1] = 'label[0.5, ' .. line_height .. ';' .. S('Disabled by server. This will have no effect without "x_bows_show_damage_numbers" privilege.') .. ']'
+    end
+
+    -- Display HUD
+    line_height = line_height + line_height_default
+    formspec[#formspec + 1] = 'checkbox[0.5,' .. line_height .. ';x_bows_show_hud_overlay;' .. S('Show HUD Overlay') .. ';' .. x_bows_show_hud_overlay .. ']'
+    formspec[#formspec + 1] = 'tooltip[x_bows_show_hud_overlay;' .. S('Displays the HUD overlay on the right side of the screen, showing the current arrows, the selected arrow, and their total number.') .. ']'
+
+    formspec = table.concat(formspec, '')
+
+    core.show_formspec(player:get_player_name(), 'xbows_settings_page', formspec)
 end
 
 ---Register i3 page
@@ -2646,8 +2701,30 @@ local function split(str)
     end
 end
 
-function XBows.show_damage_numbers(self, pos, damage, is_crit)
-    if not pos or not self.settings.x_bows_show_damage_numbers then
+function XBows.show_damage_numbers(self, pos, damage, is_crit, player)
+    if not player then
+        return
+    end
+
+    local player_meta = player:get_meta()
+
+    local x_bows_show_damage_numbers_player = player_meta:get_string('x_bows_show_damage_numbers')
+    local x_bows_show_damage_numbers_settings = self.settings.x_bows_show_damage_numbers
+    local x_bows_show_damage_numbers_priv = core.check_player_privs(player, 'x_bows_show_damage_numbers')
+    x_bows_show_damage_numbers_player = x_bows_show_damage_numbers_player == 'true' and 'true' or 'false'
+
+    if not pos then
+        return
+    end
+
+    if
+        x_bows_show_damage_numbers_player == 'false'
+        or (
+            x_bows_show_damage_numbers_player == 'true'
+            and not x_bows_show_damage_numbers_settings
+            and not x_bows_show_damage_numbers_priv
+        )
+    then
         return
     end
 
