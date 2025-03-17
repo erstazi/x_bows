@@ -2315,7 +2315,6 @@ function XBowsQuiver.sfinv_register_page(self)
                 end
             end
 
-
             if context._itemstack_quiver and not context._itemstack_quiver:is_empty() then
                 local st_meta = context._itemstack_quiver:get_meta()
                 local quiver_id = st_meta:get_string('quiver_id')
@@ -2391,7 +2390,10 @@ function XBowsQuiver.i3_register_page(self)
                 'label[5,1;' .. core.formspec_escape(S('Quiver')) .. ':]',
                 'list[current_player;x_bows:quiver_inv;5,1.5;1,1;]',
                 'listring[current_player;x_bows:quiver_inv]',
-                'listring[current_player;main]'
+                'listring[current_player;main]',
+                ---settings button
+                'image_button[8.5,5.5;1,1;x_bows_settings_btn.png;x_bows_settings_btn;]',
+                'tooltip[x_bows_settings_btn;' .. minetest.formspec_escape(S('X Bows Settings')) .. ']'
             }
 
             local context = {}
@@ -2447,6 +2449,9 @@ function XBowsQuiver.ui_register_page(self)
                 'list[current_player;x_bows:quiver_inv;5,1;1,1;]',
                 'listring[current_player;x_bows:quiver_inv]',
                 'listring[current_player;main]',
+                ---settings button
+                'image_button[9,4.5;1,1;x_bows_settings_btn.png;x_bows_settings_btn;]',
+                'tooltip[x_bows_settings_btn;' .. minetest.formspec_escape(S('X Bows Settings')) .. ']'
             }
 
             local context = {}
