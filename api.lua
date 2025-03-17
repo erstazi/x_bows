@@ -65,7 +65,7 @@ XBows = {
     settings = {
         x_bows_attach_arrows_to_entities = core.settings:get_bool('x_bows_attach_arrows_to_entities', false),
         x_bows_show_damage_numbers = core.settings:get_bool('x_bows_show_damage_numbers', false),
-        x_bows_show_3d_quiver = core.settings:get_bool('x_bows_show_3d_quiver', true)
+        x_bows_show_3d_quiver = core.settings:get_bool('x_bows_show_3d_quiver', false)
     },
     charge_sound_after_job = {},
     fallback_quiver = not core.global_exists('sfinv')
