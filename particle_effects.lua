@@ -65,7 +65,7 @@ XBows:register_particle_effect('arrow_fast', {
     maxexptime = 0.5,
     minsize = 2,
     maxsize = 2,
-    texture = 'x_bows_arrow_particle.png^[colorize:#0000FF:64',
+    texture = 'x_bows_arrow_particle.png^[colorize:#0000FF:32',
     animation = {
         type = 'vertical_frames',
         aspect_w = 8,
