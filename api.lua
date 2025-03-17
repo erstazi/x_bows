@@ -65,7 +65,13 @@ XBows = {
     settings = {
         x_bows_attach_arrows_to_entities = core.settings:get_bool('x_bows_attach_arrows_to_entities', false),
         x_bows_show_damage_numbers = core.settings:get_bool('x_bows_show_damage_numbers', false),
-        x_bows_show_3d_quiver = core.settings:get_bool('x_bows_show_3d_quiver', false)
+        x_bows_show_3d_quiver = core.settings:get_bool('x_bows_show_3d_quiver', false),
+        x_bows_enable_arrow_wood= core.settings:get_bool('x_bows_enable_arrow_wood', true),
+        x_bows_enable_arrow_stone= core.settings:get_bool('x_bows_enable_arrow_stone', true),
+        x_bows_enable_arrow_bronze= core.settings:get_bool('x_bows_enable_arrow_bronze', true),
+        x_bows_enable_arrow_steel= core.settings:get_bool('x_bows_enable_arrow_steel', true),
+        x_bows_enable_arrow_mese= core.settings:get_bool('x_bows_enable_arrow_mese', true),
+        x_bows_enable_arrow_diamond= core.settings:get_bool('x_bows_enable_arrow_diamond', true)
     },
     charge_sound_after_job = {},
     fallback_quiver = not core.global_exists('sfinv')
