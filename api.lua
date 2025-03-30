@@ -1268,7 +1268,7 @@ function XBowsEntityDef.on_step(self, selfObj, dtime)
             end
 
             pointed_thing.ref:punch(
-                selfObj.object,
+                selfObj._user,
                 selfObj._tflp,
                 {
                     full_punch_interval = selfObj._tool_capabilities.full_punch_interval,
