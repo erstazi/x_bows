@@ -1495,6 +1495,15 @@ function XBowsEntityDef.on_step(self, selfObj, dtime)
                     on_hit_node_callback(selfObj, pointed_thing)
                 end
 
+                if node_def.on_punch then
+                    node_def.on_punch(
+                        pointed_thing.under,
+                        { name = node.name, param1 = node.param1, param2 = node.param2 },
+                        selfObj._user,
+                        pointed_thing
+                    )
+                end
+
                 local new_pos = selfObj.object:get_pos()
 
                 if new_pos then

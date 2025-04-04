@@ -35,6 +35,134 @@ core.register_node('x_bows:target', {
         end
 
         return false
+    end,
+    on_punch = function(pos, node, puncher, pointed_thing)
+        local pt = pointed_thing or {}
+
+        if pt.intersection_normal and pt.intersection_point then
+            local p = vector.add(pos, vector.divide(pt.intersection_normal, 1.5))
+            local is_blue = false
+            local is_red = false
+            local is_yellow = false
+
+            if pt.intersection_normal.x == 1 then
+                local min_blue = vector.new(p.x - (1/16 * 8), p.y - (1/16 * 7), p.z - (1/16 * 7))
+                local max_blue = vector.new(p.x, p.y + (1/16 * 7), p.z + (1/16 * 7))
+                local min_red = vector.new(p.x - (1/16 * 8), p.y - (1/16 * 4), p.z - (1/16 * 4))
+                local max_red = vector.new(p.x, p.y + (1/16 * 4), p.z + (1/16 * 4))
+                local min_yellow = vector.new(p.x - (1/16 * 8), p.y - (1/16 * 1), p.z - (1/16 * 1))
+                local max_yellow = vector.new(p.x, p.y + (1/16 * 1), p.z + (1/16 * 1))
+
+                is_blue = vector.in_area(pt.intersection_point, min_blue, max_blue)
+                is_red = vector.in_area(pt.intersection_point, min_red, max_red)
+                is_yellow = vector.in_area(pt.intersection_point, min_yellow, max_yellow)
+
+            elseif pt.intersection_normal.x == -1 then
+                local min_blue = vector.new(p.x, p.y - (1/16 * 7), p.z - (1/16 * 7))
+                local max_blue = vector.new(p.x + (1/16 * 8), p.y + (1/16 * 7), p.z + (1/16 * 7))
+                local min_red = vector.new(p.x, p.y - (1/16 * 4), p.z - (1/16 * 4))
+                local max_red = vector.new(p.x + (1/16 * 8), p.y + (1/16 * 4), p.z + (1/16 * 4))
+                local min_yellow = vector.new(p.x, p.y - (1/16 * 1), p.z - (1/16 * 1))
+                local max_yellow = vector.new(p.x + (1/16 * 8), p.y + (1/16 * 1), p.z + (1/16 * 1))
+
+                is_blue = vector.in_area(pt.intersection_point, min_blue, max_blue)
+                is_red = vector.in_area(pt.intersection_point, min_red, max_red)
+                is_yellow = vector.in_area(pt.intersection_point, min_yellow, max_yellow)
+            elseif pt.intersection_normal.y == 1 then
+                local min_blue = vector.new(p.x - (1/16 * 7), p.y - (1/16 * 8), p.z - (1/16 * 7))
+                local max_blue = vector.new(p.x + (1/16 * 7), p.y, p.z + (1/16 * 7))
+                local min_red = vector.new(p.x - (1/16 * 4), p.y - (1/16 * 8), p.z - (1/16 * 4))
+                local max_red = vector.new(p.x + (1/16 * 4), p.y, p.z + (1/16 * 4))
+                local min_yellow = vector.new(p.x - (1/16 * 1), p.y - (1/16 * 8), p.z - (1/16 * 1))
+                local max_yellow = vector.new(p.x + (1/16 * 1), p.y, p.z + (1/16 * 1))
+
+                is_blue = vector.in_area(pt.intersection_point, min_blue, max_blue)
+                is_red = vector.in_area(pt.intersection_point, min_red, max_red)
+                is_yellow = vector.in_area(pt.intersection_point, min_yellow, max_yellow)
+            elseif pt.intersection_normal.y == -1 then
+                local min_blue = vector.new(p.x - (1/16 * 7), p.y, p.z - (1/16 * 7))
+                local max_blue = vector.new(p.x + (1/16 * 7), p.y + (1/16 * 8), p.z + (1/16 * 7))
+                local min_red = vector.new(p.x - (1/16 * 4), p.y, p.z - (1/16 * 4))
+                local max_red = vector.new(p.x + (1/16 * 4), p.y + (1/16 * 8), p.z + (1/16 * 4))
+                local min_yellow = vector.new(p.x - (1/16 * 1), p.y, p.z - (1/16 * 1))
+                local max_yellow = vector.new(p.x + (1/16 * 1), p.y + (1/16 * 8), p.z + (1/16 * 1))
+
+                is_blue = vector.in_area(pt.intersection_point, min_blue, max_blue)
+                is_red = vector.in_area(pt.intersection_point, min_red, max_red)
+                is_yellow = vector.in_area(pt.intersection_point, min_yellow, max_yellow)
+            elseif pt.intersection_normal.z == 1 then
+                local min_blue = vector.new(p.x - (1/16 * 7), p.y - (1/16 * 7), p.z - (1/16 * 8))
+                local max_blue = vector.new(p.x + (1/16 * 7), p.y + (1/16 * 7), p.z)
+                local min_red = vector.new(p.x - (1/16 * 4), p.y - (1/16 * 4), p.z - (1/16 * 8))
+                local max_red = vector.new(p.x + (1/16 * 4), p.y + (1/16 * 4), p.z)
+                local min_yellow = vector.new(p.x - (1/16 * 1), p.y - (1/16 * 1), p.z - (1/16 * 8))
+                local max_yellow = vector.new(p.x + (1/16 * 1), p.y + (1/16 * 1), p.z)
+
+                is_blue = vector.in_area(pt.intersection_point, min_blue, max_blue)
+                is_red = vector.in_area(pt.intersection_point, min_red, max_red)
+                is_yellow = vector.in_area(pt.intersection_point, min_yellow, max_yellow)
+            elseif pt.intersection_normal.z == -1 then
+                local min_blue = vector.new(p.x - (1/16 * 7), p.y - (1/16 * 7), p.z)
+                local max_blue = vector.new(p.x + (1/16 * 7), p.y + (1/16 * 7), p.z + (1/16 * 8))
+                local min_red = vector.new(p.x - (1/16 * 4), p.y - (1/16 * 4), p.z)
+                local max_red = vector.new(p.x + (1/16 * 4), p.y + (1/16 * 4), p.z + (1/16 * 8))
+                local min_yellow = vector.new(p.x - (1/16 * 1), p.y - (1/16 * 1), p.z)
+                local max_yellow = vector.new(p.x + (1/16 * 1), p.y + (1/16 * 1), p.z + (1/16 * 8))
+
+                is_blue = vector.in_area(pt.intersection_point, min_blue, max_blue)
+                is_red = vector.in_area(pt.intersection_point, min_red, max_red)
+                is_yellow = vector.in_area(pt.intersection_point, min_yellow, max_yellow)
+            end
+
+            local color
+            local w
+            local h
+
+            if is_yellow then
+                color = '#E7DE21'
+                w = 2
+                h = 2
+            elseif is_red then
+                color = '#F1434A'
+                w = 8
+                h = 8
+            elseif is_blue then
+                color = '#42C0EE'
+                w = 14
+                h = 14
+            end
+
+            if color then
+                -- top vertical
+                local image = '[combine:16x16:' .. (16 - w) / 2 .. ',' .. (16 - h) / 2
+                    .. '=[combine\\:'.. w .. 'x1\\^[noalpha\\^[colorize\\:' .. color .. '\\:255'
+                -- bottom vertical
+                image = image ..'^[combine:16x16:' .. (16 - w) / 2 .. ',' .. h + ((16 - h) / 2) - 1
+                    .. '=[combine\\:'.. w .. 'x1\\^[noalpha\\^[colorize\\:' .. color .. '\\:255'
+                -- left horizontal
+                image = image ..'^[combine:16x16:' .. (16 - w) / 2 .. ',' .. (16 - h) / 2 .. '=[combine\\:1x' .. h .. '\\^[noalpha\\^[colorize\\:' .. color .. '\\:255'
+                -- right horizontal
+                image = image ..'^[combine:16x16:'.. w + ((16 - w) / 2) - 1 .. ',' .. (16 - h) / 2
+                    .. '=[combine\\:1x' .. h .. '\\^[noalpha\\^[colorize\\:' .. color .. '\\:255'
+
+                core.add_particle({
+                    pos = p,
+                    velocity = pt.intersection_normal,
+                    acceleration = vector.multiply(vector.multiply(pt.intersection_normal, -1), 2),
+                    expirationtime = 1,
+                    size = 10,
+                    texture = {
+                        name = image,
+                        alpha_tween = {
+                            1, 0.25,
+                            style = 'fwd',
+                            reps = 1
+                        }
+                    },
+                    glow = 14
+                })
+            end
+        end
     end
 })
 
