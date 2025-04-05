@@ -39,7 +39,7 @@ core.register_node('x_bows:target', {
     on_punch = function(pos, node, puncher, pointed_thing)
         local pt = pointed_thing or {}
 
-        if pt.intersection_normal and pt.intersection_point then
+        if pt.intersection_normal and pt.intersection_point and (puncher and puncher:is_player()) then
             local p = vector.add(pos, vector.divide(pt.intersection_normal, 1.5))
             local is_blue = false
             local is_red = false
@@ -140,7 +140,8 @@ core.register_node('x_bows:target', {
                 image = image ..'^[combine:16x16:' .. (16 - w) / 2 .. ',' .. h + ((16 - h) / 2) - 1
                     .. '=[combine\\:'.. w .. 'x1\\^[noalpha\\^[colorize\\:' .. color .. '\\:255'
                 -- left horizontal
-                image = image ..'^[combine:16x16:' .. (16 - w) / 2 .. ',' .. (16 - h) / 2 .. '=[combine\\:1x' .. h .. '\\^[noalpha\\^[colorize\\:' .. color .. '\\:255'
+                image = image ..'^[combine:16x16:' .. (16 - w) / 2 .. ',' .. (16 - h) / 2
+                    .. '=[combine\\:1x' .. h .. '\\^[noalpha\\^[colorize\\:' .. color .. '\\:255'
                 -- right horizontal
                 image = image ..'^[combine:16x16:'.. w + ((16 - w) / 2) - 1 .. ',' .. (16 - h) / 2
                     .. '=[combine\\:1x' .. h .. '\\^[noalpha\\^[colorize\\:' .. color .. '\\:255'
@@ -161,6 +162,48 @@ core.register_node('x_bows:target', {
                     },
                     glow = 14
                 })
+
+                local player_pos = puncher:get_pos()
+                local player_props = puncher:get_properties()
+                local eye_height = player_props.eye_height or 1.625
+                local look_dir = puncher:get_look_dir()
+                local distance = vector.distance(pt.intersection_point, player_pos)
+
+                if distance >= 15 then
+                    core.add_particle({
+                        pos = vector.add(
+                            -- add eye offset
+                            vector.new(player_pos.x, player_pos.y + eye_height, player_pos.z),
+                            -- add look dir offset
+                            vector.multiply(look_dir, 3)
+                        ),
+                        velocity = vector.new(),
+                        acceleration = vector.new(),
+                        expirationtime = 1.5,
+                        size = is_yellow and 10 or 5,
+                        texture = {
+                            name = image,
+                            alpha_tween = {
+                                0, 1,
+                                style = 'fwd',
+                                reps = 1
+                            },
+                            scale_tween = {
+                                0, 1,
+                                style = 'fwd',
+                                reps = 1
+                            }
+                        },
+                        attract = {
+                            kind = 'point',
+                            strength = 7,
+                            origin_attached = puncher,
+                            direction_attached = puncher
+                        },
+                        attached = puncher,
+                        glow = 14
+                    })
+                end
             end
         end
     end
