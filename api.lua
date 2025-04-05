@@ -648,17 +648,24 @@ function XBows.load(self, itemstack, user, pointed_thing)
                 local wielded_item_name = wielded_item:get_name()
 
                 if wielded_item_name == v_bow_name .. '_charged' then
-                    core.sound_play('x_bows_bow_loaded', {
-                        to_player = v_user:get_player_name(),
+                    core.sound_play({
+                        name = 'x_bows_bow_loaded',
                         gain = 0.6
-                    })
+                    }, {
+                        to_player = v_user:get_player_name(),
+                        pitch = math.random(7, 13) / 10,
+                        object = v_user
+                    }, true)
                 end
             end, user, bow_name))
 
-        core.sound_play(bow_def.custom.sound_load, {
-            to_player = player_name,
+        core.sound_play({
+            name = bow_def.custom.sound_load,
             gain = 0.6
-        })
+        }, {
+            to_player = player_name,
+            pitch = math.random(7, 13) / 10,
+        }, true)
 
         return itemstack
     end
@@ -802,11 +809,14 @@ function XBows.shoot(self, itemstack, user, pointed_thing)
         return itemstack
     end
 
-    core.sound_play(sound_name, {
+    core.sound_play({
+        name = sound_name,
         gain = 0.3,
+    }, {
         pos = user:get_pos(),
-        max_hear_distance = 10
-    })
+        max_hear_distance = 10,
+        pitch = math.random(7, 13) / 10,
+    }, true)
 
     if not self:is_creative(user:get_player_name()) then
         itemstack:add_wear(65535 / uses)
@@ -1164,9 +1174,12 @@ function XBowsEntityDef.on_step(self, selfObj, dtime)
                     local distance = math.round(vector.distance(p1, p2))
                     local gain = 1 / distance
 
-                    core.sound_play('x_bows_arrow_flyby', {
-                        to_player = object:get_player_name(),
+                    core.sound_play({
+                        name = 'x_bows_arrow_flyby',
                         gain = gain
+                    }, {
+                        to_player = object:get_player_name(),
+                        pitch = math.random(7, 13) / 10,
                     }, true)
                 end
             end
@@ -1198,10 +1211,13 @@ function XBowsEntityDef.on_step(self, selfObj, dtime)
                     gain = 0.3
                 })
             else
-                core.sound_play(selfObj._sound_hit, {
-                    to_player = selfObj._user:get_player_name(),
+                core.sound_play({
+                    name = selfObj._sound_hit,
                     gain = 0.6
-                })
+                }, {
+                    to_player = selfObj._user:get_player_name(),
+                    pitch = math.random(7, 13) / 10
+                }, true)
             end
 
             selfObj.object:set_velocity({ x = 0, y = 0, z = 0 })
@@ -1524,11 +1540,14 @@ function XBowsEntityDef.on_step(self, selfObj, dtime)
                     })
                 end
 
-                core.sound_play(selfObj._sound_hit, {
-                    pos = pointed_thing.under,
+                core.sound_play({
+                    name = selfObj._sound_hit,
                     gain = 0.6,
+                }, {
+                    pos = pointed_thing.under,
+                    pitch = math.random(7, 13) / 10,
                     max_hear_distance = 16
-                })
+                }, true)
 
                 return
             end
