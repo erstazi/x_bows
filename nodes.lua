@@ -25,7 +25,7 @@ core.register_node('x_bows:target', {
     is_ground_content = false,
     groups = { snappy = 3, flammable = 4, fall_damage_add_percent = -30 },
     sounds = core.global_exists('default') and default.node_sound_leaves_defaults() or {},
-    mesecons = { receptor = { state = mesecon.state.off } },
+    mesecons = { receptor = { state = 'off' } },
     ---@param pos Vector
     ---@param elapsed number
     ---@return boolean
