@@ -167,9 +167,19 @@ function XBows.reset_charged_bow(self, player, includeWielded)
         then
             local item_meta = st:get_meta()
             local arrow_itemstack = ItemStack(core.deserialize(item_meta:get_string('arrow_itemstack_string')))
+            local is_enchanted = item_meta:get_int('is_enchanted') == 1
+            local is_infinity = false
 
-            --return arrow
-            if arrow_itemstack and not self:is_creative(player:get_player_name()) then
+            if is_enchanted then
+                local enchantments = core.deserialize(item_meta:get_string('x_enchanting'))
+
+                if enchantments.infinity and enchantments.infinity.value > 0 then
+                    is_infinity = true
+                end
+            end
+
+            ---return arrow
+            if arrow_itemstack and not self:is_creative(player:get_player_name()) and not is_infinity then
                 local arrow_meta = arrow_itemstack:get_meta()
                 local is_arrow_from_quiver = arrow_meta:get_int('is_arrow_from_quiver') ~= 0
                 local quiver_stack = inv:get_stack('x_bows:quiver_inv', 1)
@@ -205,11 +215,28 @@ function XBows.reset_charged_bow(self, player, includeWielded)
             end
 
             --reset bow to uncharged bow
-            inv:set_stack('main', i, ItemStack({
-                name = x_bows_registered_bow_def.custom.name,
-                count = st:get_count(),
-                wear = st:get_wear()
-            }))
+            local new_stack = ItemStack(mergeTables(st:to_table(), { name = x_bows_registered_bow_def.custom.name }))
+            local new_stack_meta = new_stack:get_meta()
+
+            if is_enchanted then
+                local new_stack_name = new_stack:get_name()
+                local inventory_image_default = (core.registered_tools[new_stack_name] or {}).inventory_image
+                local inventory_image_charged = (core.registered_tools[new_stack_name .. '_charged'] or {}).inventory_image
+                local inventory_image_meta = new_stack_meta:get_string('inventory_image')
+
+                -- Only replace (fix) image when meta image was set
+                if inventory_image_meta
+                    and inventory_image_meta ~= ''
+                    and inventory_image_charged
+                    and inventory_image_charged ~= ''
+                    and inventory_image_default
+                    and inventory_image_default ~= ''
+                then
+                    new_stack_meta:set_string('inventory_image', string.gsub(inventory_image_meta, inventory_image_charged, inventory_image_default))
+                end
+            end
+
+            inv:set_stack('main', i, new_stack)
         end
     end
 end
@@ -316,18 +343,47 @@ function XBows.register_bow(self, name, def, override)
         on_drop = function(itemstack, dropper, pos)
             if dropper then
                 local item_meta = itemstack:get_meta()
-                local arrow_itemstack = ItemStack(core.deserialize(item_meta:get_string('arrow_itemstack_string')))
+                local is_enchanted = item_meta:get_int('is_enchanted') == 1
+                local is_infinity = false
 
-                ---return arrow
-                if arrow_itemstack and not self:is_creative(dropper:get_player_name()) then
-                    core.item_drop(
-                        ItemStack({ name = arrow_itemstack:get_name(), count = 1 }),
-                        dropper,
-                        { x = pos.x + 0.5, y = pos.y + 0.5, z = pos.z + 0.5 }
-                    )
+                if is_enchanted then
+                    local enchantments = core.deserialize(item_meta:get_string('x_enchanting'))
+
+                    if enchantments.infinity and enchantments.infinity.value > 0 then
+                        is_infinity = true
+                    end
+                end
+
+                if not is_infinity then
+                    local arrow_itemstack = ItemStack(core.deserialize(item_meta:get_string('arrow_itemstack_string')))
+
+                    ---return arrow
+                    if arrow_itemstack and not self:is_creative(dropper:get_player_name()) then
+                        core.item_drop(
+                            ItemStack({ name = arrow_itemstack:get_name(), count = 1 }),
+                            dropper,
+                            { x = pos.x + 0.5, y = pos.y + 0.5, z = pos.z + 0.5 }
+                        )
+                    end
                 end
 
                 itemstack:set_name(def.custom.name)
+
+                local inventory_image_default = (core.registered_tools[def.custom.name] or {}).inventory_image
+                local inventory_image_charged = (core.registered_tools[def.custom.name .. '_charged'] or {}).inventory_image
+                local inventory_image_meta = item_meta:get_string('inventory_image')
+
+                -- Only replace (fix) image when meta image was set
+                if inventory_image_meta
+                    and inventory_image_meta ~= ''
+                    and inventory_image_charged
+                    and inventory_image_charged ~= ''
+                    and inventory_image_default
+                    and inventory_image_default ~= ''
+                then
+                    item_meta:set_string('inventory_image', string.gsub(inventory_image_meta, inventory_image_charged, inventory_image_default))
+                end
+
                 ---returns leftover itemstack
                 return core.item_drop(itemstack, dropper, pos)
             end
@@ -619,6 +675,26 @@ function XBows.load(self, itemstack, user, pointed_thing)
                 wielded_item_meta:set_string('time_load', tostring(core.get_us_time()))
 
                 wielded_item:set_name(v_bow_name .. '_charged')
+
+                local is_enchanted = wielded_item_meta:get_int('is_enchanted') == 1
+
+                if is_enchanted then
+                    local inventory_image_default = (core.registered_tools[v_bow_name] or {}).inventory_image
+                    local inventory_image_charged = (core.registered_tools[v_bow_name .. '_charged'] or {}).inventory_image
+                    local inventory_image_meta = wielded_item_meta:get_string('inventory_image')
+
+                    -- Only replace (fix) image when meta image was set
+                    if inventory_image_meta
+                        and inventory_image_meta ~= ''
+                        and inventory_image_charged
+                        and inventory_image_charged ~= ''
+                        and inventory_image_default
+                        and inventory_image_default ~= ''
+                    then
+                        wielded_item_meta:set_string('inventory_image', string.gsub(inventory_image_meta, inventory_image_default, inventory_image_charged))
+                    end
+                end
+
                 v_user:set_wielded_item(wielded_item)
 
                 if not self:is_creative(v_user:get_player_name())
@@ -790,6 +866,28 @@ function XBows.shoot(self, itemstack, user, pointed_thing)
 
         if wield_item:get_count() > 0 and wield_item:get_name() == itemstack:get_name() then
             local new_stack = ItemStack(mergeTables(itemstack:to_table(), { name = bow_name }))
+            local new_stack_meta = new_stack:get_meta()
+
+            local is_enchanted = new_stack_meta:get_int('is_enchanted') == 1
+
+            if is_enchanted then
+                local new_stack_name = new_stack:get_name()
+                local inventory_image_default = (core.registered_tools[new_stack_name] or {}).inventory_image
+                local inventory_image_charged = (core.registered_tools[new_stack_name .. '_charged'] or {}).inventory_image
+                local inventory_image_meta = new_stack_meta:get_string('inventory_image')
+
+                -- Only replace (fix) image when meta image was set
+                if inventory_image_meta
+                    and inventory_image_meta ~= ''
+                    and inventory_image_charged
+                    and inventory_image_charged ~= ''
+                    and inventory_image_default
+                    and inventory_image_default ~= ''
+                then
+                    new_stack_meta:set_string('inventory_image', string.gsub(inventory_image_meta, inventory_image_charged, inventory_image_default))
+                end
+            end
+
             user:set_wielded_item(new_stack)
         end
     end)
