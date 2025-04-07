@@ -56,6 +56,7 @@ XBows = {
     _3d_armor = core.get_modpath('3d_armor'),
     skinsdb = core.get_modpath('skinsdb'),
     player_api = core.get_modpath('player_api'),
+    x_enchanting = core.get_modpath('x_enchanting'),
     registered_bows = {},
     registered_arrows = {},
     registered_quivers = {},
@@ -216,25 +217,8 @@ function XBows.reset_charged_bow(self, player, includeWielded)
 
             --reset bow to uncharged bow
             local new_stack = ItemStack(mergeTables(st:to_table(), { name = x_bows_registered_bow_def.custom.name }))
-            local new_stack_meta = new_stack:get_meta()
 
-            if is_enchanted then
-                local new_stack_name = new_stack:get_name()
-                local inventory_image_default = (core.registered_tools[new_stack_name] or {}).inventory_image
-                local inventory_image_charged = (core.registered_tools[new_stack_name .. '_charged'] or {}).inventory_image
-                local inventory_image_meta = new_stack_meta:get_string('inventory_image')
-
-                -- Only replace (fix) image when meta image was set
-                if inventory_image_meta
-                    and inventory_image_meta ~= ''
-                    and inventory_image_charged
-                    and inventory_image_charged ~= ''
-                    and inventory_image_default
-                    and inventory_image_default ~= ''
-                then
-                    new_stack_meta:set_string('inventory_image', string.gsub(inventory_image_meta, inventory_image_charged, inventory_image_default))
-                end
-            end
+            XBows:set_wielditem_images(new_stack, new_stack:get_name())
 
             inv:set_stack('main', i, new_stack)
         end
@@ -369,20 +353,7 @@ function XBows.register_bow(self, name, def, override)
 
                 itemstack:set_name(def.custom.name)
 
-                local inventory_image_default = (core.registered_tools[def.custom.name] or {}).inventory_image
-                local inventory_image_charged = (core.registered_tools[def.custom.name .. '_charged'] or {}).inventory_image
-                local inventory_image_meta = item_meta:get_string('inventory_image')
-
-                -- Only replace (fix) image when meta image was set
-                if inventory_image_meta
-                    and inventory_image_meta ~= ''
-                    and inventory_image_charged
-                    and inventory_image_charged ~= ''
-                    and inventory_image_default
-                    and inventory_image_default ~= ''
-                then
-                    item_meta:set_string('inventory_image', string.gsub(inventory_image_meta, inventory_image_charged, inventory_image_default))
-                end
+                XBows:set_wielditem_images(itemstack, def.custom.name)
 
                 ---returns leftover itemstack
                 return core.item_drop(itemstack, dropper, pos)
@@ -580,6 +551,39 @@ function XBows.register_quiver(self, name, def)
     end
 end
 
+function XBows.set_wielditem_images(self, wielditem, bow_name)
+    local wielded_item_meta = wielditem:get_meta()
+    local is_enchanted = wielded_item_meta:get_int('is_enchanted') == 1
+
+    if not is_enchanted or not XBows.x_enchanting then
+        return
+    end
+
+    -- Inventory Image
+    local inventory_image_charged = (core.registered_tools[bow_name] or {}).inventory_image
+    local inventory_image_meta = wielded_item_meta:get_string('inventory_image')
+
+    -- Only replace (fix) image when meta image was set
+    if inventory_image_meta ~= ''
+        and inventory_image_charged
+        and inventory_image_charged ~= ''
+    then
+        wielded_item_meta:set_string('inventory_image', XEnchanting:get_glint_texture_modifier(inventory_image_charged))
+    end
+
+    -- Wield Image
+    local wield_image_charged = (core.registered_tools[bow_name] or {}).wield_image
+    local wield_image_meta = wielded_item_meta:get_string('wield_image')
+
+    -- Only replace (fix) image when meta image was set
+    if wield_image_meta ~= ''
+        and wield_image_charged
+        and wield_image_charged ~= ''
+    then
+        wielded_item_meta:set_string('wield_image', XEnchanting:get_glint_texture_modifier(wield_image_charged))
+    end
+end
+
 ---Load bow
 ---@param self XBows
 ---@param itemstack ItemStack
@@ -676,24 +680,7 @@ function XBows.load(self, itemstack, user, pointed_thing)
 
                 wielded_item:set_name(v_bow_name .. '_charged')
 
-                local is_enchanted = wielded_item_meta:get_int('is_enchanted') == 1
-
-                if is_enchanted then
-                    local inventory_image_default = (core.registered_tools[v_bow_name] or {}).inventory_image
-                    local inventory_image_charged = (core.registered_tools[v_bow_name .. '_charged'] or {}).inventory_image
-                    local inventory_image_meta = wielded_item_meta:get_string('inventory_image')
-
-                    -- Only replace (fix) image when meta image was set
-                    if inventory_image_meta
-                        and inventory_image_meta ~= ''
-                        and inventory_image_charged
-                        and inventory_image_charged ~= ''
-                        and inventory_image_default
-                        and inventory_image_default ~= ''
-                    then
-                        wielded_item_meta:set_string('inventory_image', string.gsub(inventory_image_meta, inventory_image_default, inventory_image_charged))
-                    end
-                end
+                XBows:set_wielditem_images(wielded_item, v_bow_name .. '_charged')
 
                 v_user:set_wielded_item(wielded_item)
 
@@ -866,27 +853,8 @@ function XBows.shoot(self, itemstack, user, pointed_thing)
 
         if wield_item:get_count() > 0 and wield_item:get_name() == itemstack:get_name() then
             local new_stack = ItemStack(mergeTables(itemstack:to_table(), { name = bow_name }))
-            local new_stack_meta = new_stack:get_meta()
 
-            local is_enchanted = new_stack_meta:get_int('is_enchanted') == 1
-
-            if is_enchanted then
-                local new_stack_name = new_stack:get_name()
-                local inventory_image_default = (core.registered_tools[new_stack_name] or {}).inventory_image
-                local inventory_image_charged = (core.registered_tools[new_stack_name .. '_charged'] or {}).inventory_image
-                local inventory_image_meta = new_stack_meta:get_string('inventory_image')
-
-                -- Only replace (fix) image when meta image was set
-                if inventory_image_meta
-                    and inventory_image_meta ~= ''
-                    and inventory_image_charged
-                    and inventory_image_charged ~= ''
-                    and inventory_image_default
-                    and inventory_image_default ~= ''
-                then
-                    new_stack_meta:set_string('inventory_image', string.gsub(inventory_image_meta, inventory_image_charged, inventory_image_default))
-                end
-            end
+            XBows:set_wielditem_images(new_stack, new_stack:get_name())
 
             user:set_wielded_item(new_stack)
         end
@@ -2423,7 +2391,7 @@ function XBowsQuiver.sfinv_register_page(self)
                 'listring[current_player;main]',
                 ---settings button
                 'image_button[7,3.5;1,1;x_bows_settings_btn.png;x_bows_settings_btn;]',
-                'tooltip[x_bows_settings_btn;' .. minetest.formspec_escape(S('X Bows Settings')) .. ']'
+                'tooltip[x_bows_settings_btn;' .. core.formspec_escape(S('X Bows Settings')) .. ']'
             }
 
             local player_inv = player:get_inventory() --[[@as InvRef]]
@@ -2519,7 +2487,7 @@ function XBowsQuiver.i3_register_page(self)
                 'listring[current_player;main]',
                 ---settings button
                 'image_button[8.5,5.5;1,1;x_bows_settings_btn.png;x_bows_settings_btn;]',
-                'tooltip[x_bows_settings_btn;' .. minetest.formspec_escape(S('X Bows Settings')) .. ']'
+                'tooltip[x_bows_settings_btn;' .. core.formspec_escape(S('X Bows Settings')) .. ']'
             }
 
             local context = {}
@@ -2577,7 +2545,7 @@ function XBowsQuiver.ui_register_page(self)
                 'listring[current_player;main]',
                 ---settings button
                 'image_button[9,4.5;1,1;x_bows_settings_btn.png;x_bows_settings_btn;]',
-                'tooltip[x_bows_settings_btn;' .. minetest.formspec_escape(S('X Bows Settings')) .. ']'
+                'tooltip[x_bows_settings_btn;' .. core.formspec_escape(S('X Bows Settings')) .. ']'
             }
 
             local context = {}

@@ -43,7 +43,7 @@ read_globals = {
     "ItemStack",
     "AreaStore",
     "unpack",
-
+    "XEnchanting",
     "vector",
 
     table = {
