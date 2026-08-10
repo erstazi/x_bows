@@ -1,3 +1,21 @@
+/**
+ * Deploy code to CDB
+ * Copyright (C) 2025 SaKeL
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to juraj.vajda@gmail.com
+ */
+
 import fetch from 'node-fetch'
 import yargs from 'yargs/yargs'
 import {hideBin} from 'yargs/helpers'
@@ -11,7 +29,7 @@ try {
         ref: 'master'
     }
 
-    const response = await fetch('https://content.minetest.net/api/packages/SaKeL/x_bows/releases/new/', {
+    const response = await fetch('https://content.luanti.org/api/packages/SaKeL/x_bows/releases/new/', {
         method: 'POST',
         body: JSON.stringify(body),
         headers: {
@@ -21,11 +39,11 @@ try {
     })
     const data = await response.json()
 
-    if (!data.succes) {
+    console.log(data)
+
+    if (!data.success) {
         process.exit(1)
     }
-
-    console.log(data)
 } catch (error) {
     console.log(error)
     process.exit(1)

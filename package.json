@@ -1,7 +1,7 @@
 {
     "name": "x_bows",
     "version": "1.0.0",
-    "description": "Adds bow and arrows to Minetest.",
+    "description": "Adds bow and arrows.",
     "main": "index.js",
     "type": "module",
     "directories": {

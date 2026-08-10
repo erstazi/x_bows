@@ -2,7 +2,7 @@
     "type": "MOD",
     "title": "X Bows",
     "name": "x_bows",
-    "short_description": "Adds bow and arrows to Minetest.",
+    "short_description": "Adds bow and arrows with API.",
     "dev_state": "MAINTENANCE_ONLY",
     "tags": [
         "pvp",
