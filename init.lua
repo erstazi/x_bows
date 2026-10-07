@@ -1,6 +1,6 @@
 --[[
     X Bows. Adds bow and arrows with API.
-    Copyright (C) 2025 SaKeL
+    Copyright (C) 2026 SaKeL
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -13,7 +13,7 @@
     Lesser General Public License for more details.
 
     You should have received a copy of the GNU Lesser General Public
-    License along with this library; if not, write to juraj.vajda@gmail.com
+    License along with this library; if not, see <https://www.gnu.org/licenses/>.
 --]]
 
 math.randomseed(tonumber(tostring(os.time()):reverse():sub(1, 9))--[[@as number]] )
@@ -29,6 +29,10 @@ dofile(path .. '/arrow.lua')
 dofile(path .. '/items.lua')
 dofile(path .. '/privileges.lua')
 dofile(path .. '/mod_support_bones.lua')
+dofile(path .. '/mod_support_deathstats.lua')
+if XBows.x_player_api then
+    dofile(path .. '/mod_support_x_player_api.lua')
+end
 
 if XBows.i3 then
     XBowsQuiver:i3_register_page()
@@ -43,26 +47,15 @@ core.register_on_joinplayer(function(player)
     local inv_arrow = player:get_inventory() --[[@as InvRef]]
     local player_meta = player:get_meta()
     local x_bows_show_hud_overlay = player_meta:get_string('x_bows_show_hud_overlay')
-    local x_bows_show_damage_numbers_player = player_meta:get_string('x_bows_show_damage_numbers_player')
+    local x_bows_show_damage_numbers = player_meta:get_string('x_bows_show_damage_numbers')
 
-    -- set dafault values
+    -- set default values
     if x_bows_show_hud_overlay == '' then
         player_meta:set_string('x_bows_show_hud_overlay', 'true')
     end
 
-    if x_bows_show_damage_numbers_player == '' then
-        player_meta:set_string('x_bows_show_damage_numbers_player', 'false')
-    end
-
-    if XBows.settings.x_bows_show_3d_quiver and XBows.player_api then
-        ---Order matters here
-        if XBows.skinsdb then
-            player_api.set_model(player, 'skinsdb_3d_armor_character_5.b3d')
-        elseif XBows._3d_armor then
-            player_api.set_model(player, 'x_bows_3d_armor_character.b3d')
-        else
-            player_api.set_model(player, 'x_bows_character.b3d')
-        end
+    if x_bows_show_damage_numbers == '' then
+        player_meta:set_string('x_bows_show_damage_numbers', 'false')
     end
 
     inv_quiver:set_size('x_bows:quiver_inv', 1 * 1)
@@ -71,24 +64,16 @@ core.register_on_joinplayer(function(player)
     local quiver_stack = player:get_inventory():get_stack('x_bows:quiver_inv', 1)
 
     if quiver_stack and not quiver_stack:is_empty() then
-        local st_meta = quiver_stack:get_meta()
-        local quiver_id = st_meta:get_string('quiver_id')
-
-        ---create detached inventory
-        local detached_inv = XBowsQuiver:get_or_create_detached_inv(
-            quiver_id,
-            player:get_player_name(),
-            st_meta:get_string('quiver_items')
-        )
-
-        ---set model textures
-        if detached_inv:is_empty('main') then
-            XBowsQuiver.quiver_empty_state[player:get_player_name()] = false
-            XBowsQuiver:show_3d_quiver(player, { is_empty = true })
-        else
-            XBowsQuiver.quiver_empty_state[player:get_player_name()] = true
-            XBowsQuiver:show_3d_quiver(player)
-        end
+        XBowsQuiver:init_quiver_in_slot(player, player:get_inventory(), 'x_bows:quiver_inv', 1)
+        core.after(0.5, function(name)
+            local p = core.get_player_by_name(name)
+            if p and p:is_valid() then
+                local stack = p:get_inventory():get_stack('x_bows:quiver_inv', 1)
+                if stack and not stack:is_empty() then
+                    XBowsQuiver:init_quiver_in_slot(p, p:get_inventory(), 'x_bows:quiver_inv', 1)
+                end
+            end
+        end, player:get_player_name())
     else
         ---set model textures
         XBowsQuiver:hide_3d_quiver(player)
@@ -98,60 +83,22 @@ core.register_on_joinplayer(function(player)
     XBowsQuiver:close_quiver(player)
 end)
 
-core.register_on_leaveplayer(function(player)
-    XBows.player_bow_sneak[player:get_player_name()] = nil
-end)
-
-if XBows.settings.x_bows_show_3d_quiver and XBows.player_api then
-    local model_name = 'x_bows_character.b3d'
-
-    if XBows.skinsdb then
-        ---skinsdb
-        model_name = 'skinsdb_3d_armor_character_5.b3d'
-    elseif XBows._3d_armor then
-        ---3d armor
-        model_name = 'x_bows_3d_armor_character.b3d'
-    end
-
-    player_api.register_model(model_name, {
-        animation_speed = 30,
-        textures = { 'character.png' },
-        animations = {
-            -- Standard animations.
-            stand = { x = 0, y = 79 },
-            lay = { x = 162, y = 166, eye_height = 0.3, override_local = true,
-            collisionbox = { -0.6, 0.0, -0.6, 0.6, 0.3, 0.6 } },
-            walk = { x = 168, y = 187 },
-            mine = { x = 189, y = 198 },
-            walk_mine = { x = 200, y = 219 },
-            sit = { x = 81, y = 160, eye_height = 0.8, override_local = true,
-            collisionbox = { -0.3, 0.0, -0.3, 0.3, 1.0, 0.3 } }
-        },
-        collisionbox = { -0.3, 0.0, -0.3, 0.3, 1.7, 0.3 },
-        stepheight = 0.6,
-        eye_height = 1.47
-    })
-end
+core.register_on_leaveplayer(XBows.on_leaveplayer)
+core.register_on_dieplayer(XBows.on_dieplayer)
+core.register_on_respawnplayer(XBows.on_respawnplayer)
 
 ---formspec callbacks
 core.register_allow_player_inventory_action(function(player, action, inventory, inventory_info)
     ---arrow inventory
     if action == 'move' and inventory_info.to_list == 'x_bows:arrow_inv' then
         local stack = inventory:get_stack(inventory_info.from_list, inventory_info.from_index)
-
         if core.get_item_group(stack:get_name(), 'arrow') ~= 0 then
             return inventory_info.count
         else
             return 0
         end
-    elseif action == 'move' and inventory_info.from_list == 'x_bows:arrow_inv' and inventory_info.to_list ~= 'x_bows:quiver_inv' then
-        local stack = inventory:get_stack(inventory_info.from_list, inventory_info.from_index)
-
-        if core.get_item_group(stack:get_name(), 'arrow') ~= 0 then
-            return inventory_info.count
-        else
-            return 0
-        end
+    elseif action == 'move' and inventory_info.from_list == 'x_bows:arrow_inv' then
+        return inventory_info.count
     elseif action == 'put' and inventory_info.listname == 'x_bows:arrow_inv' then
         if core.get_item_group(inventory_info.stack:get_name(), 'arrow') ~= 0 then
             return inventory_info.stack:get_count()
@@ -159,11 +106,7 @@ core.register_allow_player_inventory_action(function(player, action, inventory, 
             return 0
         end
     elseif action == 'take' and inventory_info.listname == 'x_bows:arrow_inv' then
-        if core.get_item_group(inventory_info.stack:get_name(), 'arrow') ~= 0 then
-            return inventory_info.stack:get_count()
-        else
-            return 0
-        end
+        return inventory_info.stack:get_count()
     end
 
     ---quiver inventory
@@ -175,12 +118,7 @@ core.register_allow_player_inventory_action(function(player, action, inventory, 
             return 0
         end
     elseif action == 'move' and inventory_info.from_list == 'x_bows:quiver_inv' then
-        local stack = inventory:get_stack(inventory_info.from_list, inventory_info.from_index)
-        if core.get_item_group(stack:get_name(), 'quiver') ~= 0 then
-            return inventory_info.count
-        else
-            return 0
-        end
+        return inventory_info.count
     elseif action == 'put' and inventory_info.listname == 'x_bows:quiver_inv' then
         if core.get_item_group(inventory_info.stack:get_name(), 'quiver') ~= 0 then
             return inventory_info.stack:get_count()
@@ -188,14 +126,10 @@ core.register_allow_player_inventory_action(function(player, action, inventory, 
             return 0
         end
     elseif action == 'take' and inventory_info.listname == 'x_bows:quiver_inv' then
-        if core.get_item_group(inventory_info.stack:get_name(), 'quiver') ~= 0 then
-            return inventory_info.stack:get_count()
-        else
-            return 0
-        end
+        return inventory_info.stack:get_count()
     end
 
-    return inventory_info.count or inventory_info.stack:get_count()
+    return nil
 end)
 
 core.register_on_player_inventory_action(function(player, action, inventory, inventory_info)
@@ -235,25 +169,22 @@ core.register_on_player_inventory_action(function(player, action, inventory, inv
     end
 
     ---quiver
-    if action == 'move' and inventory_info.to_list == 'x_bows:quiver_inv' then
-        local stack = inventory:get_stack(inventory_info.to_list, inventory_info.to_index)
+    if (action == 'move' and inventory_info.to_list == 'x_bows:quiver_inv')
+        or (action == 'put' and inventory_info.listname == 'x_bows:quiver_inv')
+    then
+        local to_idx = (action == 'move') and inventory_info.to_index or 1
+        XBowsQuiver:init_quiver_in_slot(player, inventory, 'x_bows:quiver_inv', to_idx)
 
-        ---init detached inventory if not already
-        local st_meta = stack:get_meta()
-        local quiver_id = st_meta:get_string('quiver_id')
-
-        if quiver_id == '' then
-            quiver_id = stack:get_name() .. '_' .. XBows.uuid()
-            st_meta:set_string('quiver_id', quiver_id)
-            inventory:set_stack(inventory_info.to_list, inventory_info.to_index, stack)
+        if XBows.i3 then
+            i3.set_fs(player)
+        elseif XBows.unified_inventory then
+            unified_inventory.set_inventory_formspec(player, 'x_bows:quiver_page')
+        else
+            sfinv.set_player_inventory_formspec(player)
         end
-
-        local detached_inv = XBowsQuiver:get_or_create_detached_inv(
-            quiver_id,
-            player:get_player_name(),
-            st_meta:get_string('quiver_items')
-        )
-
+    elseif (action == 'move' and inventory_info.from_list == 'x_bows:quiver_inv')
+        or (action == 'take' and inventory_info.listname == 'x_bows:quiver_inv')
+    then
         if XBows.i3 then
             i3.set_fs(player)
         elseif XBows.unified_inventory then
@@ -263,47 +194,7 @@ core.register_on_player_inventory_action(function(player, action, inventory, inv
         end
 
         ---set player visual
-        if detached_inv:is_empty('main') then
-            XBowsQuiver.quiver_empty_state[player:get_player_name()] = false
-            XBowsQuiver:show_3d_quiver(player, { is_empty = true })
-        else
-            XBowsQuiver.quiver_empty_state[player:get_player_name()] = true
-            XBowsQuiver:show_3d_quiver(player)
-        end
-    elseif action == 'move' and inventory_info.from_list == 'x_bows:quiver_inv' then
-        local stack = inventory:get_stack(inventory_info.from_list, inventory_info.from_index)
-
-        if XBows.i3 then
-            i3.set_fs(player)
-        elseif XBows.unified_inventory then
-            unified_inventory.set_inventory_formspec(player, 'x_bows:quiver_page')
-        else
-            sfinv.set_player_inventory_formspec(player)
-        end
-
-        ---set player visual
-        if stack:is_empty() then
-            XBowsQuiver:hide_3d_quiver(player)
-        end
-    elseif action == 'put' and inventory_info.listname == 'x_bows:quiver_inv' then
-        if XBows.i3 then
-            i3.set_fs(player)
-        elseif XBows.unified_inventory then
-            unified_inventory.set_inventory_formspec(player, 'x_bows:quiver_page')
-        else
-            sfinv.set_player_inventory_formspec(player)
-        end
-    elseif action == 'take' and inventory_info.listname == 'x_bows:quiver_inv' then
-        if XBows.i3 then
-            i3.set_fs(player)
-        elseif XBows.unified_inventory then
-            unified_inventory.set_inventory_formspec(player, 'x_bows:quiver_page')
-        else
-            sfinv.set_player_inventory_formspec(player)
-        end
-
-        ---set player visual
-        if inventory:is_empty(inventory_info.listname) then
+        if inventory:is_empty('x_bows:quiver_inv') then
             XBowsQuiver:hide_3d_quiver(player)
         end
     end
@@ -337,50 +228,48 @@ core.register_globalstep(function(dtime)
 
     if bow_charged_timer > 0.5 then
         for _, player in ipairs(core.get_connected_players()) do
-            local player_name = player:get_player_name()
-            local wielded_stack = player:get_wielded_item()
-            local wielded_stack_name = wielded_stack:get_name()
+            if player and player:is_valid() then
+                local player_name = player:get_player_name()
+                local wielded_stack = player:get_wielded_item()
+                local wielded_stack_name = wielded_stack and wielded_stack:get_name() or ''
 
-            if not wielded_stack_name then
-                return
-            end
-
-            if not XBows.player_bow_sneak[player_name] then
-                XBows.player_bow_sneak[player_name] = {}
-            end
-
-            if core.get_item_group(wielded_stack_name, 'bow_charged') ~= 0
-                and not XBows.player_bow_sneak[player_name].sneak
-            then
-                --charged weapon
-                if XBows.playerphysics then
-                    playerphysics.add_physics_factor(player, 'speed', 'x_bows:bow_charged_speed', 0.25)
-                elseif XBows.player_monoids then
-                    player_monoids.speed:add_change(player, 0.25, 'x_bows:bow_charged_speed')
-                elseif XBows.pova then
-                    pova.add_override(player_name, 'x_bows:bow_charged_speed', {speed = -0.75})
-                    pova.do_override(player)
+                if not XBows.player_bow_sneak[player_name] then
+                    XBows.player_bow_sneak[player_name] = {}
                 end
 
-                XBows.player_bow_sneak[player_name].sneak = true
-                player:set_fov(0.9, true, 0.4)
-            elseif core.get_item_group(wielded_stack_name, 'bow_charged') == 0
-                and XBows.player_bow_sneak[player_name].sneak
-            then
-                if XBows.playerphysics then
-                    playerphysics.remove_physics_factor(player, 'speed', 'x_bows:bow_charged_speed')
-                elseif XBows.player_monoids then
-                    player_monoids.speed:del_change(player, 'x_bows:bow_charged_speed')
-                elseif XBows.pova then
-                    pova.del_override(player_name, 'x_bows:bow_charged_speed')
-                    pova.do_override(player)
+                if core.get_item_group(wielded_stack_name, 'bow_charged') ~= 0
+                    and not XBows.player_bow_sneak[player_name].sneak
+                then
+                    --charged weapon
+                    if XBows.playerphysics then
+                        playerphysics.add_physics_factor(player, 'speed', 'x_bows:bow_charged_speed', 0.25)
+                    elseif XBows.player_monoids then
+                        player_monoids.speed:add_change(player, 0.25, 'x_bows:bow_charged_speed')
+                    elseif XBows.pova then
+                        pova.add_override(player_name, 'x_bows:bow_charged_speed', {speed = -0.75})
+                        pova.do_override(player)
+                    end
+
+                    XBows.player_bow_sneak[player_name].sneak = true
+                    player:set_fov(0.9, true, 0.4)
+                elseif core.get_item_group(wielded_stack_name, 'bow_charged') == 0
+                    and XBows.player_bow_sneak[player_name].sneak
+                then
+                    if XBows.playerphysics then
+                        playerphysics.remove_physics_factor(player, 'speed', 'x_bows:bow_charged_speed')
+                    elseif XBows.player_monoids then
+                        player_monoids.speed:del_change(player, 'x_bows:bow_charged_speed')
+                    elseif XBows.pova then
+                        pova.del_override(player_name, 'x_bows:bow_charged_speed')
+                        pova.do_override(player)
+                    end
+
+                    XBows.player_bow_sneak[player_name].sneak = false
+                    player:set_fov(0, true, 0.4)
                 end
 
-                XBows.player_bow_sneak[player_name].sneak = false
-                player:set_fov(0, true, 0.4)
+                XBows:reset_charged_bow(player)
             end
-
-            XBows:reset_charged_bow(player)
         end
 
         bow_charged_timer = 0
@@ -389,4 +278,4 @@ end)
 
 local mod_end_time = (core.get_us_time() - mod_start_time) / 1000000
 
-print('[Mod] x_bows loaded.. [' .. mod_end_time .. 's]')
+core.log('action', '[x_bows] loaded in ' .. mod_end_time .. 's')

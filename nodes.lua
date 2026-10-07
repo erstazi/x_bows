@@ -1,6 +1,6 @@
 --[[
     X Bows. Adds bow and arrows with API.
-    Copyright (C) 2025 SaKeL
+    Copyright (C) 2026 SaKeL
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -13,7 +13,7 @@
     Lesser General Public License for more details.
 
     You should have received a copy of the GNU Lesser General Public
-    License along with this library; if not, write to juraj.vajda@gmail.com
+    License along with this library; if not, see <https://www.gnu.org/licenses/>.
 --]]
 
 local S = core.get_translator(core.get_current_modname())
@@ -39,7 +39,7 @@ core.register_node('x_bows:target', {
     on_punch = function(pos, node, puncher, pointed_thing)
         local pt = pointed_thing or {}
 
-        if pt.intersection_normal and pt.intersection_point and (puncher and puncher:is_player()) then
+        if pt.intersection_normal and pt.intersection_point and (puncher and puncher:is_valid() and puncher:is_player()) then
             local p = vector.add(pos, vector.divide(pt.intersection_normal, 1.5))
             local is_blue = false
             local is_red = false

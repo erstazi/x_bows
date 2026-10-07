@@ -1,6 +1,6 @@
 /**
- * Deploy code to CDB
- * Copyright (C) 2025 SaKeL
+ * Deploy code to ContentDB
+ * Copyright (C) 2026 SaKeL
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -13,38 +13,59 @@
  * Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to juraj.vajda@gmail.com
+ * License along with this library; if not, see <https://www.gnu.org/licenses/>.
  */
 
 import fetch from 'node-fetch'
 import yargs from 'yargs/yargs'
-import {hideBin} from 'yargs/helpers'
+import { hideBin } from 'yargs/helpers'
+import 'dotenv/config'
 
 const argv = yargs(hideBin(process.argv)).argv
 
 try {
+    const token = process.env.CONTENT_DB_X_BOWS_TOKEN ?? argv.token;
+
+    if (!token) {
+        console.error('Error: Missing ContentDB token! Provide CONTENT_DB_X_BOWS_TOKEN or pass --token=<token>.')
+        process.exit(1)
+    }
+
+    const title = argv.title ?? argv.tag
+    if (!title) {
+        console.error('Error: Missing release title/tag! Pass --title=<title>.')
+        process.exit(1)
+    }
+
+    const ref = argv.ref ?? title ?? 'main'
+
     const body = {
         method: 'git',
-        title: argv.title,
-        ref: 'master'
+        title: title,
+        ref: ref
     }
+
+    console.log('Submitting release to ContentDB for SaKeL/x_bows:', body)
 
     const response = await fetch('https://content.luanti.org/api/packages/SaKeL/x_bows/releases/new/', {
         method: 'POST',
         body: JSON.stringify(body),
         headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${argv.token}`
+            Authorization: `Bearer ${token}`
         }
     })
+
     const data = await response.json()
+    console.log('ContentDB API response:', data)
 
-    console.log(data)
-
-    if (!data.success) {
+    if (!response.ok || (data.success !== undefined && !data.success)) {
+        console.error('ContentDB deployment failed:', data)
         process.exit(1)
     }
+
+    console.log(`Successfully deployed ${title} to ContentDB!`)
 } catch (error) {
-    console.log(error)
+    console.error('Deployment error:', error)
     process.exit(1)
 }

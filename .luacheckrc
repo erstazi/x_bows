@@ -81,9 +81,11 @@ read_globals = {
     "i3",
     "unified_inventory",
     "player_api",
+    "x_player_api",
     "u_skins",
     "wardrobe",
     "3d_armor",
     "skinsdb",
-    "skins"
+    "skins",
+    "deathstats"
 }

@@ -1,6 +1,6 @@
 --[[
     X Bows. Adds bow and arrows with API.
-    Copyright (C) 2025 SaKeL
+    Copyright (C) 2026 SaKeL
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -13,17 +13,17 @@
     Lesser General Public License for more details.
 
     You should have received a copy of the GNU Lesser General Public
-    License along with this library; if not, write to juraj.vajda@gmail.com
+    License along with this library; if not, see <https://www.gnu.org/licenses/>.
 --]]
 
 local S = core.get_translator(core.get_current_modname())
 
 ---Check if table contains value
----@param table table
+---@param tbl table
 ---@param value string|number
 ---@return boolean
-local function table_contains(table, value)
-    for _, v in ipairs(table) do
+local function table_contains(tbl, value)
+    for _, v in ipairs(tbl) do
         if v == value then
             return true
         end
@@ -43,8 +43,8 @@ end
 
 ---@type XBows
 XBows = {
-    pvp = core.settings:get_bool('enable_pvp') or false,
-    creative = core.settings:get_bool('creative_mode') or false,
+    pvp = core.settings:get_bool('enable_pvp', true),
+    creative = core.settings:get_bool('creative_mode', false),
     mesecons = core.get_modpath('mesecons'),
     playerphysics = core.get_modpath('playerphysics'),
     player_monoids = core.get_modpath('player_monoids'),
@@ -56,6 +56,7 @@ XBows = {
     _3d_armor = core.get_modpath('3d_armor'),
     skinsdb = core.get_modpath('skinsdb'),
     player_api = core.get_modpath('player_api'),
+    x_player_api = core.get_modpath('x_player_api'),
     x_enchanting = core.get_modpath('x_enchanting'),
     registered_bows = {},
     registered_arrows = {},
@@ -63,10 +64,12 @@ XBows = {
     registered_particle_spawners = {},
     registered_entities = {},
     player_bow_sneak = {},
+    arrow_velocity = 58,
+    arrow_gravity = -19.62,
     settings = {
-        x_bows_attach_arrows_to_entities = core.settings:get_bool('x_bows_attach_arrows_to_entities', false),
+        x_bows_attach_arrows_to_entities = core.settings:get_bool('x_bows_attach_arrows_to_entities', true),
         x_bows_show_damage_numbers = core.settings:get_bool('x_bows_show_damage_numbers', false),
-        x_bows_show_3d_quiver = core.settings:get_bool('x_bows_show_3d_quiver', false),
+        x_bows_show_3d_quiver = core.settings:get_bool('x_bows_show_3d_quiver', true),
         x_bows_enable_arrow_wood= core.settings:get_bool('x_bows_enable_arrow_wood', true),
         x_bows_enable_arrow_stone= core.settings:get_bool('x_bows_enable_arrow_stone', true),
         x_bows_enable_arrow_bronze= core.settings:get_bool('x_bows_enable_arrow_bronze', true),
@@ -86,7 +89,8 @@ XBows.__index = XBows
 XBowsQuiver = {
     hud_item_ids = {},
     after_job = {},
-    quiver_empty_state = {}
+    quiver_empty_state = {},
+    active_quivers = {}
 }
 XBowsQuiver.__index = XBowsQuiver
 setmetatable(XBowsQuiver, XBows)
@@ -123,7 +127,7 @@ end
 ---@param allowed_ammunition string[]
 ---@return nil
 function XBows.update_bow_allowed_ammunition(self, name, allowed_ammunition)
-    local _name = 'x_bows:' .. name
+    local _name = name:find(':') and name or ('x_bows:' .. name)
     local def = self.registered_bows[_name]
 
     if not def then
@@ -133,12 +137,18 @@ function XBows.update_bow_allowed_ammunition(self, name, allowed_ammunition)
     local def_copy = table.copy(def)
 
     core.unregister_item(_name)
+    core.unregister_item(_name .. '_semi_charged')
+    core.unregister_item(_name .. '_charged')
 
+    def_copy.custom.allowed_ammunition = def_copy.custom.allowed_ammunition or {}
     for _, v in ipairs(allowed_ammunition) do
-        table.insert(def_copy.custom.allowed_ammunition, v)
+        if not table_contains(def_copy.custom.allowed_ammunition, v) then
+            table.insert(def_copy.custom.allowed_ammunition, v)
+        end
     end
 
-    self:register_bow(name, def_copy, true)
+    local clean_name = name:find(':') and name:match(':(.+)$') or name
+    self:register_bow(clean_name, def_copy, true)
 end
 
 ---Reset charged bow to uncharged bow, this will return the arrow item to the inventory also
@@ -154,6 +164,14 @@ function XBows.reset_charged_bow(self, player, includeWielded)
         return
     end
 
+    if _includeWielded and self.charge_sound_after_job[player:get_player_name()] then
+        for _, v in pairs(self.charge_sound_after_job[player:get_player_name()]) do
+            v:cancel()
+        end
+
+        self.charge_sound_after_job[player:get_player_name()] = {}
+    end
+
     local inv_list = inv:get_list('main')
 
     for i, st in ipairs(inv_list) do
@@ -167,56 +185,64 @@ function XBows.reset_charged_bow(self, player, includeWielded)
             and core.get_item_group(st_name, 'bow_charged') ~= 0
         then
             local item_meta = st:get_meta()
-            local arrow_itemstack = ItemStack(core.deserialize(item_meta:get_string('arrow_itemstack_string')))
+            local arrow_data = core.deserialize(item_meta:get_string('arrow_itemstack_string'))
+            local arrow_itemstack = arrow_data and ItemStack(arrow_data)
             local is_enchanted = item_meta:get_int('is_enchanted') == 1
             local is_infinity = false
 
             if is_enchanted then
                 local enchantments = core.deserialize(item_meta:get_string('x_enchanting'))
 
-                if enchantments.infinity and enchantments.infinity.value > 0 then
+                if enchantments and enchantments.infinity and enchantments.infinity.value > 0 then
                     is_infinity = true
                 end
             end
 
             ---return arrow
-            if arrow_itemstack and not self:is_creative(player:get_player_name()) and not is_infinity then
+            if arrow_itemstack and not arrow_itemstack:is_empty() and not self:is_creative(player:get_player_name()) and not is_infinity then
                 local arrow_meta = arrow_itemstack:get_meta()
                 local is_arrow_from_quiver = arrow_meta:get_int('is_arrow_from_quiver') ~= 0
-                local quiver_stack = inv:get_stack('x_bows:quiver_inv', 1)
-                local quiver_meta = quiver_stack:get_meta()
                 local quiver_id = arrow_meta:get_string('quiver_id')
-                local detached_inv = XBowsQuiver:get_or_create_detached_inv(
-                    quiver_id,
-                    player:get_player_name(),
-                    quiver_meta:get_string('quiver_items')
-                )
+                local returned = false
 
-                if is_arrow_from_quiver
-                    and detached_inv:room_for_item('main', { name = arrow_itemstack:get_name() })
-                    and not quiver_stack:is_empty()
-                then
-                    -- Add arrow back to quiver inventory
-                    detached_inv:add_item('main', arrow_itemstack:get_name())
-                    XBowsQuiver:save(detached_inv, player, true)
-                elseif inv:room_for_item('x_bows:arrow_inv', { name = arrow_itemstack:get_name() }) then
-                    -- Add arrow back to arrow inventory
-                    inv:add_item('x_bows:arrow_inv', arrow_itemstack:get_name())
-                    -- Add arrow back to main inventory
-                elseif inv:room_for_item('main', { name = arrow_itemstack:get_name() }) then
-                    inv:add_item('main', arrow_itemstack:get_name())
-                else
-                    -- Drop the arrow on the ground (no space in any inventory)
-                    core.item_drop(
-                        ItemStack({ name = arrow_itemstack:get_name(), count = 1 }),
-                        player,
-                        player:get_pos()
-                    )
+                if is_arrow_from_quiver and quiver_id ~= '' then
+                    local detached_inv = XBowsQuiver:get_or_create_detached_inv(quiver_id, player:get_player_name())
+                    if detached_inv and detached_inv:room_for_item('main', { name = arrow_itemstack:get_name() }) then
+                        detached_inv:add_item('main', arrow_itemstack:get_name())
+                        if XBowsQuiver:save(detached_inv, player, true) then
+                            returned = true
+                        else
+                            -- Quiver not in player inventory; rollback detached inv so arrow returns to player
+                            detached_inv:take_item('main', arrow_itemstack:get_name())
+                            returned = false
+                        end
+                    end
+                end
+
+                if not returned then
+                    if inv:room_for_item('x_bows:arrow_inv', { name = arrow_itemstack:get_name() }) then
+                        -- Add arrow back to arrow inventory
+                        inv:add_item('x_bows:arrow_inv', arrow_itemstack:get_name())
+                    elseif inv:room_for_item('main', { name = arrow_itemstack:get_name() }) then
+                        -- Add arrow back to main inventory
+                        inv:add_item('main', arrow_itemstack:get_name())
+                    else
+                        -- Drop the arrow on the ground (no space in any inventory)
+                        core.item_drop(
+                            ItemStack({ name = arrow_itemstack:get_name(), count = 1 }),
+                            player,
+                            player:get_pos()
+                        )
+                    end
                 end
             end
 
             --reset bow to uncharged bow
-            local new_stack = ItemStack(mergeTables(st:to_table(), { name = x_bows_registered_bow_def.custom.name }))
+            local new_stack = ItemStack(st)
+            new_stack:set_name(x_bows_registered_bow_def.custom.name)
+            local new_meta = new_stack:get_meta()
+            new_meta:set_string('arrow_itemstack_string', '')
+            new_meta:set_string('time_load', '')
 
             XBows:set_wielditem_images(new_stack, new_stack:get_name())
 
@@ -238,22 +264,32 @@ function XBows.register_bow(self, name, def, override)
 
     local mod_name = def.custom.mod_name or 'x_bows'
     def.custom.name = mod_name .. ':' .. name
+    def.custom.name_semi_charged = mod_name .. ':' .. name .. '_semi_charged'
     def.custom.name_charged = mod_name .. ':' .. name .. '_charged'
     def.short_description = def.short_description
     def.description = override and def.short_description or (def.description or name)
     def.custom.uses = def.custom.uses or 150
     def.groups = mergeTables({ bow = 1, flammable = 1, enchantability = 1 }, def.groups or {})
+    def.custom.groups_semi_charged = mergeTables(
+        { bow_charged = 1, bow_semi_charged = 1, flammable = 1, not_in_creative_inventory = 1 },
+        def.groups or {}
+    )
     def.custom.groups_charged = mergeTables(
         { bow_charged = 1, flammable = 1, not_in_creative_inventory = 1 },
         def.groups or {}
     )
-    def.custom.strength = def.custom.strength or 30
+    def.custom.strength = def.custom.strength or self.arrow_velocity or 58
     def.custom.allowed_ammunition = def.custom.allowed_ammunition or nil
     def.custom.sound_load = def.custom.sound_load or 'x_bows_bow_load'
     def.custom.sound_hit = def.custom.sound_hit or 'x_bows_arrow_hit'
     def.custom.sound_shoot = def.custom.sound_shoot or 'x_bows_bow_shoot'
     def.custom.sound_shoot_crit = def.custom.sound_shoot_crit or 'x_bows_bow_shoot_crit'
-    def.custom.gravity = def.custom.gravity or -10
+    if def.custom.sound_loaded == nil then
+        def.custom.sound_loaded = 'x_bows_bow_loaded'
+    end
+    def.custom.sound_semi_charged = def.custom.sound_semi_charged or nil
+    def.custom.gravity = def.custom.gravity or self.arrow_gravity or -19.62
+    def.custom.has_semi_charged = (def.custom.inventory_image_semi_charged ~= nil) or (name == 'bow_wood')
 
     if def.custom.crit_chance then
         def.description = def.description .. '\n' .. core.colorize('#00FF00', S('Critical Arrow Chance') .. ': '
@@ -274,7 +310,21 @@ function XBows.register_bow(self, name, def, override)
     end
 
     self.registered_bows[def.custom.name] = def
+    self.registered_bows[def.custom.name_semi_charged] = def
     self.registered_bows[def.custom.name_charged] = def
+
+    ---Tool capabilities with 0 fleshy damage for charged bows to prevent melee punches while aiming/shooting
+    local charged_bow_tool_capabilities = {
+        full_punch_interval = 2.0,
+        max_drop_level = 0,
+        groupcaps = {},
+        damage_groups = { fleshy = 0 },
+    }
+
+    ---wield scales
+    local base_wield_scale = def.wield_scale or def.custom.wield_scale or { x = 2, y = 2, z = 1.5 }
+    local semi_charged_wield_scale = def.custom.wield_scale_semi_charged or base_wield_scale
+    local charged_wield_scale = def.custom.wield_scale_charged or base_wield_scale
 
     ---not charged bow
     core.register_tool(override and ':' .. def.custom.name or def.custom.name, {
@@ -282,7 +332,7 @@ function XBows.register_bow(self, name, def, override)
         inventory_image = def.inventory_image or 'x_bows_bow_wood.png',
         wield_image = def.wield_image or def.inventory_image,
         groups = def.groups,
-        wield_scale = { x = 2, y = 2, z = 1.5 },
+        wield_scale = base_wield_scale,
         ---@param itemstack ItemStack
         ---@param placer ObjectRef|nil
         ---@param pointed_thing PointedThingDef
@@ -303,14 +353,24 @@ function XBows.register_bow(self, name, def, override)
         end
     })
 
-    ---charged bow
-    core.register_tool(override and ':' .. def.custom.name_charged or def.custom.name_charged, {
+    ---semi charged bow images (if semi-charged texture is not configured, fall back to charged texture)
+    local default_semi_charged_image = (name == 'bow_wood') and 'x_bows_bow_wood_semi_charged.png'
+        or (def.custom.inventory_image_charged or 'x_bows_bow_wood_charged.png')
+    local semi_charged_inv_image = def.custom.inventory_image_semi_charged or default_semi_charged_image
+    local semi_charged_wield_image = def.custom.wield_image_semi_charged
+        or (def.custom.inventory_image_semi_charged and def.custom.inventory_image_semi_charged)
+        or def.custom.wield_image_charged
+        or def.wield_image
+        or semi_charged_inv_image
+
+    core.register_tool(override and ':' .. def.custom.name_semi_charged or def.custom.name_semi_charged, {
         description = def.description,
-        inventory_image = def.custom.inventory_image_charged or 'x_bows_bow_wood_charged.png',
-        wield_image = def.custom.wield_image_charged or def.custom.inventory_image_charged,
-        groups = def.custom.groups_charged,
-        wield_scale = { x = 2, y = 2, z = 1.5 },
+        inventory_image = semi_charged_inv_image,
+        wield_image = semi_charged_wield_image,
+        groups = def.custom.groups_semi_charged,
+        wield_scale = semi_charged_wield_scale,
         range = 0,
+        tool_capabilities = charged_bow_tool_capabilities,
         ---@param itemstack ItemStack
         ---@param user ObjectRef|nil
         ---@param pointed_thing PointedThingDef
@@ -333,16 +393,17 @@ function XBows.register_bow(self, name, def, override)
                 if is_enchanted then
                     local enchantments = core.deserialize(item_meta:get_string('x_enchanting'))
 
-                    if enchantments.infinity and enchantments.infinity.value > 0 then
+                    if enchantments and enchantments.infinity and enchantments.infinity.value > 0 then
                         is_infinity = true
                     end
                 end
 
                 if not is_infinity then
-                    local arrow_itemstack = ItemStack(core.deserialize(item_meta:get_string('arrow_itemstack_string')))
+                    local arrow_data = core.deserialize(item_meta:get_string('arrow_itemstack_string'))
+                    local arrow_itemstack = arrow_data and ItemStack(arrow_data)
 
                     ---return arrow
-                    if arrow_itemstack and not self:is_creative(dropper:get_player_name()) then
+                    if arrow_itemstack and not arrow_itemstack:is_empty() and not self:is_creative(dropper:get_player_name()) then
                         core.item_drop(
                             ItemStack({ name = arrow_itemstack:get_name(), count = 1 }),
                             dropper,
@@ -351,6 +412,73 @@ function XBows.register_bow(self, name, def, override)
                     end
                 end
 
+                item_meta:set_string('arrow_itemstack_string', '')
+                item_meta:set_string('time_load', '')
+                itemstack:set_name(def.custom.name)
+
+                XBows:set_wielditem_images(itemstack, def.custom.name)
+
+                ---returns leftover itemstack
+                return core.item_drop(itemstack, dropper, pos)
+            end
+        end
+    })
+
+    ---charged bow images
+    local charged_inv_image = def.custom.inventory_image_charged or 'x_bows_bow_wood_charged.png'
+    local charged_wield_image = def.custom.wield_image_charged or def.wield_image or charged_inv_image
+
+    core.register_tool(override and ':' .. def.custom.name_charged or def.custom.name_charged, {
+        description = def.description,
+        inventory_image = charged_inv_image,
+        wield_image = charged_wield_image,
+        groups = def.custom.groups_charged,
+        wield_scale = charged_wield_scale,
+        range = 0,
+        tool_capabilities = charged_bow_tool_capabilities,
+        ---@param itemstack ItemStack
+        ---@param user ObjectRef|nil
+        ---@param pointed_thing PointedThingDef
+        ---@return ItemStack|nil
+        on_use = function(itemstack, user, pointed_thing)
+            if user then
+                return self:shoot(itemstack, user, pointed_thing)
+            end
+        end,
+        ---@param itemstack ItemStack
+        ---@param dropper ObjectRef|nil
+        ---@param pos Vector
+        ---@return ItemStack|nil
+        on_drop = function(itemstack, dropper, pos)
+            if dropper then
+                local item_meta = itemstack:get_meta()
+                local is_enchanted = item_meta:get_int('is_enchanted') == 1
+                local is_infinity = false
+
+                if is_enchanted then
+                    local enchantments = core.deserialize(item_meta:get_string('x_enchanting'))
+
+                    if enchantments and enchantments.infinity and enchantments.infinity.value > 0 then
+                        is_infinity = true
+                    end
+                end
+
+                if not is_infinity then
+                    local arrow_data = core.deserialize(item_meta:get_string('arrow_itemstack_string'))
+                    local arrow_itemstack = arrow_data and ItemStack(arrow_data)
+
+                    ---return arrow
+                    if arrow_itemstack and not arrow_itemstack:is_empty() and not self:is_creative(dropper:get_player_name()) then
+                        core.item_drop(
+                            ItemStack({ name = arrow_itemstack:get_name(), count = 1 }),
+                            dropper,
+                            { x = pos.x + 0.5, y = pos.y + 0.5, z = pos.z + 0.5 }
+                        )
+                    end
+                end
+
+                item_meta:set_string('arrow_itemstack_string', '')
+                item_meta:set_string('time_load', '')
                 itemstack:set_name(def.custom.name)
 
                 XBows:set_wielditem_images(itemstack, def.custom.name)
@@ -520,6 +648,31 @@ function XBows.register_quiver(self, name, def)
         groups = def.custom.groups_charged,
         wield_scale = { x = 2, y = 2, z = 1 },
         ---@param itemstack ItemStack
+        ---@param user ObjectRef|nil
+        ---@param pointed_thing PointedThingDef
+        ---@return ItemStack|nil
+        on_secondary_use = function(itemstack, user, pointed_thing)
+            if user then
+                return self:open_quiver(itemstack, user)
+            end
+        end,
+        ---@param itemstack ItemStack
+        ---@param placer ObjectRef
+        ---@param pointed_thing PointedThingDef
+        ---@return ItemStack|nil
+        on_place = function(itemstack, placer, pointed_thing)
+            if pointed_thing.under then
+                local node = core.get_node(pointed_thing.under)
+                local node_def = core.registered_nodes[node.name]
+
+                if node_def and node_def.on_rightclick then
+                    return node_def.on_rightclick(pointed_thing.under, node, placer, itemstack, pointed_thing)
+                end
+            end
+
+            return self:open_quiver(itemstack, placer)
+        end,
+        ---@param itemstack ItemStack
         ---@param dropper ObjectRef|nil
         ---@param pos Vector
         ---@return ItemStack
@@ -555,7 +708,9 @@ function XBows.set_wielditem_images(self, wielditem, bow_name)
     local wielded_item_meta = wielditem:get_meta()
     local is_enchanted = wielded_item_meta:get_int('is_enchanted') == 1
 
-    if not is_enchanted or not XBows.x_enchanting then
+    if not is_enchanted or not XBows.x_enchanting or not core.global_exists('XEnchanting')
+        or not XEnchanting.get_glint_texture_modifier
+    then
         return
     end
 
@@ -595,9 +750,13 @@ function XBows.load(self, itemstack, user, pointed_thing)
     local inv = user:get_inventory() --[[@as InvRef]]
     local bow_name = itemstack:get_name()
     local bow_def = self.registered_bows[bow_name]
-    ---@alias ItemStackArrows {["stack"]: ItemStack, ["idx"]: number|integer}[]
+    ---@alias ItemStackArrows {["stack"]: ItemStack, ["list"]: string, ["idx"]: number|integer}[]
     ---@type ItemStackArrows
     local itemstack_arrows = {}
+
+    local bow_item_meta = itemstack:get_meta()
+    local bow_enchantments = core.deserialize(bow_item_meta:get_string('x_enchanting'))
+    local is_infinity = bow_enchantments and bow_enchantments.infinity and bow_enchantments.infinity.value > 0
 
     ---trigger right click event if pointed item has one
     if pointed_thing.under then
@@ -636,7 +795,7 @@ function XBows.load(self, itemstack, user, pointed_thing)
         local is_allowed_ammunition = self:is_allowed_ammunition(bow_name, arrow_stack:get_name())
 
         if self.registered_arrows[arrow_stack:get_name()] and is_allowed_ammunition then
-            table.insert(itemstack_arrows, { stack = arrow_stack, idx = 1 })
+            table.insert(itemstack_arrows, { stack = arrow_stack, list = 'x_bows:arrow_inv', idx = 1 })
         end
 
         ---if everything else fails
@@ -649,8 +808,8 @@ function XBows.load(self, itemstack, user, pointed_thing)
                 if not st:is_empty() and self.registered_arrows[st_name] then
                     local _is_allowed_ammunition = self:is_allowed_ammunition(bow_name, st_name)
 
-                    if self.registered_arrows[st_name] and _is_allowed_ammunition then
-                        table.insert(itemstack_arrows, { stack = st, idx = i })
+                    if _is_allowed_ammunition then
+                        table.insert(itemstack_arrows, { stack = st, list = 'main', idx = i })
                     end
                 end
             end
@@ -662,36 +821,8 @@ function XBows.load(self, itemstack, user, pointed_thing)
 
     if itemstack_arrow and bow_def then
         local _tool_capabilities = self.registered_arrows[itemstack_arrow:get_name()].custom.tool_capabilities
-
-        ---@param v_user ObjectRef
-        ---@param v_bow_name string
-        ---@param v_itemstack_arrow ItemStack
-        ---@param v_inv InvRef
-        ---@param v_itemstack_arrows ItemStackArrows
-        core.after(0, function(v_user, v_bow_name, v_itemstack_arrow, v_inv, v_itemstack_arrows)
-            local wielded_item = v_user:get_wielded_item()
-
-            if wielded_item:get_name() == v_bow_name then
-                local wielded_item_meta = wielded_item:get_meta()
-                local v_itemstack_arrow_meta = v_itemstack_arrow:get_meta()
-
-                wielded_item_meta:set_string('arrow_itemstack_string', core.serialize(v_itemstack_arrow:to_table()))
-                wielded_item_meta:set_string('time_load', tostring(core.get_us_time()))
-
-                wielded_item:set_name(v_bow_name .. '_charged')
-
-                XBows:set_wielditem_images(wielded_item, v_bow_name .. '_charged')
-
-                v_user:set_wielded_item(wielded_item)
-
-                if not self:is_creative(v_user:get_player_name())
-                    and v_itemstack_arrow_meta:get_int('is_arrow_from_quiver') ~= 1
-                then
-                    v_itemstack_arrow:take_item()
-                    v_inv:set_stack('x_bows:arrow_inv', v_itemstack_arrows[1].idx, v_itemstack_arrow)
-                end
-            end
-        end, user, bow_name, itemstack_arrow, inv, itemstack_arrows)
+        local charge_time = bow_def.custom.charge_time
+            or (_tool_capabilities.full_punch_interval * (bow_def.custom.charge_multiplier or 1.0))
 
         ---stop previous charged sound after job
         if self.charge_sound_after_job[player_name] then
@@ -704,23 +835,138 @@ function XBows.load(self, itemstack, user, pointed_thing)
             self.charge_sound_after_job[player_name] = {}
         end
 
-        ---sound plays when charge time reaches full punch interval time
-        table.insert(self.charge_sound_after_job[player_name], core.after(_tool_capabilities.full_punch_interval,
-            function(v_user, v_bow_name)
-                local wielded_item = v_user:get_wielded_item()
-                local wielded_item_name = wielded_item:get_name()
+        ---@param v_player_name string
+        ---@param v_bow_name string
+        ---@param v_itemstack_arrow ItemStack
+        ---@param v_inv InvRef
+        ---@param v_itemstack_arrows ItemStackArrows
+        core.after(0, function(v_player_name, v_bow_name, v_itemstack_arrow, v_inv, v_itemstack_arrows)
+            local v_user = core.get_player_by_name(v_player_name)
+            if not v_user or not v_user:is_valid() then
+                return
+            end
 
-                if wielded_item_name == v_bow_name .. '_charged' then
+            local wielded_item = v_user:get_wielded_item()
+
+            if wielded_item:get_name() == v_bow_name then
+                local wielded_item_meta = wielded_item:get_meta()
+                local v_itemstack_arrow_meta = v_itemstack_arrow:get_meta()
+                local arrow_taken = false
+
+                if self:is_creative(v_player_name) or is_infinity then
+                    arrow_taken = true
+                else
+                    if v_itemstack_arrow_meta:get_int('is_arrow_from_quiver') == 1 then
+                        local q_id = v_itemstack_arrow_meta:get_string('quiver_id')
+                        local q_idx = v_itemstack_arrow_meta:get_int('found_arrow_stack_idx')
+                        local detached_inv = XBowsQuiver:get_or_create_detached_inv(q_id, v_player_name)
+                        if detached_inv then
+                            local q_st = detached_inv:get_stack('main', q_idx)
+                            if q_st:get_name() == v_itemstack_arrow:get_name() and not q_st:is_empty() then
+                                q_st:take_item()
+                                detached_inv:set_stack('main', q_idx, q_st)
+                                if XBowsQuiver:save(detached_inv, v_user, true) then
+                                    arrow_taken = true
+                                else
+                                    -- Rollback detached inv if quiver wasn't found in inventory
+                                    q_st:set_count(q_st:get_count() + 1)
+                                    detached_inv:set_stack('main', q_idx, q_st)
+                                end
+                            else
+                                for k, st in ipairs(detached_inv:get_list('main')) do
+                                    if st:get_name() == v_itemstack_arrow:get_name() and not st:is_empty() then
+                                        st:take_item()
+                                        detached_inv:set_stack('main', k, st)
+                                        if XBowsQuiver:save(detached_inv, v_user, true) then
+                                            arrow_taken = true
+                                        else
+                                            st:set_count(st:get_count() + 1)
+                                            detached_inv:set_stack('main', k, st)
+                                        end
+                                        break
+                                    end
+                                end
+                            end
+                        end
+                    elseif #v_itemstack_arrows > 0 then
+                        local src_list = v_itemstack_arrows[1].list or 'x_bows:arrow_inv'
+                        local src_idx = v_itemstack_arrows[1].idx or 1
+                        local cur_st = v_inv:get_stack(src_list, src_idx)
+                        if cur_st:get_name() == v_itemstack_arrow:get_name() and not cur_st:is_empty() then
+                            cur_st:take_item()
+                            v_inv:set_stack(src_list, src_idx, cur_st)
+                            arrow_taken = true
+                        else
+                            for k, st in ipairs(v_inv:get_list(src_list)) do
+                                if st:get_name() == v_itemstack_arrow:get_name() and not st:is_empty() then
+                                    st:take_item()
+                                    v_inv:set_stack(src_list, k, st)
+                                    arrow_taken = true
+                                    break
+                                end
+                            end
+                        end
+                    end
+                end
+
+                if not arrow_taken then
+                    return
+                end
+
+                wielded_item_meta:set_string('arrow_itemstack_string', core.serialize(v_itemstack_arrow:to_table()))
+                wielded_item_meta:set_string('time_load', tostring(core.get_us_time()))
+
+                wielded_item:set_name(v_bow_name .. '_semi_charged')
+
+                XBows:set_wielditem_images(wielded_item, v_bow_name .. '_semi_charged')
+
+                v_user:set_wielded_item(wielded_item, true)
+
+                if bow_def.custom.sound_semi_charged and bow_def.custom.sound_semi_charged ~= '' then
                     core.sound_play({
-                        name = 'x_bows_bow_loaded',
+                        name = bow_def.custom.sound_semi_charged,
                         gain = 0.6
                     }, {
-                        to_player = v_user:get_player_name(),
+                        to_player = v_player_name,
                         pitch = math.random(7, 13) / 10,
                         object = v_user
                     }, true)
                 end
-            end, user, bow_name))
+            end
+        end, player_name, bow_name, itemstack_arrow, inv, itemstack_arrows)
+
+        ---transition from semi-charged to fully charged and play sound when charge reaches full punch interval
+        table.insert(self.charge_sound_after_job[player_name], core.after(charge_time,
+            function(v_player_name, v_bow_name)
+                local v_user = core.get_player_by_name(v_player_name)
+                if not v_user or not v_user:is_valid() then
+                    return
+                end
+
+                local wielded_item = v_user:get_wielded_item()
+                local wielded_item_name = wielded_item:get_name()
+
+                if wielded_item_name == v_bow_name .. '_semi_charged' then
+                    local new_stack = ItemStack(wielded_item)
+                    new_stack:set_name(v_bow_name .. '_charged')
+
+                    XBows:set_wielditem_images(new_stack, new_stack:get_name())
+
+                    v_user:set_wielded_item(new_stack, true)
+
+                    local sound_loaded = bow_def.custom.sound_loaded
+                    if sound_loaded and sound_loaded ~= '' then
+                        core.sound_play({
+                            name = sound_loaded,
+                            gain = 0.6
+                        }, {
+                            to_player = v_player_name,
+                            pitch = math.random(7, 13) / 10,
+                            object = v_user
+                        }, true)
+                    end
+                end
+            end, player_name, bow_name))
 
         core.sound_play({
             name = bow_def.custom.sound_load,
@@ -743,16 +989,27 @@ end
 ---@param pointed_thing? PointedThingDef
 ---@return ItemStack
 function XBows.shoot(self, itemstack, user, pointed_thing)
-    local time_shoot = core.get_us_time();
     local meta = itemstack:get_meta()
-    local time_load = tonumber(meta:get_string('time_load'))
-    local tflp = (time_shoot - time_load) / 1000000
+    local arrow_raw = meta:get_string('arrow_itemstack_string')
+    if not arrow_raw or arrow_raw == '' then
+        return itemstack
+    end
+
+    local arrow_data = core.deserialize(arrow_raw)
+    if not arrow_data then
+        return itemstack
+    end
+
     ---@type ItemStack
-    local arrow_itemstack = ItemStack(core.deserialize(meta:get_string('arrow_itemstack_string')))
+    local arrow_itemstack = ItemStack(arrow_data)
 
     if arrow_itemstack:is_empty() then
         return itemstack
     end
+
+    local time_shoot = core.get_us_time()
+    local time_load = tonumber(meta:get_string('time_load'))
+    local tflp = time_load and ((time_shoot - time_load) / 1000000) or 1.0
 
     local arrow_itemstack_meta = arrow_itemstack:get_meta()
     local arrow_name = arrow_itemstack:get_name()
@@ -760,19 +1017,22 @@ function XBows.shoot(self, itemstack, user, pointed_thing)
     local quiver_name = arrow_itemstack_meta:get_string('quiver_name')
     local found_arrow_stack_idx = arrow_itemstack_meta:get_int('found_arrow_stack_idx')
     local quiver_id = arrow_itemstack_meta:get_string('quiver_id')
-    local detached_inv = XBowsQuiver:get_or_create_detached_inv(
-        quiver_id,
-        user:get_player_name()
-    )
 
     ---Handle HUD and 3d Quiver
-    if is_arrow_from_quiver == 1 then
-        XBowsQuiver:udate_or_create_hud(user, detached_inv:get_list('main'), found_arrow_stack_idx)
+    if is_arrow_from_quiver == 1 and quiver_id ~= '' then
+        local detached_inv = XBowsQuiver:get_or_create_detached_inv(
+            quiver_id,
+            user:get_player_name()
+        )
 
-        if detached_inv:is_empty('main') then
-            XBowsQuiver:show_3d_quiver(user, { is_empty = true })
-        else
-            XBowsQuiver:show_3d_quiver(user)
+        if detached_inv then
+            XBowsQuiver:udate_or_create_hud(user, detached_inv:get_list('main'), found_arrow_stack_idx)
+
+            if detached_inv:is_empty('main') then
+                XBowsQuiver:show_3d_quiver(user, { is_empty = true })
+            else
+                XBowsQuiver:show_3d_quiver(user)
+            end
         end
     else
         local inv = user:get_inventory() --[[@as InvRef]]
@@ -795,6 +1055,9 @@ function XBows.shoot(self, itemstack, user, pointed_thing)
     local bow_name_charged = itemstack:get_name()
     ---Bow
     local x_bows_registered_bow_charged_def = self.registered_bows[bow_name_charged]
+    if not x_bows_registered_bow_charged_def or not x_bows_registered_bow_charged_def.custom then
+        return itemstack
+    end
     local bow_name = x_bows_registered_bow_charged_def.custom.name
     local uses = x_bows_registered_bow_charged_def.custom.uses
     local crit_chance = x_bows_registered_bow_charged_def.custom.crit_chance
@@ -806,23 +1069,36 @@ function XBows.shoot(self, itemstack, user, pointed_thing)
     local _tool_capabilities = x_bows_registered_arrow_def.custom.tool_capabilities
     local quiver_xbows_def = x_bows_registered_quiver_def
 
+    local bow_charge_time = x_bows_registered_bow_charged_def.custom.charge_time
+        or (_tool_capabilities.full_punch_interval * (x_bows_registered_bow_charged_def.custom.charge_multiplier or 1.0))
+
+    local eff_tool_capabilities = _tool_capabilities
+    if bow_charge_time ~= _tool_capabilities.full_punch_interval then
+        eff_tool_capabilities = table.copy(_tool_capabilities)
+        eff_tool_capabilities.full_punch_interval = bow_charge_time
+    end
+
     ---X Enchanting
     local x_enchanting = core.deserialize(meta:get_string('x_enchanting')) or {}
+
+    local is_creative_user = self:is_creative(user:get_player_name())
 
     ---@type EnityStaticDataAttrDef
     local staticdata = {
         _arrow_name = arrow_name,
         _bow_name = bow_name,
         _user_name = user:get_player_name(),
+        _player_look_dir = user:get_look_dir(),
         _is_critical_hit = false,
-        _tool_capabilities = _tool_capabilities,
+        _is_creative = is_creative_user,
+        _tool_capabilities = eff_tool_capabilities,
         _tflp = tflp,
         _add_damage = 0,
         _x_enchanting = x_enchanting
     }
 
-    ---crits, only on full punch interval
-    if crit_chance and crit_chance > 1 and tflp >= _tool_capabilities.full_punch_interval then
+    ---crits, only on full charge interval
+    if crit_chance and crit_chance > 1 and tflp >= bow_charge_time then
         if math.random(1, crit_chance) == 1 then
             staticdata._is_critical_hit = true
         end
@@ -844,21 +1120,58 @@ function XBows.shoot(self, itemstack, user, pointed_thing)
         sound_name = x_bows_registered_bow_charged_def.custom.sound_shoot_crit
     end
 
+    if user and user:is_player() and XBows.x_player_api then
+        x_player_api.play_action(user, 'bow_shoot', true)
+    end
+
     -- remove arrow meta to prevent multiple shots while waiting for async `after`
     meta:set_string('arrow_itemstack_string', '')
+    meta:set_string('time_load', '')
+
+    ---stop previous charged sound/transition jobs
+    local player_name = user:get_player_name()
+    if self.charge_sound_after_job[player_name] then
+        for _, v in pairs(self.charge_sound_after_job[player_name]) do
+            v:cancel()
+        end
+
+        self.charge_sound_after_job[player_name] = {}
+    end
 
     ---stop punching close objects/nodes when shooting
-    core.after(0.2, function()
-        local wield_item = user:get_wielded_item()
-
-        if wield_item:get_count() > 0 and wield_item:get_name() == itemstack:get_name() then
-            local new_stack = ItemStack(mergeTables(itemstack:to_table(), { name = bow_name }))
-
-            XBows:set_wielditem_images(new_stack, new_stack:get_name())
-
-            user:set_wielded_item(new_stack)
+    local function revert_bow_after_shot(step)
+        local player = core.get_player_by_name(player_name)
+        if not player or not player:is_valid() then
+            return
         end
-    end)
+
+        step = (step or 0) + 1
+        local controls = player:get_player_control()
+
+        -- If player is still holding LMB/dig, wait until they release it
+        -- because charged bow has range=0 and cannot melee punch close objects/nodes.
+        -- Once released (or after fallback max timeout), safely revert to uncharged bow.
+        if controls and (controls.LMB or controls.dig) and step < 16 then
+            core.after(0.05, revert_bow_after_shot, step)
+            return
+        end
+
+        local wield_item = player:get_wielded_item()
+        local current_name = wield_item:get_name()
+
+        if wield_item:get_count() > 0
+            and (current_name == bow_name .. '_charged' or current_name == bow_name .. '_semi_charged')
+        then
+            local new_stack = ItemStack(wield_item)
+            new_stack:set_name(bow_name)
+
+            XBows:set_wielditem_images(new_stack, bow_name)
+
+            player:set_wielded_item(new_stack, true)
+        end
+    end
+
+    core.after(0.15, revert_bow_after_shot)
 
     local player_pos = user:get_pos()
     local obj = core.add_entity(
@@ -885,7 +1198,11 @@ function XBows.shoot(self, itemstack, user, pointed_thing)
     }, true)
 
     if not self:is_creative(user:get_player_name()) then
-        itemstack:add_wear(65535 / uses)
+        local final_uses = uses
+        if x_enchanting and x_enchanting.unbreaking and x_enchanting.unbreaking.value > 0 then
+            final_uses = uses + (uses * (x_enchanting.unbreaking.value / 100.0))
+        end
+        itemstack:add_wear(65535 / final_uses)
     end
 
     if itemstack:get_count() == 0 then
@@ -916,19 +1233,35 @@ end
 ---Get particle effect from registered spawners table
 ---@param self XBows
 ---@param name string
----@param pos Vector
+---@param pos Vector|nil
+---@param attached ObjectRef|nil
 ---@return number|boolean
-function XBows.get_particle_effect_for_arrow(self, name, pos)
-    local def = self.registered_particle_spawners[name]
+function XBows.get_particle_effect_for_arrow(self, name, pos, attached)
+    local orig_def = self.registered_particle_spawners[name]
 
-    if not def then
+    if not orig_def then
         core.log('warning', 'Particle effect "' .. name .. '" is not registered.')
         return false
     end
 
+    local def = table.copy(orig_def)
     def.custom = def.custom or {}
-    def.minpos = def.custom.minpos and vector.add(pos, def.custom.minpos) or pos
-    def.maxpos = def.custom.maxpos and vector.add(pos, def.custom.maxpos) or pos
+
+    if attached then
+        def.attached = attached
+        def.time = 0
+        def.amount = orig_def.amount or 12
+    else
+        pos = pos or vector.new(0, 0, 0)
+        def.minpos = def.custom.minpos and vector.add(pos, def.custom.minpos) or pos
+        def.maxpos = def.custom.maxpos and vector.add(pos, def.custom.maxpos) or pos
+        if def.pos and type(def.pos) == 'table' and def.pos.min and def.pos.max then
+            def.pos = {
+                min = vector.add(pos, def.pos.min),
+                max = vector.add(pos, def.pos.max)
+            }
+        end
+    end
 
     return core.add_particlespawner(def--[[@as ParticlespawnerDef]] )
 end
@@ -960,21 +1293,6 @@ end
 --- ENTITY API
 ----
 
----Gets total armor level from 3d armor
----@param player ObjectRef
----@return integer
-local function get_3d_armor_armor(player)
-    local armor_total = 0
-
-    if not player:is_player() or not core.get_modpath('3d_armor') or not armor.def[player:get_player_name()] then
-        return armor_total
-    end
-
-    armor_total = armor.def[player:get_player_name()].level
-
-    return armor_total
-end
-
 ---Limits number `x` between `min` and `max` values
 ---@param x integer
 ---@param min integer
@@ -982,6 +1300,320 @@ end
 ---@return integer
 local function limit(x, min, max)
     return math.min(math.max(x, min), max)
+end
+
+---Calculates physical knockback velocity for arrow hits
+---@param direction_or_self table Direction vector (or self if called with method syntax)
+---@param is_critical_or_dir boolean|table Whether the hit is critical (or direction)
+---@param punch_enchantment_or_crit number|boolean|nil Value of Punch enchantment (or is_critical)
+---@param punch_enchantment number|nil Value of Punch enchantment
+---@return table Vector velocity
+function XBows.calculate_knockback_velocity(direction_or_self, is_critical_or_dir, punch_enchantment_or_crit, punch_enchantment)
+    local dir, is_crit, punch_val
+    if type(direction_or_self) == 'table' and direction_or_self.registered_bows then
+        dir = is_critical_or_dir
+        is_crit = punch_enchantment_or_crit
+        punch_val = punch_enchantment
+    else
+        dir = direction_or_self
+        is_crit = is_critical_or_dir
+        punch_val = punch_enchantment_or_crit
+    end
+
+    local norm_dir = dir and vector.copy(dir) or vector.new(0, 0, 1)
+    norm_dir.y = 0
+    if vector.length(norm_dir) > 0.001 then
+        norm_dir = vector.normalize(norm_dir)
+    else
+        norm_dir = vector.new(0, 0, 1)
+    end
+
+    local horizontal_force = is_crit and 9.5 or 7.0
+    local vertical_lift = is_crit and 4.2 or 3.6
+
+    if punch_val and punch_val > 0 then
+        local punch_mult = 1.0 + (punch_val / 100.0)
+        horizontal_force = horizontal_force * punch_mult
+        vertical_lift = math.min(7.0, vertical_lift * math.sqrt(punch_mult))
+    end
+
+    return vector.new(
+        norm_dir.x * horizontal_force,
+        vertical_lift,
+        norm_dir.z * horizontal_force
+    )
+end
+
+---Helper to calculate Body bone local position and rotation with front/back penetration
+---@param x number
+---@param y number
+---@param z number
+---@param rx number
+---@param ry number
+---@param rz number
+---@return Vector bone_pos
+---@return table bone_rot
+local function calculate_body_transform(x, y, z, rx, ry, rz)
+    local pz = -z
+    local penetration = 2.8
+    if z > 1.0 then
+        -- Front shot: arrow enters from front (z > 1.0).
+        -- Torso front surface is at bone z = -1.25.
+        -- Shift inward towards positive bone z, embedding into the chest.
+        pz = math.min(0.2, pz + penetration)
+    elseif z < -1.0 then
+        -- Back shot: arrow enters from back (z < -1.0).
+        -- Torso back surface is at bone z = +1.25.
+        -- Shift inward towards negative bone z, embedding into the back.
+        pz = math.max(-0.2, pz - penetration)
+    end
+    return vector.new(-x, y - 6.5, pz), {
+        x = rx,
+        y = (ry + 180) % 360,
+        z = rz
+    }
+end
+
+---Calculate the appropriate bone, local position, and local rotation for arrow impact on humanoid targets
+---@param target ObjectRef
+---@param position Vector Local position in target's root reference frame (model units, 1 node = 10 units)
+---@param rotation table Euler angles in degrees { x, y, z }
+---@return string bone_name Target bone name, or '' if attaching to root
+---@return Vector bone_pos Local position in bone's reference frame
+---@return table bone_rot Local rotation in bone's reference frame
+function XBows.calculate_impact_bone(target, position, rotation)
+    if not target or not target:is_valid() or not position or not rotation then
+        return '', position or vector.new(0, 0, 0), rotation or { x = 0, y = 0, z = 0 }
+    end
+
+    local is_humanoid = false
+    if target:is_player() then
+        is_humanoid = true
+    else
+        local props = target:get_properties()
+        local mesh = props and props.mesh
+        if mesh and type(mesh) == 'string' then
+            if mesh == 'character.b3d' or mesh:find('^character.*%.b3d$')
+                or mesh:find('3d_armor.*%.b3d$') or mesh:find('skinsdb.*%.b3d$')
+                or mesh:find('x_bows.*character.*%.b3d$') then
+                is_humanoid = true
+            end
+        end
+    end
+
+    if not is_humanoid then
+        return '', position, rotation
+    end
+
+    local x = position.x
+    local y = position.y
+    local z = position.z
+    local rx = rotation.x or 0
+    local ry = rotation.y or 0
+    local rz = rotation.z or 0
+
+    local bone_name
+    local bone_pos
+    local bone_rot
+
+    if y >= 12.5 then
+        bone_name = 'Head'
+        bone_pos = vector.new(-x, y - 12.8, -z)
+        bone_rot = {
+            x = rx,
+            y = (ry + 180) % 360,
+            z = rz
+        }
+    elseif y < 6.5 then
+        if x > 0 then
+            bone_name = 'Leg_Right'
+            bone_pos = vector.new(1.0 - x, 6.5 - y, z)
+            bone_rot = {
+                x = rx,
+                y = ry,
+                z = (rz + 180) % 360
+            }
+        else
+            bone_name = 'Leg_Left'
+            bone_pos = vector.new(-1.0 - x, 6.5 - y, z)
+            bone_rot = {
+                x = rx,
+                y = ry,
+                z = (rz + 180) % 360
+            }
+        end
+    else
+        -- Mid-torso and arm vertical span
+        if x > 2.0 then
+            bone_name = 'Arm_Right'
+            bone_pos = vector.new(3.15 - x, 12.0 - y, z)
+            bone_rot = {
+                x = rx,
+                y = ry,
+                z = (rz + 180) % 360
+            }
+        elseif x < -2.0 then
+            bone_name = 'Arm_Left'
+            bone_pos = vector.new(-3.15 - x, 12.0 - y, z)
+            bone_rot = {
+                x = rx,
+                y = ry,
+                z = (rz + 180) % 360
+            }
+        else
+            bone_name = 'Body'
+            bone_pos, bone_rot = calculate_body_transform(x, y, z, rx, ry, rz)
+        end
+    end
+
+    -- Verify target supports bone positioning/attachment for this bone if queryable
+    if target.get_bone_position then
+        local bpos = target:get_bone_position(bone_name)
+        if not bpos then
+            -- Target model lacks this bone, try Body fallback
+            local body_bpos = target:get_bone_position('Body')
+            if body_bpos then
+                bone_name = 'Body'
+                bone_pos, bone_rot = calculate_body_transform(x, y, z, rx, ry, rz)
+            else
+                -- Fall back to root node attachment
+                return '', position, rotation
+            end
+        end
+    end
+
+    return bone_name, bone_pos, bone_rot
+end
+
+---Get all active attached arrow child entities on a target object
+---@param target ObjectRef
+---@return table List of ObjectRef arrow children
+function XBows.get_attached_arrows(target)
+    if not target or not target:is_valid() then
+        return {}
+    end
+    if not target.get_children then
+        return {}
+    end
+    local arrow_children = {}
+    local children = target:get_children()
+    if type(children) ~= 'table' then
+        return {}
+    end
+    for _, child in ipairs(children) do
+        if child and child:is_valid() then
+            local child_ent = child:get_luaentity()
+            if child_ent and (child_ent._is_arrow or (child_ent.name and child_ent.name:find('^x_bows:'))) then
+                table.insert(arrow_children, child)
+            end
+        end
+    end
+    return arrow_children
+end
+
+---Safely cleanup and remove an attached arrow entity
+---@param arrow_obj ObjectRef
+local function remove_arrow_entity(arrow_obj)
+    if arrow_obj and arrow_obj:is_valid() then
+        local ent = arrow_obj:get_luaentity()
+        if ent and XBowsEntityDef and XBowsEntityDef.cleanup then
+            XBowsEntityDef.cleanup(ent)
+        end
+        arrow_obj:remove()
+    end
+end
+
+---Transfer attached arrows from source player to corpse entity
+---@param source_player ObjectRef
+---@param corpse_obj ObjectRef
+---@return number count Number of arrows transferred
+function XBows.transfer_arrows_to_corpse(source_player, corpse_obj)
+    if not source_player or not source_player:is_valid() then
+        return 0
+    end
+    if not corpse_obj or not corpse_obj:is_valid() then
+        return 0
+    end
+
+    local arrows = XBows.get_attached_arrows(source_player)
+    local count = 0
+    if #arrows > 0 then
+        for _, arrow in ipairs(arrows) do
+            if arrow and arrow:is_valid() then
+                local _, bone, pos, rot = arrow:get_attach()
+                bone = bone or ''
+                pos = pos or vector.new(0, 0, 0)
+                rot = rot or { x = 0, y = 0, z = 0 }
+
+                local target_bone = bone
+                local target_pos = pos
+                local target_rot = rot
+
+                -- If arrow was attached to root '', convert to Body or lay transform
+                if target_bone == '' then
+                    local has_body = false
+                    if corpse_obj.get_bone_position then
+                        local bpos = corpse_obj:get_bone_position('Body')
+                        if bpos then
+                            has_body = true
+                        end
+                    else
+                        has_body = true
+                    end
+
+                    if has_body then
+                        target_bone = 'Body'
+                        target_pos, target_rot = calculate_body_transform(pos.x, pos.y, pos.z, rot.x, rot.y, rot.z)
+                    else
+                        -- Pure root lay pose transform
+                        target_pos = vector.new(pos.x, 2.0 + pos.z, -(pos.y - 6.5))
+                        target_rot = { x = rot.x - 90, y = rot.y, z = rot.z }
+                    end
+                end
+
+                arrow:set_attach(corpse_obj, target_bone, target_pos, target_rot, true)
+
+                local arrow_ent = arrow.get_luaentity and arrow:get_luaentity()
+                if arrow_ent then
+                    arrow_ent._attached = true
+                    arrow_ent._attached_to = arrow_ent._attached_to or {}
+                    arrow_ent._attached_to.type = 'object'
+                    arrow_ent._attached_to.pos = target_pos
+                    arrow_ent._attached_bone = target_bone
+                end
+
+                count = count + 1
+            end
+        end
+    end
+
+    -- Cap attached arrows on corpse to 5
+    local corpse_arrows = XBows.get_attached_arrows(corpse_obj)
+    while #corpse_arrows > 5 do
+        remove_arrow_entity(table.remove(corpse_arrows, 1))
+    end
+
+    return count
+end
+
+---Safely clear and remove any attached arrows from an object (e.g. living player on respawn)
+---@param target ObjectRef
+---@return number count Number of arrows removed
+function XBows.clear_attached_arrows(target)
+    local arrows = XBows.get_attached_arrows(target)
+    local count = 0
+    for _, arrow in ipairs(arrows) do
+        remove_arrow_entity(arrow)
+        count = count + 1
+    end
+    return count
+end
+
+---Safely clean up all attached arrows from a corpse before or upon corpse removal
+---@param corpse_obj ObjectRef
+---@return number count
+function XBows.cleanup_corpse_arrows(corpse_obj)
+    return XBows.clear_attached_arrows(corpse_obj)
 end
 
 ---Function receive a "luaentity" table as `self`. Called when the object is instantiated.
@@ -1006,6 +1638,10 @@ function XBowsEntityDef.on_activate(self, selfObj, staticdata, dtime_s)
         type = '',
         pos = nil
     }
+    selfObj._attached_bone = ''
+    selfObj._is_arrow = true
+    selfObj._trail_spawner_id = nil
+    selfObj._bubble_spawner_id = nil
     selfObj._has_particles = false
     selfObj._lifetimer = 60
     selfObj._nodechecktimer = 0.5
@@ -1050,11 +1686,13 @@ function XBowsEntityDef.on_activate(self, selfObj, staticdata, dtime_s)
     selfObj._x_enchanting = _staticdata._x_enchanting or {}
 
     ---acceleration
-    selfObj._player_look_dir = selfObj._user:get_look_dir()
+    selfObj._player_look_dir = _staticdata._player_look_dir
+        or (selfObj._user and selfObj._user:is_valid() and selfObj._user:get_look_dir())
+        or vector.new(0, 0, 1)
 
-    selfObj._acc_x = selfObj._player_look_dir.x
-    selfObj._acc_y = gravity
-    selfObj._acc_z = selfObj._player_look_dir.z
+    selfObj._acc_x = 0
+    selfObj._acc_y = gravity or self.arrow_gravity or -19.62
+    selfObj._acc_z = 0
 
     if acc_x_min and acc_x_max then
         selfObj._acc_x = math.random(acc_x_min, acc_x_max)
@@ -1068,16 +1706,14 @@ function XBowsEntityDef.on_activate(self, selfObj, staticdata, dtime_s)
         selfObj._acc_z = math.random(acc_z_min, acc_z_max)
     end
 
-    ---strength
-    local strength_multiplier = selfObj._tflp
+    ---strength (quadratic charge easing curve: (progress^2 + 2*progress) / 3)
+    local full_interval = (selfObj._tool_capabilities and selfObj._tool_capabilities.full_punch_interval) or 1.0
+    local charge_progress = math.min(1.0, math.max(0.05, (selfObj._tflp or full_interval) / full_interval))
+    local strength_multiplier = (charge_progress * charge_progress + 2.0 * charge_progress) / 3.0
 
-    if strength_multiplier > selfObj._tool_capabilities.full_punch_interval then
-        strength_multiplier = 1
-
-        ---faster arrow, only on full punch interval
-        if selfObj._faster_arrows_multiplier then
-            strength_multiplier = strength_multiplier + (strength_multiplier / selfObj._faster_arrows_multiplier)
-        end
+    ---faster arrow, only on full punch interval
+    if charge_progress >= 1.0 and selfObj._faster_arrows_multiplier then
+        strength_multiplier = strength_multiplier + (strength_multiplier / selfObj._faster_arrows_multiplier)
     end
 
     if bow_strength_max and bow_strength_min then
@@ -1085,6 +1721,8 @@ function XBowsEntityDef.on_activate(self, selfObj, staticdata, dtime_s)
     end
 
     selfObj._strength = bow_strength * strength_multiplier
+    selfObj._charge_ratio = charge_progress
+    selfObj._charge_curve = strength_multiplier
 
     ---rotation factor
     local x_bows_registered_entity_def = self.registered_entities[selfObj.name]
@@ -1115,23 +1753,131 @@ function XBowsEntityDef.on_activate(self, selfObj, staticdata, dtime_s)
     end
 end
 
+---Calculate directional node impact shrapnel velocity based on surface normal (Newton's 3rd law recoil)
+---@param normal Vector
+---@return Vector, Vector
+local function get_shrapnel_velocity(normal)
+    local tangent = 1.6
+
+    -- Floor: blast upward and outward
+    if normal.y > 0.5 then
+        return vector.new(-tangent, 1.8, -tangent), vector.new(tangent, 4.0, tangent)
+    -- Ceiling: blast downward and outward
+    elseif normal.y < -0.5 then
+        return vector.new(-tangent, -3.5, -tangent), vector.new(tangent, -1.2, tangent)
+    end
+
+    -- Vertical wall: blast horizontally outward along surface normal with slight upward kick
+    local min_x = normal.x > 0.3 and 1.2 or (normal.x < -0.3 and -3.5 or -tangent)
+    local max_x = normal.x > 0.3 and 3.5 or (normal.x < -0.3 and -1.2 or tangent)
+    local min_z = normal.z > 0.3 and 1.2 or (normal.z < -0.3 and -3.5 or -tangent)
+    local max_z = normal.z > 0.3 and 3.5 or (normal.z < -0.3 and -1.2 or tangent)
+
+    return vector.new(min_x, 0.4, min_z), vector.new(max_x, 2.5, max_z)
+end
+
+---Check if an object is a valid, hittable player or entity (matches x_obsidianmese improvements)
+---@param object ObjectRef|nil
+---@param shooter_name string|nil
+---@return boolean
+function XBows.is_valid_player_or_entity(self, object, shooter_name)
+    if not object or not object:is_valid() then
+        return false
+    end
+
+    if object:is_player() then
+        if object:get_hp() <= 0 then
+            return false
+        end
+        if shooter_name and object:get_player_name() == shooter_name then
+            return false
+        end
+        return true
+    end
+
+    local luaentity = object:get_luaentity()
+    if not luaentity then
+        return false
+    end
+
+    -- Do not hit dropped items or other arrow projectiles
+    local name = luaentity.name or ''
+    if name == '__builtin:item' or name:find('^x_bows:') or luaentity._is_arrow then
+        return false
+    end
+
+    -- Check for health, hp, fleshy armor group, or mob classification (Creatura, CMI, Mobs Redo, physical)
+    local armor_groups = object:get_armor_groups() or {}
+    local ent_armor = luaentity.armor_groups or {}
+    local fleshy = (armor_groups.fleshy or 0) > 0 or (ent_armor.fleshy or 0) > 0
+
+    if luaentity.physical
+        or object:get_properties().physical
+        or luaentity._creatura_mob
+        or luaentity._cmi_is_mob
+        or luaentity.health
+        or luaentity.hp
+        or fleshy
+    then
+        return true
+    end
+
+    return false
+end
+
+---Clean up entity runtime resources (e.g. attached particle spawners)
+---@param selfObj EnityCustomAttrDef
+function XBowsEntityDef.cleanup(selfObj)
+    if selfObj._trail_spawner_id then
+        core.delete_particlespawner(selfObj._trail_spawner_id)
+        selfObj._trail_spawner_id = nil
+    end
+    if selfObj._bubble_spawner_id then
+        core.delete_particlespawner(selfObj._bubble_spawner_id)
+        selfObj._bubble_spawner_id = nil
+    end
+end
+
+---Function receive a "luaentity" table as `self`. Called when the object is deactivated.
+---@param self XBows
+---@param selfObj EnityCustomAttrDef
+---@param removal boolean True if object is being removed, false if mapblock is unloaded
+---@return nil
+function XBowsEntityDef.on_deactivate(self, selfObj, removal)
+    XBowsEntityDef.cleanup(selfObj)
+
+    -- In multiplayer: if mapblock unloads while arrow is still flying in mid-air,
+    -- remove it so it does not freeze as a permanent ghost projectile at chunk borders
+    if not removal and not selfObj._attached then
+        selfObj.object:remove()
+    end
+end
+
 ---Function receive a "luaentity" table as `self`. Called when the object dies.
 ---@param self XBows
 ---@param selfObj EnityCustomAttrDef
 ---@param killer ObjectRef|nil
 ---@return nil
 function XBowsEntityDef.on_death(self, selfObj, killer)
-    if not selfObj._old_pos then
-        selfObj.object:remove()
+    XBowsEntityDef.cleanup(selfObj)
+
+    -- Prevent duplicate drops if called multiple times
+    if selfObj._dropped then
+        return
+    end
+    selfObj._dropped = true
+
+    -- Creative mode or Infinity enchantment - arrows cannot be retrieved
+    if selfObj._is_creative
+        or (selfObj._x_enchanting and selfObj._x_enchanting.infinity and selfObj._x_enchanting.infinity.value > 0)
+    then
         return
     end
 
-    -- Infinity enchantment - arrows cannot be retrieved
-    if selfObj._x_enchanting.infinity and selfObj._x_enchanting.infinity.value > 0 then
-        return
+    local drop_pos = (selfObj.object and selfObj.object:is_valid() and selfObj.object:get_pos()) or selfObj._old_pos
+    if drop_pos then
+        core.item_drop(ItemStack(selfObj._arrow_name), nil, vector.round(drop_pos))
     end
-
-    core.item_drop(ItemStack(selfObj._arrow_name), nil, vector.round(selfObj._old_pos))
 end
 
 --- Function receive a "luaentity" table as `self`. Called on every server tick, after movement and collision processing.
@@ -1143,27 +1889,93 @@ end
 function XBowsEntityDef.on_step(self, selfObj, dtime)
     selfObj._step_count = selfObj._step_count + 1
 
+    -- Initialize velocity, acceleration, yaw, and particle trail on step 1
     if selfObj._step_count == 1 then
-        ---initialize
-        ---this has to be done here for raycast to kick-in asap
         selfObj.object:set_velocity(vector.multiply(selfObj._player_look_dir, selfObj._strength))
         selfObj.object:set_acceleration({ x = selfObj._acc_x, y = selfObj._acc_y, z = selfObj._acc_z })
         selfObj.object:set_yaw(core.dir_to_yaw(selfObj._player_look_dir))
+
+        -- Attached particle trail: spawned once at flight start, deleted on impact/water
+        -- (Matches x_obsidianmese attached projectile trail to avoid per-tick packet spam)
+        if not selfObj._trail_spawner_id and not selfObj._in_liquid then
+            local p_name
+            if selfObj._tflp >= selfObj._tool_capabilities.full_punch_interval then
+                if selfObj._is_critical_hit then
+                    p_name = selfObj._arrow_particle_effect_crit
+                elseif selfObj._faster_arrows_multiplier then
+                    p_name = selfObj._arrow_particle_effect_fast
+                else
+                    p_name = selfObj._arrow_particle_effect
+                end
+            end
+            if p_name then
+                selfObj._trail_spawner_id = self:get_particle_effect_for_arrow(p_name, nil, selfObj.object)
+            end
+        end
     end
 
+    -- Attached arrow processing (early return: zero raycasts or physics overhead when stuck)
+    if selfObj._attached then
+        selfObj._lifetimer = selfObj._lifetimer - dtime
+        if selfObj._lifetimer <= 0 then
+            XBowsEntityDef.cleanup(selfObj)
+            selfObj.object:remove()
+            return
+        end
+
+        -- Check if attached to node and node was dug
+        if selfObj._attached_to.type == 'node' then
+            selfObj._nodechecktimer = selfObj._nodechecktimer - dtime
+            if selfObj._nodechecktimer <= 0 then
+                selfObj._nodechecktimer = 0.5
+                local node = core.get_node_or_nil(selfObj._attached_to.pos)
+                if not node or node.name == 'air' then
+                    -- Node was dug: detach and let arrow drop by gravity
+                    selfObj._attached = false
+                    selfObj._attached_to.type = ''
+                    selfObj._attached_to.pos = nil
+                    selfObj._old_pos = selfObj.object:get_pos()
+                    selfObj.object:set_velocity({ x = 0, y = -3, z = 0 })
+                    selfObj.object:set_acceleration({ x = 0, y = -9.81, z = 0 })
+                    selfObj.object:set_properties({ collisionbox = { 0, 0, 0, 0, 0, 0 } })
+                    return
+                end
+            end
+        elseif selfObj._attached_to.type == 'object' then
+            -- Remove arrow if parent entity died or despawned
+            if not selfObj.object:get_attach() then
+                XBowsEntityDef.cleanup(selfObj)
+                selfObj.object:remove()
+                return
+            end
+        end
+
+        return
+    end
+
+    -- In-flight position and lifetime checks
     local pos = selfObj.object:get_pos()
-    selfObj._old_pos = selfObj._old_pos or pos
-    local ray = core.raycast(selfObj._old_pos, pos, true, true)
-    local pointed_thing = ray:next()
+    if not pos then
+        XBowsEntityDef.cleanup(selfObj)
+        selfObj.object:remove()
+        return
+    end
 
     selfObj._lifetimer = selfObj._lifetimer - dtime
-    selfObj._nodechecktimer = selfObj._nodechecktimer - dtime
+    if selfObj._lifetimer <= 0 then
+        XBowsEntityDef.cleanup(selfObj)
+        selfObj.object:remove()
+        return
+    end
 
-    -- adjust pitch when flying
-    if not selfObj._attached then
-        local velocity = selfObj.object:get_velocity()
+    selfObj._old_pos = selfObj._old_pos or pos
+
+    -- In-flight pitch adjustment
+    local velocity = selfObj.object:get_velocity()
+    if velocity then
         local v_rotation = selfObj.object:get_rotation()
-        local pitch = math.atan2(velocity.y, math.sqrt(velocity.x ^ 2 + velocity.z ^ 2))
+        local horiz = math.sqrt(velocity.x ^ 2 + velocity.z ^ 2)
+        local pitch = math.atan2(velocity.y, horiz)
 
         selfObj.object:set_rotation({
             x = pitch,
@@ -1172,73 +1984,19 @@ function XBowsEntityDef.on_step(self, selfObj, dtime)
         })
     end
 
-    -- remove attached arrows after lifetime
-    if selfObj._lifetimer <= 0 then
-        selfObj.object:remove()
-        return
-    end
-
-    -- add particles only when not attached
-    if not selfObj._attached and not selfObj._in_liquid then
-        selfObj._has_particles = true
-
-        if selfObj._tflp >= selfObj._tool_capabilities.full_punch_interval then
-            if selfObj._is_critical_hit then
-                self:get_particle_effect_for_arrow(selfObj._arrow_particle_effect_crit, selfObj._old_pos)
-            elseif selfObj._faster_arrows_multiplier then
-                self:get_particle_effect_for_arrow(selfObj._arrow_particle_effect_fast, selfObj._old_pos)
-            else
-                self:get_particle_effect_for_arrow(selfObj._arrow_particle_effect, selfObj._old_pos)
-            end
-        end
-    end
-
-    -- remove attached arrows after object dies
-    if not selfObj.object:get_attach() and selfObj._attached_to.type == 'object' then
-        selfObj.object:remove()
-        return
-    end
-
-    -- arrow falls down when not attached to node any more
-    if selfObj._attached_to.type == 'node' and selfObj._attached and selfObj._nodechecktimer <= 0 then
-        local node = core.get_node(selfObj._attached_to.pos)
-        selfObj._nodechecktimer = 0.5
-
-        if not node then
-            return
-        end
-
-        if node.name == 'air' then
-            selfObj.object:set_velocity({ x = 0, y = -3, z = 0 })
-            selfObj.object:set_acceleration({ x = 0, y = -3, z = 0 })
-            -- reset values
-            selfObj._attached = false
-            selfObj._attached_to.type = ''
-            selfObj._attached_to.pos = nil
-            selfObj.object:set_properties({ collisionbox = { 0, 0, 0, 0, 0, 0 } })
-
-            return
-        end
-    end
-
-    while pointed_thing do
-        local ip_pos = pointed_thing.intersection_point
-        local in_pos = pointed_thing.intersection_normal
-        selfObj.pointed_thing = pointed_thing
-
-        if not selfObj._attached then
-            for _, object in ipairs(core.get_objects_inside_radius(selfObj.object:get_pos(), 5)) do
-                if object:is_player()
-                    and object:get_hp() > 0
-                    and object:get_player_name() ~= selfObj._user:get_player_name()
-                    and not selfObj._flyby_sound_played[object:get_player_name()]
-                then
-                    selfObj._flyby_sound_played[object:get_player_name()] = true
-
-                    local p1 = selfObj.object:get_pos()
-                    local p2 = object:get_pos()
-                    local distance = math.round(vector.distance(p1, p2))
-                    local gain = 1 / distance
+    -- Flyby sound for near misses (runs in open air outside collision loop, throttled to every 2 steps)
+    if selfObj._step_count % 2 == 0 then
+        for _, object in ipairs(core.get_objects_inside_radius(pos, 5)) do
+            if object:is_player()
+                and object:get_hp() > 0
+                and object:get_player_name() ~= selfObj._user_name
+                and not selfObj._flyby_sound_played[object:get_player_name()]
+            then
+                selfObj._flyby_sound_played[object:get_player_name()] = true
+                local p2 = object:get_pos()
+                if p2 then
+                    local distance = math.max(1, math.round(vector.distance(pos, p2)))
+                    local gain = math.min(1.0, 1.0 / distance)
 
                     core.sound_play({
                         name = 'x_bows_arrow_flyby',
@@ -1250,378 +2008,500 @@ function XBowsEntityDef.on_step(self, selfObj, dtime)
                 end
             end
         end
+    end
+
+    -- Raycast collision detection (using clean for pt in ray iterator)
+    local ray = core.raycast(selfObj._old_pos, pos, true, true)
+    local hit = false
+    local in_liquid = false
+
+    for pointed_thing in ray do
+        local ip_pos = pointed_thing.intersection_point or pos
+        selfObj.pointed_thing = pointed_thing
 
         if pointed_thing.type == 'object'
-            and pointed_thing.ref ~= selfObj.object
-            and pointed_thing.ref:get_hp() > 0
-            and (
-                (
-                    pointed_thing.ref:is_player()
-                    and pointed_thing.ref:get_player_name() ~= selfObj._user:get_player_name()
-                )
-                or (
-                    pointed_thing.ref:get_luaentity()
-                    and (
-                        pointed_thing.ref:get_luaentity().physical
-                        or pointed_thing.ref:get_properties().physical
-                    )
-                    and pointed_thing.ref:get_luaentity().name ~= '__builtin:item'
-                )
-            )
-            and selfObj.object:get_attach() == nil
-            and not selfObj._attached
+            and self:is_valid_player_or_entity(pointed_thing.ref, selfObj._user_name)
         then
-            if pointed_thing.ref:is_player() then
-                core.sound_play('x_bows_arrow_successful_hit', {
-                    to_player = selfObj._user:get_player_name(),
-                    gain = 0.3
-                })
-            else
-                core.sound_play({
-                    name = selfObj._sound_hit,
-                    gain = 0.6
-                }, {
-                    to_player = selfObj._user:get_player_name(),
-                    pitch = math.random(7, 13) / 10
-                }, true)
+            -- Stop attached particle trails (air trail & bubble trail)
+            XBowsEntityDef.cleanup(selfObj)
+
+            -- Shooter feedback sound
+            if selfObj._user_name then
+                if pointed_thing.ref:is_player() then
+                    core.sound_play('x_bows_arrow_successful_hit', {
+                        to_player = selfObj._user_name,
+                        gain = 0.3
+                    })
+                else
+                    core.sound_play({
+                        name = selfObj._sound_hit,
+                        gain = 0.6
+                    }, {
+                        to_player = selfObj._user_name,
+                        pitch = math.random(7, 13) / 10
+                    }, true)
+                end
             end
 
             selfObj.object:set_velocity({ x = 0, y = 0, z = 0 })
             selfObj.object:set_acceleration({ x = 0, y = 0, z = 0 })
 
-            -- calculate damage
-            local target_armor_groups = pointed_thing.ref:get_armor_groups()
-            local _damage = 0
+            -- Calculate damage
+            local full_punch_interval = selfObj._tool_capabilities.full_punch_interval or 1.0
+            local tflp = selfObj._tflp or full_punch_interval
+            local charge_ratio = limit(tflp / full_punch_interval, 0.0, 1.0)
+            local charge_curve = selfObj._charge_curve or ((charge_ratio * charge_ratio + 2.0 * charge_ratio) / 3.0)
+            local base_arrow_damage = (selfObj._tool_capabilities.damage_groups and selfObj._tool_capabilities.damage_groups.fleshy) or 2
+            local base_damage = base_arrow_damage * charge_curve
 
-            if selfObj._add_damage then
-                -- add damage from quiver
-                _damage = _damage + selfObj._add_damage
+            if selfObj._add_damage and selfObj._add_damage > 0 then
+                base_damage = base_damage + selfObj._add_damage
             end
 
-            if selfObj._x_enchanting.power then
-                -- add damage from enchantment
-                _damage = _damage + _damage * (selfObj._x_enchanting.power.value / 100)
+            if selfObj._x_enchanting.power and selfObj._x_enchanting.power.value > 0 then
+                base_damage = base_damage * (1.0 + (selfObj._x_enchanting.power.value / 100.0))
             end
 
-            for group, base_damage in pairs(selfObj._tool_capabilities.damage_groups) do
-                _damage = _damage
-                    + base_damage
-                    * limit(selfObj._tflp / selfObj._tool_capabilities.full_punch_interval, 0.0, 1.0)
-                    * ((target_armor_groups[group] or 0) + get_3d_armor_armor(pointed_thing.ref)) / 100.0
-            end
-
-            -- crits
             if selfObj._is_critical_hit then
-                _damage = _damage * 2
+                base_damage = base_damage * 2
             end
 
-            -- knockback
-            local dir = vector.normalize(vector.subtract(selfObj._shot_from_pos, ip_pos))
-            local distance = vector.distance(selfObj._shot_from_pos, ip_pos)
-            local knockback = core.calculate_knockback(
+            -- Armor mitigation and inverse scaling (matches x_obsidianmese)
+            local is_player = pointed_thing.ref:is_player()
+            local target_armor_groups = pointed_thing.ref:get_armor_groups() or {}
+            local ent = not is_player and pointed_thing.ref:get_luaentity()
+            if ent and ent.armor_groups then
+                for k, v in pairs(ent.armor_groups) do
+                    if target_armor_groups[k] == nil then
+                        target_armor_groups[k] = v
+                    end
+                end
+            end
+
+            local is_immortal = is_player
+                and ((target_armor_groups.immortal or 0) > 0)
+                or ((target_armor_groups.fleshy or 0) == 0 and (target_armor_groups.immortal or 0) > 0)
+
+            local punch_fleshy = 0
+            local desired_damage = 0
+
+            if not is_immortal and base_damage > 0 then
+                local fleshy_group = target_armor_groups.fleshy or 100
+                local mitigation = math.max(0.25, math.min(1.0, fleshy_group / 100.0))
+                desired_damage = math.max(1, math.floor(base_damage * mitigation + 0.5))
+
+                if fleshy_group > 0 and fleshy_group < 100 then
+                    punch_fleshy = math.ceil(desired_damage * (100.0 / fleshy_group))
+                else
+                    punch_fleshy = desired_damage
+                end
+            end
+
+            -- Flight trajectory for knockback and local attachment orientation
+            local flight_dir
+            if selfObj._shot_from_pos and ip_pos and vector.distance(selfObj._shot_from_pos, ip_pos) > 0.001 then
+                flight_dir = vector.direction(selfObj._shot_from_pos, ip_pos)
+            else
+                local vel = selfObj.object:get_velocity()
+                flight_dir = (vel and vector.length(vel) > 0.001) and vector.normalize(vel) or vector.new(0, 0, 1)
+            end
+
+            -- Knockback calculation
+            local distance = selfObj._shot_from_pos and ip_pos and vector.distance(selfObj._shot_from_pos, ip_pos) or 0
+            local old_calculate_knockback = core.calculate_knockback
+            local knockback = old_calculate_knockback(
                 pointed_thing.ref,
                 selfObj.object,
-                selfObj._tflp,
+                full_punch_interval,
                 {
-                    full_punch_interval = selfObj._tool_capabilities.full_punch_interval,
-                    damage_groups = { fleshy = _damage },
+                    full_punch_interval = full_punch_interval,
+                    damage_groups = { fleshy = desired_damage },
                 },
-                dir,
+                flight_dir,
                 distance,
-                _damage
+                desired_damage
             )
 
-            if selfObj._x_enchanting.punch then
-                -- add knockback from enchantment
-                -- the `punch.value` multiplier is too strong so divide it by half
-                knockback = knockback * (selfObj._x_enchanting.punch.value / 2)
+            local shooter = (selfObj._user_name and core.get_player_by_name(selfObj._user_name))
+                or (selfObj._user and selfObj._user:is_valid() and selfObj._user:is_player() and selfObj._user)
+                or selfObj.object
 
-                pointed_thing.ref:add_velocity({
-                    x = dir.x * knockback * -1,
-                    y = 7,
-                    z = dir.z * knockback * -1
-                })
+            local shooter_is_player = shooter and shooter:is_player()
+            local is_pvp = is_player and shooter_is_player and (shooter:get_player_name() ~= pointed_thing.ref:get_player_name())
+            local pvp_blocked = is_pvp and not XBows.pvp
+
+            if pvp_blocked then
+                desired_damage = 0
+                punch_fleshy = 0
+            end
+
+            if is_player then
+                if not pvp_blocked then
+                    -- For players: use add_velocity with punch knockback=0 to avoid engine C++ double-knockback jitter
+                    local punch_val = selfObj._x_enchanting.punch and selfObj._x_enchanting.punch.value
+                    local knockback_vel = XBows.calculate_knockback_velocity(flight_dir, selfObj._is_critical_hit, punch_val)
+                    pointed_thing.ref:add_velocity(knockback_vel)
+                end
             else
+                -- For mobs/entities: apply velocity and pass knockback into damage_groups so mobs_redo / mobkit
+                -- receive their intended knockback impulse and properly trigger their runaway flee behavior
+                local mob_kb = knockback
+                local punch_val = selfObj._x_enchanting.punch and selfObj._x_enchanting.punch.value
+                if punch_val and punch_val > 0 then
+                    mob_kb = mob_kb * (1.0 + (punch_val / 100.0))
+                end
                 pointed_thing.ref:add_velocity({
-                    x = dir.x * knockback * -1,
+                    x = flight_dir.x * mob_kb,
                     y = 5,
-                    z = dir.z * knockback * -1
+                    z = flight_dir.z * mob_kb
                 })
             end
 
             pointed_thing.ref:punch(
-                selfObj._user,
-                selfObj._tflp,
+                shooter,
+                full_punch_interval,
                 {
-                    full_punch_interval = selfObj._tool_capabilities.full_punch_interval,
-                    damage_groups = { fleshy = _damage, knockback = knockback }
+                    full_punch_interval = full_punch_interval,
+                    damage_groups = { fleshy = punch_fleshy, knockback = is_player and 0 or knockback }
                 },
-                {
-                    x = dir.x * -1,
-                    y = -7,
-                    z = dir.z * -1
-                }
+                flight_dir
             )
 
-            selfObj._caused_damage = _damage
+            selfObj._caused_damage = desired_damage
             selfObj._caused_knockback = knockback
 
-            XBows:show_damage_numbers(selfObj.object:get_pos(), _damage, selfObj._is_critical_hit, selfObj._user)
+            if desired_damage > 0 then
+                XBows:show_damage_numbers(selfObj.object:get_pos(), desired_damage, selfObj._is_critical_hit, shooter)
+            end
 
-            -- already dead (entity)
-            if not pointed_thing.ref:get_luaentity() and not pointed_thing.ref:is_player() then
+            -- If mob entity died or was removed from this hit, remove arrow immediately.
+            -- For players, keep the arrow attached so it transfers to their fallen corpse.
+            if not is_player and pointed_thing.ref:get_hp() <= 0 then
                 selfObj.object:remove()
                 return
             end
 
-            -- already dead (player)
-            if pointed_thing.ref:get_hp() <= 0 then
+            if not XBows.settings.x_bows_attach_arrows_to_entities and not is_player then
                 selfObj.object:remove()
                 return
             end
 
-            -- attach arrow prepare
-            local rotation = { x = 0, y = 0, z = 0 }
-
-            if in_pos.x == 1 then
-                -- x = 0
-                -- y = -90
-                -- z = 0
-                rotation.x = math.random(-10, 10)
-                rotation.y = math.random(-100, -80)
-                rotation.z = math.random(-10, 10)
-            elseif in_pos.x == -1 then
-                -- x = 0
-                -- y = 90
-                -- z = 0
-                rotation.x = math.random(-10, 10)
-                rotation.y = math.random(80, 100)
-                rotation.z = math.random(-10, 10)
-            elseif in_pos.y == 1 then
-                -- x = -90
-                -- y = 0
-                -- z = -180
-                rotation.x = math.random(-100, -80)
-                rotation.y = math.random(-10, 10)
-                rotation.z = math.random(-190, -170)
-            elseif in_pos.y == -1 then
-                -- x = 90
-                -- y = 0
-                -- z = 180
-                rotation.x = math.random(80, 100)
-                rotation.y = math.random(-10, 10)
-                rotation.z = math.random(170, 190)
-            elseif in_pos.z == 1 then
-                -- x = 180
-                -- y = 0
-                -- z = 180
-                rotation.x = math.random(170, 190)
-                rotation.y = math.random(-10, 10)
-                rotation.z = math.random(170, 190)
-            elseif in_pos.z == -1 then
-                -- x = -180
-                -- y = 180
-                -- z = -180
-                rotation.x = math.random(-190, -170)
-                rotation.y = math.random(170, 190)
-                rotation.z = math.random(-190, -170)
-            end
-
-            if not XBows.settings.x_bows_attach_arrows_to_entities and not pointed_thing.ref:is_player() then
+            -- Attach arrow to target
+            local target = pointed_thing.ref
+            local target_pos = target:get_pos()
+            if not target_pos then
                 selfObj.object:remove()
                 return
             end
 
-            ---normalize arrow scale when attached to scaled entity
-            ---(prevents huge arrows when attached to scaled up entity models)
-            local obj_props = selfObj.object:get_properties()
-            local obj_to_props = pointed_thing.ref:get_properties()
-            local vs = vector.divide(obj_props.visual_size, obj_to_props.visual_size)
+            local target_yaw = (is_player and target:get_look_horizontal()) or target:get_yaw() or 0
+            local cos_y = math.cos(target_yaw)
+            local sin_y = math.sin(target_yaw)
 
-            selfObj.object:set_properties({ visual_size = vs })
+            -- Hit position in target's local reference frame
+            local world_delta = vector.subtract(ip_pos, target_pos)
+            local local_x = world_delta.x * cos_y + world_delta.z * sin_y
+            local local_y = world_delta.y
+            local local_z = -world_delta.x * sin_y + world_delta.z * cos_y
 
-            -- attach arrow
-            local position = vector.subtract(
-                ip_pos,
-                pointed_thing.ref:get_pos()
+            -- Flight trajectory in target's local reference frame
+            local local_dir_x = flight_dir.x * cos_y + flight_dir.z * sin_y
+            local local_dir_y = flight_dir.y
+            local local_dir_z = -flight_dir.x * sin_y + flight_dir.z * cos_y
+
+            -- Offset slightly outward along flight path so dynamic mob meshes don't bury the arrow.
+            -- For players, keep at 0 so arrow doesn't float away from the player mesh.
+            local outward_offset = is_player and 0.0 or 0.20
+            local_x = local_x - (local_dir_x * outward_offset)
+            local_y = local_y - (local_dir_y * outward_offset)
+            local_z = local_z - (local_dir_z * outward_offset)
+
+            -- Irrlicht Euler convention: rot_x = -pitch, rot_y = atan2(dx, dz)
+            local horiz_len = math.sqrt(local_dir_x ^ 2 + local_dir_z ^ 2)
+            local rot_x = -math.deg(math.atan2(local_dir_y, horiz_len))
+            local rot_y = math.deg(math.atan2(local_dir_x, local_dir_z))
+
+            local rotation = {
+                x = rot_x + math.random(-3, 3),
+                y = rot_y + math.random(-3, 3),
+                z = math.random(-25, 25)
+            }
+
+            -- Universal entity scale normalization (Animalia, Creatura, etc.)
+            local obj_to_props = target:get_properties()
+            local target_vs = obj_to_props.visual_size or { x = 1, y = 1 }
+            local vs_x = (target_vs.x and target_vs.x > 0) and target_vs.x or 1
+            local vs_y = (target_vs.y and target_vs.y > 0) and target_vs.y or 1
+
+            selfObj.object:set_properties({
+                visual_size = { x = 1.0 / vs_x, y = 1.0 / vs_y }
+            })
+
+            local position = vector.new(
+                (local_x * 10) / vs_x,
+                (local_y * 10) / vs_y,
+                (local_z * 10) / vs_x
             )
 
-            if pointed_thing.ref:is_player() then
-                position = vector.multiply(position, 10)
-            end
+            local bone_name, bone_pos, bone_rot = XBows.calculate_impact_bone(target, position, rotation)
 
             ---`after` here prevents visual glitch when the arrow still shows as huge for a split second
             ---before the new calculated scale is applied
             core.after(0, function()
-                selfObj.object:set_attach(
-                    pointed_thing.ref,
-                    '',
-                    position,
-                    rotation,
-                    true
-                )
+                if selfObj.object and selfObj.object:is_valid()
+                    and target and target:is_valid()
+                    and selfObj.object:get_pos() and target:get_pos()
+                then
+                    selfObj.object:set_attach(
+                        target,
+                        bone_name,
+                        bone_pos,
+                        bone_rot,
+                        true
+                    )
+                end
             end)
 
             selfObj._attached = true
             selfObj._attached_to.type = pointed_thing.type
-            selfObj._attached_to.pos = position
+            selfObj._attached_to.pos = bone_pos
+            selfObj._attached_bone = bone_name
 
-            -- remove last arrow when too many already attached
-            local children = {}
-            local projectile_entity = self.registered_arrows[selfObj._arrow_name].custom.projectile_entity
-
-            for _, object in ipairs(pointed_thing.ref:get_children()) do
-                if object:get_luaentity() and object:get_luaentity().name == projectile_entity then
-                    table.insert(children, object)
-                end
+            -- Cap attached arrows on entity across all arrow types
+            local arrow_children = XBows.get_attached_arrows(target)
+            while #arrow_children > 5 do
+                remove_arrow_entity(table.remove(arrow_children, 1))
             end
 
-            if #children > 5 then
-                children[1]:remove()
-            end
-
-            if pointed_thing.ref:is_player() then
-                local on_hit_player_callback = self.registered_arrows[selfObj._arrow_name].custom.on_hit_player
-
-                if on_hit_player_callback then
-                    on_hit_player_callback(selfObj, pointed_thing)
+            if is_player then
+                local on_hit_player_cb = self.registered_arrows[selfObj._arrow_name].custom.on_hit_player
+                if on_hit_player_cb then
+                    on_hit_player_cb(selfObj, pointed_thing)
                 end
             else
-                local on_hit_entity_callback = self.registered_arrows[selfObj._arrow_name].custom.on_hit_entity
-
-                if on_hit_entity_callback then
-                    on_hit_entity_callback(selfObj, pointed_thing)
+                local on_hit_entity_cb = self.registered_arrows[selfObj._arrow_name].custom.on_hit_entity
+                if on_hit_entity_cb then
+                    on_hit_entity_cb(selfObj, pointed_thing)
                 end
             end
 
-            return
+            hit = true
+            break
 
-        elseif pointed_thing.type == 'node' and not selfObj._attached then
-            local node = core.get_node(pointed_thing.under)
-            local node_def = core.registered_nodes[node.name]
+        elseif pointed_thing.type == 'node' then
+            local node = core.get_node_or_nil(pointed_thing.under)
+            local node_def = node and core.registered_nodes[node.name]
 
-            if not node_def then
-                return
-            end
+            if node_def then
+                if node_def.drawtype == 'liquid' then
+                    in_liquid = true
+                    local viscosity = (node_def.liquid_viscosity and node_def.liquid_viscosity > 0)
+                        and node_def.liquid_viscosity or 1
 
-            selfObj._velocity = selfObj.object:get_velocity()
+                    if not selfObj._in_liquid then
+                        -- Initial liquid entry: shock drag, replace air trail with attached bubble trail
+                        selfObj._in_liquid = true
 
-            if node_def.drawtype == 'liquid' and not selfObj._is_drowning then
-                selfObj._is_drowning = true
-                selfObj._in_liquid = true
-                local drag = 1 / (node_def.liquid_viscosity * 6)
-                selfObj.object:set_velocity(vector.multiply(selfObj._velocity, drag))
-                selfObj.object:set_acceleration({ x = 0, y = -1.0, z = 0 })
+                        if selfObj._trail_spawner_id then
+                            core.delete_particlespawner(selfObj._trail_spawner_id)
+                            selfObj._trail_spawner_id = nil
+                        end
 
-                XBows:get_particle_effect_for_arrow('bubble', selfObj._old_pos)
-            elseif selfObj._is_drowning then
-                selfObj._is_drowning = false
+                        if not selfObj._bubble_spawner_id then
+                            selfObj._bubble_spawner_id = self:get_particle_effect_for_arrow('bubble', nil, selfObj.object)
+                        end
 
-                if selfObj._velocity then
-                    selfObj.object:set_velocity(selfObj._velocity)
-                end
+                        local cur_vel = selfObj.object:get_velocity()
+                        if cur_vel then
+                            local entry_factor = math.max(0.20, 0.40 / (viscosity * 0.5 + 0.5))
+                            local new_vel = {
+                                x = cur_vel.x * entry_factor,
+                                y = math.max(-3.5, cur_vel.y * entry_factor),
+                                z = cur_vel.z * entry_factor
+                            }
+                            selfObj.object:set_velocity(new_vel)
+                            selfObj.object:set_acceleration({ x = 0, y = -3.0, z = 0 })
+                        end
+                    else
+                        -- Continuous liquid ballistics: smooth hydrodynamic drag & natural downward terminal sinking
+                        local cur_vel = selfObj.object:get_velocity()
+                        if cur_vel then
+                            local horiz = math.sqrt(cur_vel.x ^ 2 + cur_vel.z ^ 2)
+                            local terminal_sink = -2.8 * math.sqrt(viscosity)
 
-                selfObj.object:set_acceleration({ x = 0, y = -9.81, z = 0 })
-            end
+                            if horiz > 0.15 then
+                                -- Forward speed bleeds off smoothly without packet-spamming oscillation
+                                local drag_factor = math.max(0.0, 1.0 - (3.5 * viscosity * dtime))
+                                local new_y = cur_vel.y > terminal_sink
+                                    and math.max(terminal_sink, cur_vel.y - (4.0 * dtime))
+                                    or terminal_sink
 
-            if XBows.mesecons and node.name == 'x_bows:target' then
-                local distance = vector.distance(pointed_thing.under, ip_pos)
-                distance = math.floor(distance * 100) / 100
-
-                -- only close to the center of the target will trigger signal
-                if distance < 0.54 then
-                    mesecon.receptor_on(pointed_thing.under)
-                    core.get_node_timer(pointed_thing.under):start(2)
-                end
-            end
-
-            if node_def.walkable then
-                selfObj.object:set_velocity({ x = 0, y = 0, z = 0 })
-                selfObj.object:set_acceleration({ x = 0, y = 0, z = 0 })
-                selfObj.object:set_pos(ip_pos)
-                selfObj.object:set_rotation(selfObj.object:get_rotation())
-                selfObj._attached = true
-                selfObj._attached_to.type = pointed_thing.type
-                selfObj._attached_to.pos = pointed_thing.under
-                selfObj.object:set_properties({ collisionbox = { -0.2, -0.2, -0.2, 0.2, 0.2, 0.2 } })
-
-                -- remove last arrow when too many already attached
-                local children = {}
-                local projectile_entity = self.registered_arrows[selfObj._arrow_name].custom.projectile_entity
-
-                for _, object in ipairs(core.get_objects_inside_radius(pointed_thing.under, 1)) do
-                    if not object:is_player()
-                        and object:get_luaentity()
-                        and object:get_luaentity().name == projectile_entity
-                    then
-                        table.insert(children, object)
+                                selfObj.object:set_velocity({
+                                    x = cur_vel.x * drag_factor,
+                                    y = new_y,
+                                    z = cur_vel.z * drag_factor
+                                })
+                                selfObj.object:set_acceleration({ x = 0, y = -1.5, z = 0 })
+                            elseif not selfObj._is_drowning then
+                                -- Settled sinking phase: steady terminal downward sinking.
+                                -- Zero acceleration avoids continuous network packet floods to clients
+                                selfObj._is_drowning = true
+                                selfObj.object:set_velocity({ x = 0, y = terminal_sink, z = 0 })
+                                selfObj.object:set_acceleration({ x = 0, y = 0, z = 0 })
+                            end
+                        end
                     end
+                elseif node_def.walkable then
+                    -- Stop attached particle trails (air trail & bubble trail)
+                    XBowsEntityDef.cleanup(selfObj)
+
+                    selfObj.object:set_velocity({ x = 0, y = 0, z = 0 })
+                    selfObj.object:set_acceleration({ x = 0, y = 0, z = 0 })
+                    selfObj.object:set_pos(ip_pos)
+                    selfObj.object:set_rotation(selfObj.object:get_rotation())
+                    selfObj._attached = true
+                    selfObj._attached_to.type = pointed_thing.type
+                    selfObj._attached_to.pos = pointed_thing.under
+                    selfObj.object:set_properties({ collisionbox = { -0.2, -0.2, -0.2, 0.2, 0.2, 0.2 } })
+
+                    -- Mesecons target node support
+                    if XBows.mesecons and node.name == 'x_bows:target' then
+                        local distance = vector.distance(pointed_thing.under, ip_pos)
+                        distance = math.floor(distance * 100) / 100
+                        if distance < 0.54 then
+                            mesecon.receptor_on(pointed_thing.under)
+                            core.get_node_timer(pointed_thing.under):start(2)
+                        end
+                    end
+
+                    -- Cap attached arrows in 1 node radius across all arrow types
+                    local node_arrows = {}
+                    for _, object in ipairs(core.get_objects_inside_radius(pointed_thing.under, 1)) do
+                        if not object:is_player() then
+                            local ent_obj = object:get_luaentity()
+                            if ent_obj and (ent_obj._is_arrow or (ent_obj.name and ent_obj.name:find('^x_bows:'))) then
+                                table.insert(node_arrows, object)
+                            end
+                        end
+                    end
+                    if #node_arrows > 5 then
+                        local old_arrow = node_arrows[1]
+                        local old_ent = old_arrow:get_luaentity()
+                        if old_ent then
+                            XBowsEntityDef.cleanup(old_ent)
+                        end
+                        old_arrow:remove()
+                    end
+
+                    -- Wiggle animation
+                    local x_bows_registered_entity_def = self.registered_entities[selfObj.name]
+                    if x_bows_registered_entity_def and x_bows_registered_entity_def._custom.animations.on_hit_node then
+                        selfObj.object:set_animation(
+                            unpack(x_bows_registered_entity_def._custom.animations.on_hit_node)
+                        )
+                    end
+
+                    local on_hit_node_cb = self.registered_arrows[selfObj._arrow_name].custom.on_hit_node
+                    if on_hit_node_cb then
+                        on_hit_node_cb(selfObj, pointed_thing)
+                    end
+
+                    local shooter = (selfObj._user_name and core.get_player_by_name(selfObj._user_name))
+                        or (selfObj._user and selfObj._user:is_valid() and selfObj._user:is_player() and selfObj._user)
+
+                    if node_def.on_punch and shooter then
+                        node_def.on_punch(
+                            pointed_thing.under,
+                            { name = node.name, param1 = node.param1, param2 = node.param2 },
+                            shooter,
+                            pointed_thing
+                        )
+                    end
+
+                    -- Node impact shrapnel particles (Newton's 3rd law recoil opposite to hit surface)
+                    local normal = (pointed_thing.above and pointed_thing.under and not vector.equals(pointed_thing.above, pointed_thing.under))
+                        and vector.subtract(pointed_thing.above, pointed_thing.under)
+                        or vector.new(0, 1, 0)
+                    if normal.x == 0 and normal.y == 0 and normal.z == 0 then
+                        normal = vector.new(0, 1, 0)
+                    end
+
+                    local spawn_pos = vector.add(ip_pos, vector.multiply(normal, 0.05))
+                    local min_vel, max_vel = get_shrapnel_velocity(normal)
+
+                    if core.has_feature and core.has_feature({ dynamic_add_media_table = true, particlespawner_tweenable = true }) then
+                        -- Modern syntax (v5.6.0+)
+                        core.add_particlespawner({
+                            amount = 10,
+                            time = 0.1,
+                            pos = spawn_pos,
+                            radius = { min = 0.05, max = 0.25 },
+                            vel = {
+                                min = min_vel,
+                                max = max_vel,
+                            },
+                            acc = vector.new(0, -9.81, 0),
+                            drag = vector.new(0.3, 0.05, 0.3),
+                            bounce = { min = 0.2, max = 0.4 },
+                            exptime = { min = 0.5, max = 1.0 },
+                            size = { min = 0.7, max = 1.5 },
+                            node = { name = node_def.name },
+                            collisiondetection = true,
+                            collision_removal = false,
+                            object_collision = false,
+                        })
+                    else
+                        -- Graceful fallback for older engines (< v5.6)
+                        core.add_particlespawner({
+                            amount = 10,
+                            time = 0.1,
+                            minpos = vector.subtract(spawn_pos, 0.15),
+                            maxpos = vector.add(spawn_pos, 0.15),
+                            minvel = min_vel,
+                            maxvel = max_vel,
+                            minacc = vector.new(0, -9.81, 0),
+                            maxacc = vector.new(0, -9.81, 0),
+                            minexptime = 0.5,
+                            maxexptime = 1.0,
+                            minsize = 0.7,
+                            maxsize = 1.5,
+                            node = { name = node_def.name },
+                            collisiondetection = true,
+                            collision_removal = false,
+                            object_collision = false,
+                        })
+                    end
+
+                    core.sound_play({
+                        name = selfObj._sound_hit,
+                        gain = 0.6,
+                    }, {
+                        pos = pointed_thing.under,
+                        pitch = math.random(7, 13) / 10,
+                        max_hear_distance = 16
+                    }, true)
+
+                    hit = true
+                    break
                 end
-
-                if #children > 5 then
-                    children[1]:remove()
-                end
-
-                ---Wiggle
-                local x_bows_registered_entity_def = self.registered_entities[selfObj.name]
-                if x_bows_registered_entity_def and x_bows_registered_entity_def._custom.animations.on_hit_node then
-                    selfObj.object:set_animation(
-                        unpack(x_bows_registered_entity_def._custom.animations.on_hit_node)--[[@as table]]
-                    )
-                end
-
-                ---API callbacks
-                local on_hit_node_callback = self.registered_arrows[selfObj._arrow_name].custom.on_hit_node
-
-                if on_hit_node_callback then
-                    on_hit_node_callback(selfObj, pointed_thing)
-                end
-
-                if node_def.on_punch then
-                    node_def.on_punch(
-                        pointed_thing.under,
-                        { name = node.name, param1 = node.param1, param2 = node.param2 },
-                        selfObj._user,
-                        pointed_thing
-                    )
-                end
-
-                local new_pos = selfObj.object:get_pos()
-
-                if new_pos then
-                    core.add_particlespawner({
-                        amount = 5,
-                        time = 0.25,
-                        minpos = { x = new_pos.x - 0.4, y = new_pos.y + 0.2, z = new_pos.z - 0.4 },
-                        maxpos = { x = new_pos.x + 0.4, y = new_pos.y + 0.3, z = new_pos.z + 0.4 },
-                        minvel = { x = 0, y = 3, z = 0 },
-                        maxvel = { x = 0, y = 4, z = 0 },
-                        minacc = { x = 0, y = -28, z = 0 },
-                        maxacc = { x = 0, y = -32, z = 0 },
-                        minexptime = 1,
-                        maxexptime = 1.5,
-                        node = { name = node_def.name },
-                        collisiondetection = true,
-                        object_collision = true,
-                    })
-                end
-
-                core.sound_play({
-                    name = selfObj._sound_hit,
-                    gain = 0.6,
-                }, {
-                    pos = pointed_thing.under,
-                    pitch = math.random(7, 13) / 10,
-                    max_hear_distance = 16
-                }, true)
-
-                return
             end
         end
-        pointed_thing = ray:next()
     end
 
-    selfObj._old_pos = pos
+    -- Exit water transition (e.g. shot through thin waterfall/fountain into open air)
+    if selfObj._in_liquid and not in_liquid and not hit then
+        selfObj._in_liquid = false
+        selfObj._is_drowning = false
+        if selfObj._bubble_spawner_id then
+            core.delete_particlespawner(selfObj._bubble_spawner_id)
+            selfObj._bubble_spawner_id = nil
+        end
+        selfObj.object:set_acceleration({ x = selfObj._acc_x, y = selfObj._acc_y, z = selfObj._acc_z })
+    end
+
+    if not hit then
+        selfObj._old_pos = pos
+    end
 end
 
 ---Function receive a "luaentity" table as `self`. Called when somebody punches the object.
@@ -1667,7 +2547,8 @@ function XBows.register_entity(self, name, def)
         textures = { 'air' },
         hp_max = 1,
         visual_size = { x = 1, y = 1, z = 1 },
-        glow = 1
+        glow = 1,
+        static_save = false
     }, def.initial_properties or {})
 
     def.on_death = function(selfObj, killer)
@@ -1680,6 +2561,14 @@ function XBows.register_entity(self, name, def)
 
     def.on_activate = function(selfObj, killer)
         return XBowsEntityDef:on_activate(selfObj, killer)
+    end
+
+    def.on_deactivate = function(selfObj, removal)
+        return XBowsEntityDef:on_deactivate(selfObj, removal)
+    end
+
+    if def._custom.on_deactivate then
+        def.on_deactivate = def._custom.on_deactivate
     end
 
     def.on_step = function(selfObj, dtime)
@@ -1700,6 +2589,7 @@ function XBows.register_entity(self, name, def)
         initial_properties = def.initial_properties,
         on_death = def.on_death,
         on_activate = def.on_activate,
+        on_deactivate = def.on_deactivate,
         on_step = def.on_step,
         on_punch = def.on_punch
     })
@@ -1709,6 +2599,136 @@ end
 --- QUIVER API
 ----
 
+core.register_entity('x_bows:quiver_entity', {
+    initial_properties = {
+        visual = 'mesh',
+        mesh = 'x_bows_quiver.obj',
+        textures = { 'x_bows_quiver_mesh.png' },
+        visual_size = { x = 1, y = 1, z = 1 },
+        collisionbox = { 0, 0, 0, 0, 0, 0 },
+        selectionbox = { 0, 0, 0, 0, 0, 0 },
+        pointable = false,
+        physical = false,
+        static_save = false,
+        glow = 0,
+        backface_culling = true,
+        shaded = true,
+    },
+    on_activate = function(self)
+        self.object:set_armor_groups({ immortal = 1 })
+    end,
+    on_punch = function()
+        return true
+    end,
+})
+
+---Get attachment position and rotation for a quiver entity based on model format
+---@param self XBowsQuiver
+---@param format? string Model format ('glb' or 'b3d')
+---@return Vector pos Attachment offset vector
+---@return Vector rot Attachment rotation vector in degrees
+function XBowsQuiver.get_attachment_transform(self, format)
+    local fmt = format or (XBows.x_player_api and x_player_api.get_model_format()) or 'b3d'
+    if fmt == 'b3d' then
+        -- In B3D player models (character.b3d, 3d_armor_character.b3d), the 'Body' bone
+        -- has a 180° rotation around Y (quaternion (0, 0, 1, 0)) relative to glTF/GLB models.
+        -- We rotate by 180° around Y to cancel the bone's rotation and place the quiver squarely on the back.
+        return { x = 0, y = 0, z = 0 }, { x = 0, y = 180, z = 0 }
+    end
+    -- In glTF/GLB models (character.glb, 3d_armor_character.glb), the 'Body' bone rest
+    -- transform has identity rotation (0, 0, 0), so canonical relative offset (0, 0, 0) applies.
+    return { x = 0, y = 0, z = 0 }, { x = 0, y = 0, z = 0 }
+end
+
+---Attach a quiver entity to a player
+---@param self XBowsQuiver
+---@param entity ObjectRef
+---@param player ObjectRef
+function XBowsQuiver.attach_quiver_entity(self, entity, player)
+    if not entity or not entity:is_valid() or not player or not player:is_valid() or not player:is_player() then
+        return
+    end
+
+    local pos_glb, rot_glb = self:get_attachment_transform('glb')
+    local pos_b3d, rot_b3d = self:get_attachment_transform('b3d')
+
+    if XBows.x_player_api and not x_player_api.is_pure_native_b3d_active(player) then
+        local proxies = x_player_api.get_visual_proxies(player)
+        if proxies then
+            if x_player_api.get_model_format() ~= 'b3d' and proxies.glb and proxies.glb:is_valid() then
+                entity:set_attach(proxies.glb, 'Body', pos_glb, rot_glb, false)
+                entity:set_observers(x_player_api.get_modern_observers())
+                return
+            elseif proxies.b3d and proxies.b3d:is_valid() then
+                entity:set_attach(proxies.b3d, 'Body', pos_b3d, rot_b3d, false)
+                entity:set_observers(x_player_api.get_legacy_observers())
+                return
+            end
+        end
+    end
+
+    local pos, rot = self:get_attachment_transform()
+    entity:set_attach(player, 'Body', pos, rot, false)
+end
+
+---Ensures a quiver stack has a unique quiver_id, generating one if missing.
+---@param self XBowsQuiver
+---@param stack ItemStack
+---@return string The quiver_id
+function XBowsQuiver.get_or_init_quiver_id(self, stack)
+    if not stack or stack:is_empty() then
+        return ''
+    end
+
+    local meta = stack:get_meta()
+    local qid = meta:get_string('quiver_id')
+
+    if qid == '' then
+        qid = stack:get_name() .. '_' .. XBows.uuid()
+        meta:set_string('quiver_id', qid)
+    end
+
+    return qid
+end
+
+---Initializes a quiver in an inventory slot, ensuring it has an ID, creating its detached inventory and setting visual state.
+---@param self XBowsQuiver
+---@param player ObjectRef
+---@param inventory InvRef
+---@param listname string
+---@param index? number
+function XBowsQuiver.init_quiver_in_slot(self, player, inventory, listname, index)
+    index = index or 1
+    local stack = inventory:get_stack(listname, index)
+    if not stack or stack:is_empty() then
+        return
+    end
+
+    if stack:get_name() == 'x_bows:quiver_open' then
+        stack = self:get_replacement_item(stack, 'x_bows:quiver')
+    end
+
+    local quiver_id = self:get_or_init_quiver_id(stack)
+    inventory:set_stack(listname, index, stack)
+
+    local st_meta = stack:get_meta()
+    local detached_inv = self:get_or_create_detached_inv(
+        quiver_id,
+        player:get_player_name(),
+        st_meta:get_string('quiver_items')
+    )
+
+    if detached_inv then
+        if detached_inv:is_empty('main') then
+            XBowsQuiver.quiver_empty_state[player:get_player_name()] = false
+            self:show_3d_quiver(player, { is_empty = true })
+        else
+            XBowsQuiver.quiver_empty_state[player:get_player_name()] = true
+            self:show_3d_quiver(player)
+        end
+    end
+end
+
 ---Close one or all open quivers in players inventory
 ---@param self XBowsQuiver
 ---@param player ObjectRef
@@ -1716,22 +2736,33 @@ end
 ---@return nil
 function XBowsQuiver.close_quiver(self, player, quiver_id)
     local player_inv = player:get_inventory()
+    if not player_inv then
+        return
+    end
 
-    ---find matching quiver item in players inventory with the open formspec name
-    if player_inv and player_inv:contains_item('main', 'x_bows:quiver_open') then
+    -- Normalize x_bows:quiver_inv if it holds an open quiver
+    local q_st = player_inv:get_stack('x_bows:quiver_inv', 1)
+    if not q_st:is_empty() and q_st:get_name() == 'x_bows:quiver_open' then
+        if not quiver_id or q_st:get_meta():get_string('quiver_id') == quiver_id then
+            local replace_item = self:get_replacement_item(q_st, 'x_bows:quiver')
+            player_inv:set_stack('x_bows:quiver_inv', 1, replace_item)
+        end
+    end
+
+    ---find matching quiver item in players main inventory
+    if player_inv:contains_item('main', 'x_bows:quiver_open') then
         local inv_list = player_inv:get_list('main')
 
         for i, st in ipairs(inv_list) do
             local st_meta = st:get_meta()
 
             if not st:is_empty() and st:get_name() == 'x_bows:quiver_open' then
-                if quiver_id and st_meta:get_string('quiver_id') == quiver_id then
+                if not quiver_id or st_meta:get_string('quiver_id') == quiver_id then
                     local replace_item = self:get_replacement_item(st, 'x_bows:quiver')
                     player_inv:set_stack('main', i, replace_item)
-                    break
-                else
-                    local replace_item = self:get_replacement_item(st, 'x_bows:quiver')
-                    player_inv:set_stack('main', i, replace_item)
+                    if quiver_id then
+                        break
+                    end
                 end
             end
         end
@@ -1744,19 +2775,8 @@ end
 ---@param to_item_name string transfer data to this item
 ---@return ItemStack ItemStack replacement item
 function XBowsQuiver.get_replacement_item(self, from_stack, to_item_name)
-    ---@type ItemStack
-    local replace_item = ItemStack({
-        name = to_item_name,
-        count = from_stack:get_count(),
-        wear = from_stack:get_wear()
-    })
-    local replace_item_meta = replace_item:get_meta()
-    local from_stack_meta = from_stack:get_meta()
-
-    replace_item_meta:set_string('quiver_items', from_stack_meta:get_string('quiver_items'))
-    replace_item_meta:set_string('quiver_id', from_stack_meta:get_string('quiver_id'))
-    replace_item_meta:set_string('description', from_stack_meta:get_string('description'))
-
+    local replace_item = ItemStack(from_stack)
+    replace_item:set_name(to_item_name)
     return replace_item
 end
 
@@ -1769,50 +2789,40 @@ function XBowsQuiver.get_itemstack_arrow_from_quiver(self, player)
     local player_inv = player:get_inventory()
     local wielded_stack = player:get_wielded_item()
     ---@type ItemStack|nil
-    local found_arrow_stack
+    local found_arrow_stack = nil
     local found_arrow_stack_idx = 1
     local prev_detached_inv_list = {}
-    local quiver_id
-    local quiver_name
+    local quiver_id = nil
+    local quiver_name = nil
 
     ---check quiver inventory slot
     if player_inv and player_inv:contains_item('x_bows:quiver_inv', 'x_bows:quiver') then
         local player_name = player:get_player_name()
         local quiver_stack = player_inv:get_stack('x_bows:quiver_inv', 1)
-        local st_meta = quiver_stack:get_meta()
-        quiver_id = st_meta:get_string('quiver_id')
+        quiver_id = self:get_or_init_quiver_id(quiver_stack)
+        player_inv:set_stack('x_bows:quiver_inv', 1, quiver_stack)
 
+        local st_meta = quiver_stack:get_meta()
         local detached_inv = self:get_or_create_detached_inv(
             quiver_id,
             player_name,
             st_meta:get_string('quiver_items')
         )
 
-        if not detached_inv:is_empty('main') then
+        if detached_inv and not detached_inv:is_empty('main') then
             local detached_inv_list = detached_inv:get_list('main')
+            prev_detached_inv_list = detached_inv_list
 
             ---find arrows inside quiver inventory
             for j, qst in ipairs(detached_inv_list) do
-                ---save copy of inv list before we take the item
-                table.insert(prev_detached_inv_list, detached_inv:get_stack('main', j))
-
                 if not qst:is_empty() and not found_arrow_stack then
                     local is_allowed_ammunition = self:is_allowed_ammunition(wielded_stack:get_name(), qst:get_name())
 
                     if is_allowed_ammunition then
                         quiver_name = quiver_stack:get_name()
-                        found_arrow_stack = qst:take_item()
+                        found_arrow_stack = ItemStack({ name = qst:get_name(), count = 1 })
                         found_arrow_stack_idx = j
-
-                        ---X Enchanting
-                        local wielded_stack_meta = wielded_stack:get_meta()
-                        local is_infinity = wielded_stack_meta:get_float('is_infinity')
-
-                        if not self:is_creative(player_name) and is_infinity == 0 then
-                            -- take item will be set
-                            detached_inv:set_list('main', detached_inv_list)
-                            self:save(detached_inv, player, true)
-                        end
+                        break
                     end
                 end
             end
@@ -1824,31 +2834,30 @@ function XBowsQuiver.get_itemstack_arrow_from_quiver(self, player)
         end
     end
 
-    if self.fallback_quiver then
-        ---find matching quiver item in players inventory with the open formspec name
+    if not found_arrow_stack and self.fallback_quiver then
+        ---find matching quiver item in players inventory
         if player_inv and player_inv:contains_item('main', 'x_bows:quiver') then
             local inv_list = player_inv:get_list('main')
 
             for i, st in ipairs(inv_list) do
                 if not st:is_empty() and st:get_name() == 'x_bows:quiver' then
-                    local st_meta = st:get_meta()
                     local player_name = player:get_player_name()
-                    quiver_id = st_meta:get_string('quiver_id')
+                    quiver_id = self:get_or_init_quiver_id(st)
+                    player_inv:set_stack('main', i, st)
 
+                    local st_meta = st:get_meta()
                     local detached_inv = self:get_or_create_detached_inv(
                         quiver_id,
                         player_name,
                         st_meta:get_string('quiver_items')
                     )
 
-                    if not detached_inv:is_empty('main') then
+                    if detached_inv and not detached_inv:is_empty('main') then
                         local detached_inv_list = detached_inv:get_list('main')
+                        prev_detached_inv_list = detached_inv_list
 
                         ---find arrows inside quiver inventory
                         for j, qst in ipairs(detached_inv_list) do
-                            ---save copy of inv list before we take the item
-                            table.insert(prev_detached_inv_list, detached_inv:get_stack('main', j))
-
                             if not qst:is_empty() and not found_arrow_stack then
                                 local is_allowed_ammunition = self:is_allowed_ammunition(
                                     wielded_stack:get_name(),
@@ -1857,13 +2866,9 @@ function XBowsQuiver.get_itemstack_arrow_from_quiver(self, player)
 
                                 if is_allowed_ammunition then
                                     quiver_name = st:get_name()
-                                    found_arrow_stack = qst:take_item()
+                                    found_arrow_stack = ItemStack({ name = qst:get_name(), count = 1 })
                                     found_arrow_stack_idx = j
-
-                                    if not self:is_creative(player_name) then
-                                        detached_inv:set_list('main', detached_inv_list)
-                                        self:save(detached_inv, player, true)
-                                    end
+                                    break
                                 end
                             end
                         end
@@ -1873,7 +2878,6 @@ function XBowsQuiver.get_itemstack_arrow_from_quiver(self, player)
                 if found_arrow_stack then
                     ---show HUD - quiver inventory
                     self:udate_or_create_hud(player, prev_detached_inv_list, found_arrow_stack_idx)
-
                     break
                 end
             end
@@ -2047,10 +3051,21 @@ function XBowsQuiver.udate_or_create_hud(self, player, inv_list, idx)
         end
     end
 
-    ---@param v_player ObjectRef
-    table.insert(self.after_job[player_name], core.after(10, function(v_player)
-        self:remove_hud(v_player)
-    end, player))
+    ---@param v_player_name string
+    table.insert(self.after_job[player_name], core.after(10, function(v_player_name)
+        local v_player = core.get_player_by_name(v_player_name)
+        if v_player and v_player:is_valid() then
+            self:remove_hud(v_player)
+        end
+    end, player_name))
+end
+
+---Alias for typo in method name
+XBowsQuiver.update_or_create_hud = XBowsQuiver.udate_or_create_hud
+
+---Alias for backwards compatibility and cross-object safety
+XBows.get_or_create_detached_inv = function(self, ...)
+    return XBowsQuiver:get_or_create_detached_inv(...)
 end
 
 ---Get existing detached inventory or create new one
@@ -2058,13 +3073,13 @@ end
 ---@param quiver_id string
 ---@param player_name string
 ---@param quiver_items? string
----@return InvRef
+---@return InvRef|nil
 function XBowsQuiver.get_or_create_detached_inv(self, quiver_id, player_name, quiver_items)
-    local detached_inv
-
-    if quiver_id ~= '' then
-        detached_inv = core.get_inventory({ type = 'detached', name = quiver_id })
+    if not quiver_id or quiver_id == '' then
+        return nil
     end
+
+    local detached_inv = core.get_inventory({ type = 'detached', name = quiver_id })
 
     if not detached_inv then
         detached_inv = core.create_detached_inventory(quiver_id, {
@@ -2100,7 +3115,7 @@ function XBowsQuiver.get_or_create_detached_inv(self, quiver_id, player_name, qu
             ---@param stack ItemStack
             ---@param player ObjectRef
             allow_take = function(inv, listname, index, stack, player)
-                if core.get_item_group(stack:get_name(), 'arrow') ~= 0 and self:quiver_can_allow(inv, player) then
+                if self:quiver_can_allow(inv, player) then
                     return stack:get_count()
                 else
                     return 0
@@ -2155,57 +3170,68 @@ function XBowsQuiver.get_or_create_detached_inv(self, quiver_id, player_name, qu
         }, player_name)
 
         detached_inv:set_size('main', 3 * 1)
-    end
 
-    ---populate items in inventory
-    if quiver_items and quiver_items ~= '' then
-        self:set_string_to_inv(detached_inv, quiver_items)
+        ---populate items in inventory only upon creation
+        if quiver_items and quiver_items ~= '' then
+            self:set_string_to_inv(detached_inv, quiver_items)
+        end
     end
 
     return detached_inv
 end
 
----Create formspec
+---Get formspec for quiver
 ---@param self XBowsQuiver
----@param name string name of the form
----@return string
+---@param name string
+---@return string Formspec
 function XBowsQuiver.get_formspec(self, name)
-    local width = 3
-    local height = 1
-    local list_w = 8
-    local list_pos_x = (list_w - width) / 2
+    -- Fetch inventory to check which slots currently have arrows
+    local inv = core.get_inventory({ type = 'detached', name = name })
+    local invlist = inv and inv:get_list('main')
 
     local formspec = {
-        'size[' .. list_w .. ',6]',
-        'list[detached:' .. name .. ';main;' .. list_pos_x .. ',0.3;' .. width .. ',1;]',
-        'list[current_player;main;0,' .. (height + 0.85) .. ';' .. list_w .. ',1;]',
-        'list[current_player;main;0,' .. (height + 2.08) .. ';' .. list_w .. ',3;8]',
-        'listring[detached:' .. name .. ';main]',
-        'listring[current_player;main]'
+        'formspec_version[6]',
+        'size[10.75,7.4]',
+        'box[0,0;10.75,7.4;#101010]',
+        'spacing[0.25,0.25]',
+
+        -- Sleek dark mode theme for inventory slots and hover states
+        'listcolors[#1a1a1a;#2c2c2c;#333333;#0d0d0d;#ffffff]',
+
+        -- Quiver container (3 slots, centered horizontally)
+        'container[3.625,0.5]',
     }
 
-    if core.global_exists('default') then
-        formspec[#formspec + 1] = default.get_hotbar_bg(0, height + 0.85)
-    end
-
-    --update formspec
-    local inv = core.get_inventory({ type = 'detached', name = name })
-    local invlist = inv:get_list(name)
-
-    ---inventory slots overlay
-    local px, py = list_pos_x, 0.3
-
+    --- Placeholder arrow icons for empty quiver slots (relative to container, placed before list)
     for i = 1, 3 do
-        if not invlist or invlist[i]:is_empty() then
-            formspec[#formspec + 1] = 'image[' .. px .. ',' .. py .. ';1,1;x_bows_arrow_slot.png]'
+        if not invlist or not invlist[i] or invlist[i]:is_empty() then
+            local px = (i - 1) * 1.25
+            formspec[#formspec + 1] = 'image[' .. px .. ',0;1,1;x_bows_arrow_slot.png]'
         end
-
-        px = px + 1
     end
 
-    formspec = table.concat(formspec, '')
+    --- Quiver detached inventory (3 slots)
+    formspec[#formspec + 1] = 'list[detached:' .. name .. ';main;0,0;3,1;]'
+    formspec[#formspec + 1] = 'container_end[]'
 
-    return formspec
+    -- Full player inventory container (8 columns x 4 rows)
+    formspec[#formspec + 1] = 'container[0.5,1.9]'
+
+    --- Main storage inventory (24 slots: rows 2-4, slots 9 to 32)
+    formspec[#formspec + 1] = 'list[current_player;main;0,0;8,3;8]'
+
+    --- Sleek accent divider line between main storage and hotbar
+    formspec[#formspec + 1] = 'box[0,3.65;9.75,0.02;#282828]'
+
+    --- Active Hotbar (8 slots: row 1, slots 1 to 8)
+    formspec[#formspec + 1] = 'list[current_player;main;0,3.85;8,1;0]'
+    formspec[#formspec + 1] = 'container_end[]'
+
+    -- Shift-click rings between quiver and player inventory
+    formspec[#formspec + 1] = 'listring[detached:' .. name .. ';main]'
+    formspec[#formspec + 1] = 'listring[current_player;main]'
+
+    return table.concat(formspec, '')
 end
 
 ---Convert inventory of itemstacks to serialized string
@@ -2238,11 +3264,15 @@ end
 ---@param str string previously stringified inventory of itemstacks
 ---@return nil
 function XBowsQuiver.set_string_to_inv(self, inv, str)
-    local t = core.deserialize(str)
+    local t = (str and str ~= '') and core.deserialize(str) or nil
+    local size = inv:get_size('main')
 
-    for i, item in ipairs(t) do
-        if not item.is_empty then
+    for i = 1, size do
+        local item = t and t[i]
+        if item and not item.is_empty then
             inv:set_stack('main', i, ItemStack(item))
+        else
+            inv:set_stack('main', i, ItemStack(nil))
         end
     end
 end
@@ -2252,11 +3282,14 @@ end
 ---@param inv InvRef
 ---@param player ObjectRef
 ---@param quiver_is_closed? boolean
----@return nil
+---@return boolean True if quiver was found in player inventory and saved
 function XBowsQuiver.save(self, inv, player, quiver_is_closed)
     local player_inv = player:get_inventory() --[[@as InvRef]]
+    if not player_inv then
+        return false
+    end
+
     local inv_loc = inv:get_location()
-    local quiver_item_name = quiver_is_closed and 'x_bows:quiver' or 'x_bows:quiver_open'
     local player_quiver_inv_stack = player_inv:get_stack('x_bows:quiver_inv', 1)
 
     if not player_quiver_inv_stack:is_empty()
@@ -2268,20 +3301,24 @@ function XBowsQuiver.save(self, inv, player, quiver_is_closed)
 
         st_meta:set_string('quiver_items', string_from_inventory_result.inv_string)
 
-        ---update description
-        local new_description = player_quiver_inv_stack:get_short_description() .. '\n' ..
-            string_from_inventory_result.content_description .. '\n'
+        ---update description while preserving base stats (faster arrows, bonus damage)
+        local qdef = self.registered_quivers[player_quiver_inv_stack:get_name()]
+        local base_desc = (qdef and qdef.short_description) or player_quiver_inv_stack:get_short_description()
+        local new_description = base_desc .. '\n' .. string_from_inventory_result.content_description .. '\n'
 
         st_meta:set_string('description', new_description)
         player_inv:set_stack('x_bows:quiver_inv', 1, player_quiver_inv_stack)
-    elseif player_inv and player_inv:contains_item('main', quiver_item_name) then
-        ---find matching quiver item in players inventory with the open formspec name
+        return true
+    elseif player_inv then
+        ---find matching quiver item in players inventory
         local inv_list = player_inv:get_list('main')
 
         for i, st in ipairs(inv_list) do
+            local st_name = st:get_name()
             local st_meta = st:get_meta()
 
-            if not st:is_empty() and st:get_name() == quiver_item_name
+            if not st:is_empty()
+                and (st_name == 'x_bows:quiver' or st_name == 'x_bows:quiver_open')
                 and st_meta:get_string('quiver_id') == inv_loc.name
             then
                 ---save inventory items in quiver item meta
@@ -2289,17 +3326,20 @@ function XBowsQuiver.save(self, inv, player, quiver_is_closed)
 
                 st_meta:set_string('quiver_items', string_from_inventory_result.inv_string)
 
-                ---update description
-                local new_description = st:get_short_description() .. '\n' ..
-                    string_from_inventory_result.content_description .. '\n'
+                ---update description while preserving base stats (faster arrows, bonus damage)
+                local qdef = self.registered_quivers[st_name]
+                local base_desc = (qdef and qdef.short_description) or st:get_short_description()
+                local new_description = base_desc .. '\n' .. string_from_inventory_result.content_description .. '\n'
 
                 st_meta:set_string('description', new_description)
                 player_inv:set_stack('main', i, st)
 
-                break
+                return true
             end
         end
     end
+
+    return false
 end
 
 ---Check if we are allowing actions in the correct quiver inventory
@@ -2317,15 +3357,16 @@ function XBowsQuiver.quiver_can_allow(self, inv, player)
     then
         ---find quiver in player `quiver_inv` inv list
         return true
-    elseif player_inv and player_inv:contains_item('main', 'x_bows:quiver_open') then
+    elseif player_inv then
         ---find quiver in player `main` inv list
-        ---matching quiver item in players inventory with the open formspec name
         local inv_list = player_inv:get_list('main')
 
         for i, st in ipairs(inv_list) do
+            local st_name = st:get_name()
             local st_meta = st:get_meta()
 
-            if not st:is_empty() and st:get_name() == 'x_bows:quiver_open'
+            if not st:is_empty()
+                and (st_name == 'x_bows:quiver' or st_name == 'x_bows:quiver_open')
                 and st_meta:get_string('quiver_id') == inv_loc.name
             then
                 return true
@@ -2342,16 +3383,9 @@ end
 ---@param user ObjectRef
 ---@return ItemStack
 function XBows.open_quiver(self, itemstack, user)
-    local itemstack_meta = itemstack:get_meta()
     local pname = user:get_player_name()
-    local quiver_id = itemstack_meta:get_string('quiver_id')
-
-    ---create inventory id and save it
-    if quiver_id == '' then
-        quiver_id = itemstack:get_name() .. '_' .. self.uuid()
-        itemstack_meta:set_string('quiver_id', quiver_id)
-    end
-
+    local quiver_id = XBowsQuiver:get_or_init_quiver_id(itemstack)
+    local itemstack_meta = itemstack:get_meta()
     local quiver_items = itemstack_meta:get_string('quiver_items')
 
     XBowsQuiver:get_or_create_detached_inv(quiver_id, pname, quiver_items)
@@ -2379,16 +3413,12 @@ function XBowsQuiver.sfinv_register_page(self)
             local formspec = {
                 ---arrow
                 'label[0,0;' .. core.formspec_escape(S('Arrows')) .. ':]',
-                'list[current_player;x_bows:arrow_inv;0,0.5;1,1;]',
                 'image[0,0.5;1,1;x_bows_arrow_slot.png]',
-                'listring[current_player;x_bows:arrow_inv]',
-                'listring[current_player;main]',
+                'list[current_player;x_bows:arrow_inv;0,0.5;1,1;]',
                 ---quiver
                 'label[3.5,0;' .. core.formspec_escape(S('Quiver')) .. ':]',
-                'list[current_player;x_bows:quiver_inv;3.5,0.5;1,1;]',
                 'image[3.5,0.5;1,1;x_bows_quiver_slot.png]',
-                'listring[current_player;x_bows:quiver_inv]',
-                'listring[current_player;main]',
+                'list[current_player;x_bows:quiver_inv;3.5,0.5;1,1;]',
                 ---settings button
                 'image_button[7,3.5;1,1;x_bows_settings_btn.png;x_bows_settings_btn;]',
                 'tooltip[x_bows_settings_btn;' .. core.formspec_escape(S('X Bows Settings')) .. ']'
@@ -2410,8 +3440,12 @@ function XBowsQuiver.sfinv_register_page(self)
             end
 
             if context._itemstack_quiver and not context._itemstack_quiver:is_empty() then
+                local quiver_id = self:get_or_init_quiver_id(context._itemstack_quiver)
+                player_inv:set_stack('x_bows:quiver_inv', 1, context._itemstack_quiver)
+
                 local st_meta = context._itemstack_quiver:get_meta()
-                local quiver_id = st_meta:get_string('quiver_id')
+                self:get_or_create_detached_inv(quiver_id, player:get_player_name(), st_meta:get_string('quiver_items'))
+
                 local short_description = context._itemstack_quiver:get_short_description()
 
                 ---description
@@ -2422,6 +3456,9 @@ function XBowsQuiver.sfinv_register_page(self)
 
                 formspec[#formspec + 1] = 'list[detached:' .. quiver_id .. ';main;4.5,0.5;3,1;]'
                 formspec[#formspec + 1] = 'listring[detached:' .. quiver_id .. ';main]'
+                formspec[#formspec + 1] = 'listring[current_player;main]'
+            else
+                formspec[#formspec + 1] = 'listring[current_player;x_bows:quiver_inv]'
                 formspec[#formspec + 1] = 'listring[current_player;main]'
             end
 
@@ -2478,13 +3515,9 @@ function XBowsQuiver.i3_register_page(self)
                 ---arrow
                 'label[0.5,1;' .. core.formspec_escape(S('Arrows')) .. ':]',
                 'list[current_player;x_bows:arrow_inv;0.5,1.5;1,1;]',
-                'listring[current_player;x_bows:arrow_inv]',
-                'listring[current_player;main]',
                 ---quiver
                 'label[5,1;' .. core.formspec_escape(S('Quiver')) .. ':]',
                 'list[current_player;x_bows:quiver_inv;5,1.5;1,1;]',
-                'listring[current_player;x_bows:quiver_inv]',
-                'listring[current_player;main]',
                 ---settings button
                 'image_button[8.5,5.5;1,1;x_bows_settings_btn.png;x_bows_settings_btn;]',
                 'tooltip[x_bows_settings_btn;' .. core.formspec_escape(S('X Bows Settings')) .. ']'
@@ -2506,14 +3539,20 @@ function XBowsQuiver.i3_register_page(self)
             end
 
             if context._itemstack_quiver and not context._itemstack_quiver:is_empty() then
+                local quiver_id = self:get_or_init_quiver_id(context._itemstack_quiver)
+                player_inv:set_stack('x_bows:quiver_inv', 1, context._itemstack_quiver)
+
                 local st_meta = context._itemstack_quiver:get_meta()
-                local quiver_id = st_meta:get_string('quiver_id')
+                self:get_or_create_detached_inv(quiver_id, player:get_player_name(), st_meta:get_string('quiver_items'))
 
                 ---description
                 formspec[#formspec + 1] = 'label[5,3;' ..
                     core.formspec_escape(context._itemstack_quiver:get_short_description()) .. ']'
                 formspec[#formspec + 1] = 'list[detached:' .. quiver_id .. ';main;6.3,1.5;3,1;]'
                 formspec[#formspec + 1] = 'listring[detached:' .. quiver_id .. ';main]'
+                formspec[#formspec + 1] = 'listring[current_player;main]'
+            else
+                formspec[#formspec + 1] = 'listring[current_player;x_bows:quiver_inv]'
                 formspec[#formspec + 1] = 'listring[current_player;main]'
             end
 
@@ -2535,14 +3574,10 @@ function XBowsQuiver.ui_register_page(self)
                 'label[0.5,0.5;' .. core.formspec_escape(S('Arrows')) .. ':]',
                 unified_inventory.single_slot(0.4, 0.9),
                 'list[current_player;x_bows:arrow_inv;0.5,1;1,1;]',
-                'listring[current_player;x_bows:arrow_inv]',
-                'listring[current_player;main]',
                 ---quiver
                 'label[5,0.5;' .. core.formspec_escape(S('Quiver')) .. ':]',
                 unified_inventory.single_slot(4.9, 0.9),
                 'list[current_player;x_bows:quiver_inv;5,1;1,1;]',
-                'listring[current_player;x_bows:quiver_inv]',
-                'listring[current_player;main]',
                 ---settings button
                 'image_button[9,4.5;1,1;x_bows_settings_btn.png;x_bows_settings_btn;]',
                 'tooltip[x_bows_settings_btn;' .. core.formspec_escape(S('X Bows Settings')) .. ']'
@@ -2564,8 +3599,12 @@ function XBowsQuiver.ui_register_page(self)
 
 
             if context._itemstack_quiver and not context._itemstack_quiver:is_empty() then
+                local quiver_id = self:get_or_init_quiver_id(context._itemstack_quiver)
+                local player_inv = player:get_inventory()
+                player_inv:set_stack('x_bows:quiver_inv', 1, context._itemstack_quiver)
+
                 local st_meta = context._itemstack_quiver:get_meta()
-                local quiver_id = st_meta:get_string('quiver_id')
+                self:get_or_create_detached_inv(quiver_id, player:get_player_name(), st_meta:get_string('quiver_items'))
 
                 ---description
                 formspec[#formspec + 1] = 'label[5,2.5;' ..
@@ -2575,6 +3614,9 @@ function XBowsQuiver.ui_register_page(self)
                 formspec[#formspec + 1] = unified_inventory.single_slot(8.9, 0.9)
                 formspec[#formspec + 1] = 'list[detached:' .. quiver_id .. ';main;6.5,1;3,1;]'
                 formspec[#formspec + 1] = 'listring[detached:' .. quiver_id .. ';main]'
+                formspec[#formspec + 1] = 'listring[current_player;main]'
+            else
+                formspec[#formspec + 1] = 'listring[current_player;x_bows:quiver_inv]'
                 formspec[#formspec + 1] = 'listring[current_player;main]'
             end
 
@@ -2591,202 +3633,137 @@ function XBowsQuiver.ui_register_page(self)
     })
 end
 
+---Show 3D quiver entity on the player's back
+---@param self XBowsQuiver
+---@param player ObjectRef
+---@param props? { is_empty?: boolean }
 function XBowsQuiver.show_3d_quiver(self, player, props)
-    if not XBows.settings.x_bows_show_3d_quiver or not XBows.player_api then
+    if not XBows.settings.x_bows_show_3d_quiver or not player or not player:is_player() then
         return
     end
 
     local _props = props or {}
     local p_name = player:get_player_name()
-    local quiver_texture = 'x_bows_quiver_mesh.png'
-    local player_textures
+    local is_empty = _props.is_empty == true
+    local quiver_texture = is_empty and 'x_bows_quiver_empty_mesh.png' or 'x_bows_quiver_mesh.png'
 
-    if _props.is_empty then
-        quiver_texture = 'x_bows_quiver_empty_mesh.png'
+    local current = self.active_quivers[p_name]
+    local has_valid = false
+
+    if current then
+        if type(current) == 'table' then
+            for _, ent in pairs(current) do
+                if ent and ent:is_valid() then
+                    has_valid = true
+                    if self.quiver_empty_state[p_name] ~= is_empty then
+                        ent:set_properties({ textures = { quiver_texture } })
+                    end
+                end
+            end
+        elseif current and current:is_valid() then
+            has_valid = true
+            if self.quiver_empty_state[p_name] ~= is_empty then
+                current:set_properties({ textures = { quiver_texture } })
+            end
+        end
+
+        if has_valid then
+            if type(current) == 'table' then
+                local prx = XBows.x_player_api and not x_player_api.is_pure_native_b3d_active(player)
+                    and x_player_api.get_visual_proxies(player)
+                if current.glb and current.glb:is_valid() and prx and prx.glb and prx.glb:is_valid() then
+                    local pos_glb, rot_glb = self:get_attachment_transform('glb')
+                    current.glb:set_attach(prx.glb, 'Body', pos_glb, rot_glb, false)
+                end
+                if current.b3d and current.b3d:is_valid() and prx and prx.b3d and prx.b3d:is_valid() then
+                    local pos_b3d, rot_b3d = self:get_attachment_transform('b3d')
+                    current.b3d:set_attach(prx.b3d, 'Body', pos_b3d, rot_b3d, false)
+                end
+                if current.obj and current.obj:is_valid() then
+                    local pos_fb, rot_fb = self:get_attachment_transform()
+                    current.obj:set_attach(player, 'Body', pos_fb, rot_fb, false)
+                end
+            end
+            self.quiver_empty_state[p_name] = is_empty
+            return
+        end
     end
 
-    if self.skinsdb then
-        core.after(1, function(v_player)
-            if not v_player then
-                return
-            end
-
-            local textures = player_api.get_textures(v_player)
-
-            ---cleanup
-            for index, value in ipairs(textures) do
-                if value == 'x_bows_quiver_blank_mesh.png' or value == 'x_bows_quiver_mesh.png'
-                    or value == 'x_bows_quiver_empty_mesh.png'
-                then
-                    table.remove(textures, index)
-                end
-            end
-
-            table.insert(textures, quiver_texture)
-
-            player_textures = textures
-
-            if player_textures then
-                if _props.is_empty and not self.quiver_empty_state[v_player:get_player_name()] then
-                    self.quiver_empty_state[v_player:get_player_name()] = true
-                    player_api.set_textures(v_player, player_textures)
-                elseif not _props.is_empty and self.quiver_empty_state[v_player:get_player_name()] then
-                    self.quiver_empty_state[v_player:get_player_name()] = false
-                    player_api.set_textures(v_player, player_textures)
-                end
-            end
-        end, player)
-
+    local pos = player:get_pos()
+    if not pos then
         return
-    elseif self._3d_armor then
-        core.after(0.1, function()
-            player_textures = {
-                armor.textures[p_name].skin,
-                armor.textures[p_name].armor,
-                armor.textures[p_name].wielditem,
-                quiver_texture
-            }
+    end
 
-            if player_textures then
-                if _props.is_empty and not self.quiver_empty_state[player:get_player_name()] then
-                    self.quiver_empty_state[player:get_player_name()] = true
-                    player_api.set_textures(player, player_textures)
-                elseif not _props.is_empty and self.quiver_empty_state[player:get_player_name()] then
-                    self.quiver_empty_state[player:get_player_name()] = false
-                    player_api.set_textures(player, player_textures)
-                end
+    local proxies = XBows.x_player_api and not x_player_api.is_pure_native_b3d_active(player)
+        and x_player_api.get_visual_proxies(player)
+
+    local quivers = {}
+
+    if proxies and (proxies.glb or proxies.b3d) then
+        if proxies.glb and proxies.glb:is_valid() then
+            local ent_glb = core.add_entity(pos, 'x_bows:quiver_entity')
+            if ent_glb then
+                local pos_glb, rot_glb = self:get_attachment_transform('glb')
+                ent_glb:set_properties({ textures = { quiver_texture } })
+                ent_glb:set_attach(proxies.glb, 'Body', pos_glb, rot_glb, false)
+                ent_glb:set_observers(x_player_api.get_modern_observers())
+                quivers.glb = ent_glb
             end
-        end)
+        end
 
-        return
-    elseif self.u_skins then
-        local u_skin_texture = u_skins.u_skins[p_name]
-
-        player_textures = {
-            u_skin_texture .. '.png',
-            quiver_texture
-        }
-    elseif self.wardrobe and wardrobe.playerSkins and wardrobe.playerSkins[p_name] then
-        player_textures = {
-            wardrobe.playerSkins[p_name],
-            quiver_texture
-        }
+        if proxies.b3d and proxies.b3d:is_valid() then
+            local ent_b3d = core.add_entity(pos, 'x_bows:quiver_entity')
+            if ent_b3d then
+                local pos_b3d, rot_b3d = self:get_attachment_transform('b3d')
+                ent_b3d:set_properties({ textures = { quiver_texture } })
+                ent_b3d:set_attach(proxies.b3d, 'Body', pos_b3d, rot_b3d, false)
+                ent_b3d:set_observers(x_player_api.get_legacy_observers())
+                quivers.b3d = ent_b3d
+            end
+        end
     else
-        local textures = player_api.get_textures(player)
-
-        ---cleanup
-        for index, value in ipairs(textures) do
-            if value == 'x_bows_quiver_blank_mesh.png' or value == 'x_bows_quiver_mesh.png'
-                or value == 'x_bows_quiver_empty_mesh.png'
-            then
-                table.remove(textures, index)
-            end
-        end
-
-        table.insert(textures, quiver_texture)
-
-        player_textures = textures
-    end
-
-    if player_textures then
-        if _props.is_empty and not self.quiver_empty_state[player:get_player_name()] then
-            self.quiver_empty_state[player:get_player_name()] = true
-            player_api.set_textures(player, player_textures)
-        elseif not _props.is_empty and self.quiver_empty_state[player:get_player_name()] then
-            self.quiver_empty_state[player:get_player_name()] = false
-            player_api.set_textures(player, player_textures)
+        local ent_obj = core.add_entity(pos, 'x_bows:quiver_entity')
+        if ent_obj then
+            local pos_fb, rot_fb = self:get_attachment_transform()
+            ent_obj:set_properties({ textures = { quiver_texture } })
+            ent_obj:set_attach(player, 'Body', pos_fb, rot_fb, false)
+            quivers.obj = ent_obj
         end
     end
+
+    self.active_quivers[p_name] = quivers
+    self.quiver_empty_state[p_name] = is_empty
 end
 
+---Hide/remove 3D quiver entity from the player's back
+---@param self XBowsQuiver
+---@param player ObjectRef|string
 function XBowsQuiver.hide_3d_quiver(self, player)
-    if not XBows.settings.x_bows_show_3d_quiver or not XBows.player_api then
+    if not player then
         return
     end
 
-    local p_name = player:get_player_name()
-    local player_textures
+    local p_name = type(player) == 'string' and player or player:get_player_name()
+    if not p_name or p_name == '' then
+        return
+    end
 
-    if self.skinsdb then
-        core.after(1, function(v_name)
-            local v_player = core.get_player_by_name(v_name)
-            if not v_player then
-                return
-            end
-
-            local textures = player_api.get_textures(v_player)
-
-            ---cleanup
-            for index, value in ipairs(textures) do
-                if value == 'x_bows_quiver_mesh.png' or value == 'x_bows_quiver_blank_mesh.png'
-                    or value == 'x_bows_quiver_empty_mesh.png'
-                then
-                    table.remove(textures, index)
+    if self.active_quivers and self.active_quivers[p_name] then
+        local current = self.active_quivers[p_name]
+        if type(current) == 'table' then
+            for _, ent in pairs(current) do
+                if ent and ent:is_valid() then
+                    ent:remove()
                 end
             end
-
-            table.insert(textures, 'x_bows_quiver_blank_mesh.png')
-
-            player_textures = textures
-
-            if player_textures then
-                player_api.set_textures(v_player, player_textures)
-            end
-        end, p_name)
-
-        return
-    elseif self._3d_armor then
-        core.after(0.1, function(v_name)
-            local v_player = core.get_player_by_name(v_name)
-            if not v_player then
-                return
-            end
-
-            player_textures = {
-                armor.textures[p_name].skin,
-                armor.textures[p_name].armor,
-                armor.textures[p_name].wielditem,
-                'x_bows_quiver_blank_mesh.png'
-            }
-
-            if player_textures then
-                player_api.set_textures(v_player, player_textures)
-            end
-
-        end, p_name)
-
-        return
-    elseif self.u_skins then
-        local u_skin_texture = u_skins.u_skins[p_name]
-
-        player_textures = {
-            u_skin_texture .. '.png',
-            'x_bows_quiver_blank_mesh.png'
-        }
-    elseif self.wardrobe and wardrobe.playerSkins and wardrobe.playerSkins[p_name] then
-        player_textures = {
-            wardrobe.playerSkins[p_name],
-            'x_bows_quiver_blank_mesh.png'
-        }
-    else
-        local textures = player_api.get_textures(player)
-
-        ---cleanup
-        for index, value in ipairs(textures) do
-            if value == 'x_bows_quiver_mesh.png' or value == 'x_bows_quiver_blank_mesh.png'
-                or value == 'x_bows_quiver_empty_mesh.png'
-            then
-                table.remove(textures, index)
-            end
+        elseif current and current:is_valid() then
+            current:remove()
         end
-
-        table.insert(textures, 'x_bows_quiver_blank_mesh.png')
-
-        player_textures = textures
+        self.active_quivers[p_name] = nil
     end
 
-    if player_textures then
-        player_api.set_textures(player, player_textures)
+    if self.quiver_empty_state then
+        self.quiver_empty_state[p_name] = nil
     end
 end
 
@@ -2800,7 +3777,7 @@ local function split(str)
 end
 
 function XBows.show_damage_numbers(self, pos, damage, is_crit, player)
-    if not player then
+    if not player or not player:is_valid() or not player:is_player() then
         return
     end
 
@@ -2834,7 +3811,7 @@ function XBows.show_damage_numbers(self, pos, damage, is_crit, player)
 
     for i, value in ipairs(results) do
         if i == 1 then
-            texture = texture .. '[combine:' .. 7 * #results .. 'x' .. 9 * #results .. ':0,0=x_bows_dmg_' .. value .. '.png'
+            texture = texture .. '[combine:' .. 7 * #results .. 'x9:0,0=x_bows_dmg_' .. value .. '.png'
         else
             texture = texture .. ':' .. dmg_nr_offset .. ',0=x_bows_dmg_' .. value .. '.png'
         end
@@ -2852,23 +3829,171 @@ function XBows.show_damage_numbers(self, pos, damage, is_crit, player)
             texture = texture .. '^[colorize:#FFFF00:127'
         end
 
-        ---show damage texture
-        core.add_particlespawner({
-            amount = 1,
-            time = 0.01,
-            minpos = { x = pos.x, y = pos.y + 1, z = pos.z },
-            maxpos = { x = pos.x, y = pos.y + 2, z = pos.z },
-            minvel = { x = math.random(-1, 1), y = 5, z = math.random(-1, 1) },
-            maxvel = { x = math.random(-1, 1), y = 5, z = math.random(-1, 1) },
-            minacc = { x = math.random(-1, 1), y = -7, z = math.random(-1, 1) },
-            maxacc = { x = math.random(-1, 1), y = -7, z = math.random(-1, 1) },
-            minexptime = 2,
-            maxexptime = 2,
-            minsize = size,
-            maxsize = size,
-            texture = texture,
-            collisiondetection = true,
-            glow = 10
-        })
+        -- Calculate flyout direction towards the shooter
+        local spawn_pos = vector.new(pos.x, pos.y + 1.4, pos.z)
+        local player_pos = player:get_pos()
+        local to_player
+        if player_pos then
+            local eye_pos = vector.new(player_pos.x, player_pos.y + 1.5, player_pos.z)
+            to_player = vector.direction(spawn_pos, eye_pos)
+            if vector.length(to_player) < 0.001 then
+                to_player = vector.new(0, 0, 1)
+            end
+        else
+            to_player = vector.new(0, 0, 1)
+        end
+
+        local flyout_speed = 1.6
+        local spread_x = (math.random() - 0.5) * 0.35
+        local spread_z = (math.random() - 0.5) * 0.35
+
+        local min_vel = vector.new(
+            to_player.x * flyout_speed + spread_x - 0.1,
+            3.4,
+            to_player.z * flyout_speed + spread_z - 0.1
+        )
+        local max_vel = vector.new(
+            to_player.x * flyout_speed + spread_x + 0.1,
+            4.2,
+            to_player.z * flyout_speed + spread_z + 0.1
+        )
+
+        if core.has_feature and core.has_feature({ dynamic_add_media_table = true, particlespawner_tweenable = true }) then
+            -- Modern syntax (Luanti 5.6.0+)
+            core.add_particlespawner({
+                amount = 1,
+                time = 0.01,
+                playername = player:get_player_name(),
+                pos = spawn_pos,
+                vel = { min = min_vel, max = max_vel },
+                acc = vector.new(0, -2.2, 0),
+                drag = vector.new(0.4, 0.05, 0.4),
+                exptime = { min = 1.8, max = 2.4 },
+                size = { min = size, max = size },
+                texture = {
+                    name = texture,
+                    alpha_tween = { 1.0, 0.0 }, -- Fades out smoothly as it floats
+                    scale_tween = {
+                        { x = is_crit and 1.35 or 1.15, y = is_crit and 1.35 or 1.15 },
+                        { x = 0.9, y = 0.9 },
+                    },
+                    blend = 'alpha',
+                },
+                glow = 12,
+                collisiondetection = true,
+                bounce = { min = 0.1, max = 0.2 },
+            })
+        else
+            -- Graceful fallback for older clients (< v5.6)
+            core.add_particlespawner({
+                amount = 1,
+                time = 0.01,
+                playername = player:get_player_name(),
+                minpos = spawn_pos,
+                maxpos = spawn_pos,
+                minvel = min_vel,
+                maxvel = max_vel,
+                minacc = vector.new(0, -2.2, 0),
+                maxacc = vector.new(0, -2.2, 0),
+                minexptime = 1.8,
+                maxexptime = 2.4,
+                minsize = size,
+                maxsize = size,
+                texture = texture,
+                glow = 10,
+                collisiondetection = true,
+            })
+        end
+    end
+end
+
+---Cleanup player resources on leave
+---@param player ObjectRef
+function XBows.on_leaveplayer(player)
+    if not player then
+        return
+    end
+
+    XBows:reset_charged_bow(player, true)
+    XBowsQuiver:close_quiver(player)
+    XBowsQuiver:hide_3d_quiver(player)
+
+    local player_name = player:get_player_name()
+
+    if XBows.charge_sound_after_job and XBows.charge_sound_after_job[player_name] then
+        for _, v in pairs(XBows.charge_sound_after_job[player_name]) do
+            if v and v.cancel then
+                v:cancel()
+            end
+        end
+        XBows.charge_sound_after_job[player_name] = nil
+    end
+
+    if XBowsQuiver.after_job and XBowsQuiver.after_job[player_name] then
+        for _, v in pairs(XBowsQuiver.after_job[player_name]) do
+            if v and v.cancel then
+                v:cancel()
+            end
+        end
+        XBowsQuiver.after_job[player_name] = nil
+    end
+
+    if XBowsQuiver.hud_item_ids and XBowsQuiver.hud_item_ids[player_name] then
+        XBowsQuiver.hud_item_ids[player_name] = nil
+    end
+
+    if XBowsQuiver.quiver_empty_state and XBowsQuiver.quiver_empty_state[player_name] then
+        XBowsQuiver.quiver_empty_state[player_name] = nil
+    end
+
+    if XBows.player_bow_sneak then
+        XBows.player_bow_sneak[player_name] = nil
+    end
+end
+
+---Cleanup player state on death
+---@param player ObjectRef
+---@param reason table
+function XBows.on_dieplayer(player, reason)
+    if not player or not player:is_valid() then
+        return
+    end
+
+    XBowsQuiver:hide_3d_quiver(player)
+
+    local player_name = player:get_player_name()
+
+    -- Reset aiming physics, FOV zoom, and sneak state if aiming on death
+    if XBows.player_bow_sneak and XBows.player_bow_sneak[player_name] and XBows.player_bow_sneak[player_name].sneak then
+        if XBows.playerphysics then
+            playerphysics.remove_physics_factor(player, 'speed', 'x_bows:bow_charged_speed')
+        elseif XBows.player_monoids then
+            player_monoids.speed:del_change(player, 'x_bows:bow_charged_speed')
+        elseif XBows.pova then
+            pova.del_override(player_name, 'x_bows:bow_charged_speed')
+            pova.do_override(player)
+        end
+        XBows.player_bow_sneak[player_name].sneak = false
+        player:set_fov(0, true, 0.4)
+    end
+
+    if XBowsQuiver.quiver_empty_state then
+        XBowsQuiver.quiver_empty_state[player_name] = nil
+    end
+
+    XBows:reset_charged_bow(player, true)
+    XBowsQuiver:close_quiver(player)
+end
+
+---Cleanup attached arrows on respawn
+---@param player ObjectRef
+function XBows.on_respawnplayer(player)
+    if player and player:is_valid() then
+        XBows.clear_attached_arrows(player)
+
+        local quiver_stack = player:get_inventory():get_stack('x_bows:quiver_inv', 1)
+        if quiver_stack and not quiver_stack:is_empty() then
+            XBowsQuiver:init_quiver_in_slot(player, player:get_inventory(), 'x_bows:quiver_inv', 1)
+        end
     end
 end

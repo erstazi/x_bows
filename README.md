@@ -1,101 +1,185 @@
-# Bow and Arrows [x_bows]
+# X Bows
 
-Adds bow and arrows with API. The goal of this Mod is to make most complete single bow with arrow what will work with MTG damage system, time from last punch as simple as possible. Eventually due to the damage tiers in MTG additional arrows were added.
+![X Bows Screenshot](screenshot.png)
 
-![screenshot](screenshot.png)
+[![ContentDB](https://content.luanti.org/packages/SaKeL/x_bows/shields/title.svg)](https://content.luanti.org/packages/SaKeL/x_bows/)
+[![License: LGPL v2.1](https://img.shields.io/badge/License-LGPL_v2.1-blue.svg)](LICENSE.txt)
 
-Video: https://youtu.be/pItpltmUoa8
+**X Bows** is a comprehensive, authentic archery and projectile combat mod for Luanti. It delivers fluid bow mechanics, realistic parabolic ballistic trajectory physics, tiered arrows with dynamic charging curves, 3D back-quivers with inventory quickview, interactive target blocks, enchanting support, and a flexible developer API.
 
-## Features
+---
 
-* bow will force you sneak when loaded (optional dep. playerphysics)
-* loaded bow will slightly adjust the player FOV
-* bow uses minetest tool capabilities - if the bow is not loaded for long enough (time from last puch) the arrow will fly shorter range
-* charged bow in inventory will discharge and give back the arrow when not selected
-* arrow uses raycast
-* arrow has chance of critical shots/hits (only on full punch interval)
-* arrow uses minetest damage calculation (including 3d_armor) for making damage (no hardcoded values)
-* arrows stick to nodes, players and entitites
-* arrows remove them self from the world after some time
-* arrows remove them self if there are already too many arrows attached to node, player, entity
-* arrow continues to fly downwards when attached node is dug
-* arrow flies under water for short period of time and then sinks
-* arrows adjusts pitch when flying
-* arrows can be picked up again after stuck in solid nodes
-* registers only one entity reused for all arrows
-* target block reduces fall damage by -30
-* quiver for more arrow storage (can hold only arrows)
-* quiver perks when in inventory (faster arrows, more arrow damage...)
-* quiver shows temporarily its inventory in HUD overlay when loading or shooting (quickview)
-* quiver item shows its content in infotext (hover over the item)
-* X Bows API for creating custom shooters and projectiles
-* 3d quiver shown in 3rd person view (compatible with 3d armor)
-* x_enchanting support
+## Key Features
 
-## How To
+### Realistic Ballistic Flight & Trajectory Physics
+- **True Parabolic Trajectory**: Arrows travel with continuous acceleration, realistic gravity curves, and pitch alignment along their velocity vector.
+- **Water Deceleration & Bubbles**: Arrows entering water decelerate, spawn buoyant bubble particle trails, and slowly sink to the floor.
+- **Near-Miss Flyby Audio**: Arrows soaring past nearby players play realistic supersonic flyby whoosh cues.
+- **Smart Attachment Lifecycle**:
+  - Embedded arrows stick to solid nodes, entities (mobs), and players.
+  - Arrows lodged in solid nodes can be retrieved by walking over or punching them.
+  - If an attached block is dug or destroyed, the arrow detaches and falls by gravity.
+  - **DeathStats Corpse Transfer**: Arrows embedded in players seamlessly transfer to their fallen corpse entity upon death.
+
+### Dynamic Charging & Critical Hits
+- **Progressive Draw Tension**: Hold right-click (or place) to draw the bow, accompanied by progressive string creak audio cues and an audible click when reaching full draw.
+- **Draw Visuals**: Bow visually transitions through uncharged, semi-charged, and fully charged states.
+- **Quadratic Charge Easing Curve**: Arrow velocity, flight distance, and damage scale quadratically with draw duration.
+- **Critical Strike Chance**: Fully charged shots have a chance to score a critical hit (double damage), indicated by a high-velocity crimson particle trail and a distinct audio cue.
+- **Tactical Movement**: Charging forces player sneak/slowdown (when `playerphysics`, `player_monoids`, or `pova` is installed) and subtly tightens the field of view (FOV).
+- **Safe Unload**: Switching hotbar slots, dropping the bow, or disconnecting safely refunds the loaded arrow and resets the bow.
+
+### Tiered Arrows
+Six progressive arrow tiers provide escalating damage, tighter charge times, and specialized recipes:
+
+| Arrow Tier | Damage | Charge Time | Materials / Recipe |
+| :--- | :---: | :---: | :--- |
+| **Wood Arrow** | 2 HP | 1.0s | Flint, Wooden Stick, Feather / Grass |
+| **Stone Arrow** | 3 HP | 0.9s | Flint, Cobblestone, Feather / Grass |
+| **Bronze Arrow** | 4 HP | 0.9s | Flint, Bronze Ingot, Feather / Grass |
+| **Steel Arrow** | 5 HP | 0.8s | Flint, Steel Ingot, Feather / Grass |
+| **Mese Arrow** | 6 HP | 0.8s | Flint, Mese Crystal, Feather / Grass |
+| **Diamond Arrow** | 8 HP | 0.7s | Flint, Diamond, Feather / Grass |
+
+### 3D Quivers & Inventory Quickview
+- **Dedicated Equipment Slots**: Seamlessly integrates dedicated arrow and quiver inventory slots into `i3`, `unified_inventory`, and `sfinv`.
+- **Passive Quiver Perks**: Firing arrows directly from an equipped quiver grants **Faster Arrows** (+10% velocity, blue/purple particle trail) and **Bonus Damage** (+1 damage).
+- **HUD Quickview Dock**: Loading or shooting from a quiver temporarily displays a semi-transparent HUD overlay peeking into the quiver's contents.
+- **3D Quiver Model**: Renders a stylish 3D quiver on the player's back in 3rd-person view (compatible with `player_api`, `3d_armor`, and `skinsdb`).
+- **Dynamic Quiver States**: Displays filled or empty visual states based on remaining ammunition.
+
+### Interactive Target Block
+- **Archery Practice & Competitions**: Placeable hay target block (`x_bows:target`) that detects projectile impacts on all 6 faces.
+- **Mesecons Signal Generator**: Emits a momentary Mesecons pulse when struck by an arrow, enabling automated archery range targets, door triggers, and minigames.
+- **Fall Cushioning**: Landing on a target block reduces fall damage by -30 HP for safe high-altitude drops.
+
+### Enchantment Integration (`x_enchanting`)
+Enhance bows with magical enchantments:
+- **Power**: Multiplies base arrow damage.
+- **Punch**: Amplifies arrow knockback velocity and vertical lift.
+- **Infinity**: Fires without consuming arrows from inventory.
+- **Unbreaking**: Substantially reduces durability wear.
+
+---
+
+## How to Play
+
+### Shooting the Bow
+1. **Load Ammunition**: Place arrows and/or a quiver in your dedicated quiver inventory slot (accessible via your inventory screen tab).
+2. **Draw & Aim**: With the bow wielded, hold **Right-Click** (or place block action).
+3. **Listen for Full Draw**: The string will creak; wait for the distinct "click" confirming maximum charge for peak speed, range, and critical strike chance.
+4. **Release**: Press **Left-Click** (or dig block action) to loose the arrow.
+
+### Equipping Quivers
+- Open your inventory and place a crafted quiver into the dedicated quiver slot.
+- Fill the quiver with arrows to activate the passive speed and damage bonuses.
+- Shift-click or hover over a quiver to view its remaining contents via hover tooltip infotext.
+
+---
+
+## Crafting Recipes
 
 ### Bow
-
-With the bow selected in hotbar and in your hand, press right click on mouse (PC) or the same action as when placing blocks, to load the bow.
-For bow to be loaded you have to have arrows in the arrow/quiver inventory - there should be extra tab in your inventory MOD to show arrow and quiver inventory slots.
-Arrows and quivers in the players main inventory don't count and will not be used.
-You have to have arrows and/or quiver in dedicated arrow/quiver inventory slots in order to charge the bow.
-Charging bow will have slight sound effect and can be fired at any time with left click (PC)
-or the same action as when you are digging a block. Waiting for full charge of the bow is recommended
-as it will give the arrow full speed (maximum shooting distance) and chance for critical arrow (double damage).
-
-There are few indications on how to know when the bow is fully charged:
-
-* there is a distinct "click" sound
-* each arrow has "charge time" in the description
-* after shooting, arrow will have particle trail
-
-There are few indications on how to know when the arrow is a critical arrow:
-
-* there is a distinct arrow flying sound
-* after shooting, arrow will have red particle trail
-
-If you shoot the arrow before the bow is fully charged the speed/distance will be lower and no arrow particle trail will be shown (also no chance for critical arrow).
-Changing the selection in hotbar will unload the bow and give you back arrow from the unloaded bow - this applies also when login in to the game (bow will be discharged and arrow will be returned to inventory) and also when you drop the charged arrow (discharged bow will be dropped with arrow item).
-If you have `playerphysics` or `player_monoids` mod installed, charged bow will slow you down until you release the arrow.
+- `3x String` + `3x Wooden Stick` arranged in a classic curved bow pattern.
 
 ### Quiver
+- `3x Leather` (or Wool) + `1x String` to craft a portable quiver.
 
-Quiver item can hold inventory of arrows. When player has quiver in his/hers quiver inventory slot - there should be extra tab in your inventory MOD to show arrow and quiver inventory slots, bow can take arrows from quiver, otherwise arrows outside of the quiver are used to load the bow.
-Though, if arrows from quiver are used to load the bow, the arrows have additional speed and damage.
-If we are loading/shooting arrows from quiver, there is temporary quickview HUD overlay shown, peeking in to the quivers inventory from which the arrow was taken. Arrows used from quiver will be faster only when the bow is fully charged - see "How To - Bow" for more information on how to know when bow is fully charged.
+### Target Block
+- `4x Wheat / Straw` + `4x Wood Planks` surrounding a central bullseye.
 
-There are few indications on how to know when the bow shot arrow from quiver:
+---
 
-* there is temporary HUD overview shown peeking in to the quiver inventory
-* after shooting, arrow will have blue/purple particle trail (if bow was fully charged)
+## Configuration
 
-## Dependencies
+Settings can be customized via the in-game Settings menu (`Settings -> All Settings -> Mods -> x_bows`) or directly in `luanti.conf`:
 
-- none
+```ini
+# Attach arrows to entities and mobs
+x_bows_attach_arrows_to_entities = true
 
-## Optional Dependencies
+# Display animated floating damage numbers on hit
+x_bows_show_damage_numbers = false
 
-- default (recipes)
-- farming (bow and target recipes)
-- 3d_armor (calculates damage including the armor)
-- mesecons (target can be used to trigger mesecon signal)
-- playerphysics (force sneak when holding charged bow)
-- player_monoids (force sneak when holding charged bow)
-- wool (quiver recipe)
-- i3
-- unified_inventory
-- simple_skins
-- u_skins
-- wardrobe
-- sfinv
-- skinsdb
-- player_api (shows 3d quiver)
+# Show 3D quiver model on player back in 3rd person view
+x_bows_show_3d_quiver = true
 
-## License:
+# Toggle individual arrow tiers and their crafting recipes
+x_bows_enable_arrow_wood = true
+x_bows_enable_arrow_stone = true
+x_bows_enable_arrow_bronze = true
+x_bows_enable_arrow_steel = true
+x_bows_enable_arrow_mese = true
+x_bows_enable_arrow_diamond = true
+```
 
-- see included LICENSE.txt file
+---
 
-## Installation
+## Developer API
 
-see: https://wiki.minetest.net/Installing_Mods
+X Bows provides an extensible, modular API for registering custom bows, arrows, and quivers:
+
+```lua
+-- Register a custom arrow
+XBows:register_arrow("arrow_fire", {
+    description = "Fire Arrow",
+    inventory_image = "my_mod_arrow_fire.png",
+    custom = {
+        recipe = {
+            { "default:flint" },
+            { "default:torch" },
+            { "farming:wheat" }
+        },
+        tool_capabilities = {
+            full_punch_interval = 0.8,
+            max_drop_level = 1,
+            damage_groups = { fleshy = 7 }
+        },
+        particle_effect = "fire_trail",
+        on_hit_node = function(pos, node, shooter)
+            core.set_node(pos, { name = "fire:basic_flame" })
+        end
+    }
+})
+
+-- Register a custom bow
+XBows:register_bow("bow_longbow", {
+    description = "Reinforced Longbow",
+    inventory_image = "my_mod_longbow.png",
+    custom = {
+        strength = 75,             -- Higher arrow velocity
+        uses = 350,                -- Increased durability
+        crit_chance = 4,           -- 1-in-4 (25%) critical hit rate
+        sound_shoot = "my_mod_longbow_shoot"
+    }
+})
+
+-- Register a custom quiver
+XBows:register_quiver("quiver_elven", {
+    description = "Elven Quiver",
+    inventory_image = "my_mod_quiver_elven.png",
+    custom = {
+        faster_arrows = 1.3,       -- +30% arrow flight speed
+        add_damage = 3             -- +3 bonus damage
+    }
+})
+```
+
+---
+
+## Compatibility
+
+- **Damage & Armor**: Native integration with Luanti Game damage mechanics and `3d_armor`.
+- **Combat & Death Tracking**: Full damage attribution and corpse arrow transfer with `deathstats`.
+- **Inventory Management**: Built-in tabs and detached inventory synchronization for `i3`, `unified_inventory`, and `sfinv`.
+- **Player Models & Skins**: 3D back-quiver support for `player_api`, `x_player_api`, `3d_armor`, `skinsdb`, `simple_skins`, `u_skins`, and `wardrobe`.
+- **Locomotion & Sneak**: Movement throttling while drawing via `playerphysics`, `player_monoids`, and `pova`.
+- **Automation & Circuitry**: Mesecons strike activation with `mesecons`.
+- **Enchanting**: Full enchantment compatibility with `x_enchanting`.
+
+---
+
+## License
+
+- **Code**: LGPL-2.1-or-later (see [LICENSE.txt](LICENSE.txt))
+- **Media & Assets**: CC-BY-SA-4.0 / CC0-1.0 (see [LICENSE.txt](LICENSE.txt) for full attribution)

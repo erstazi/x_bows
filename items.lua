@@ -1,6 +1,6 @@
 --[[
     X Bows. Adds bow and arrows with API.
-    Copyright (C) 2025 SaKeL
+    Copyright (C) 2026 SaKeL
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -13,7 +13,7 @@
     Lesser General Public License for more details.
 
     You should have received a copy of the GNU Lesser General Public
-    License along with this library; if not, write to juraj.vajda@gmail.com
+    License along with this library; if not, see <https://www.gnu.org/licenses/>.
 --]]
 
 local S = core.get_translator(core.get_current_modname())
@@ -27,7 +27,10 @@ end
 XBows:register_bow('bow_wood', {
     description = S('Wooden Bow'),
     short_description = S('Wooden Bow'),
+    inventory_image = 'x_bows_bow_wood.png',
     custom = {
+        inventory_image_semi_charged = 'x_bows_bow_wood_semi_charged.png',
+        inventory_image_charged = 'x_bows_bow_wood_charged.png',
         uses = 385,
         crit_chance = 10,
         recipe = {

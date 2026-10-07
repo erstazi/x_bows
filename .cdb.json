@@ -1,20 +1,23 @@
 {
-    "type": "MOD",
-    "title": "X Bows",
-    "name": "x_bows",
-    "short_description": "Adds bow and arrows with API.",
-    "dev_state": "MAINTENANCE_ONLY",
-    "tags": [
-        "pvp",
-        "shooter",
-        "survival",
-        "tools"
-    ],
-    "license": "LGPL-2.1-or-later",
-    "media_license": "CC-BY-SA-4.0",
-    "repo": "https://bitbucket.org/minetest_gamers/x_bows/src/master/",
-    "issue_tracker": "https://bitbucket.org/minetest_gamers/x_bows/issues?status=new&status=open",
-    "forums": 26466,
-    "video_url": "https://youtu.be/pItpltmUoa8",
-    "website": "https://bitbucket.org/minetest_gamers/x_bows/wiki/Home"
+  "name": "x_bows",
+  "title": "X Bows",
+  "type": "MOD",
+  "short_description": "Ballistic bows, tiered arrows, 3D quivers, critical hits, realistic trajectory physics, target blocks, enchanting, and comprehensive Luanti API.",
+  "dev_state": "ACTIVELY_DEVELOPED",
+  "tags": [
+    "pvp",
+    "shooter",
+    "survival",
+    "tools"
+  ],
+  "license": "LGPL-2.1-or-later",
+  "media_license": "CC-BY-SA-4.0",
+  "repo": "https://bitbucket.org/minetest_gamers/x_bows/src/master/",
+  "issue_tracker": "https://bitbucket.org/minetest_gamers/x_bows/issues?status=new&status=open",
+  "forums": 26466,
+  "video_url": "https://youtu.be/pItpltmUoa8",
+  "website": "https://bitbucket.org/minetest_gamers/x_bows#readme",
+  "long_description": "# X Bows\n\n**X Bows** is a comprehensive archery and projectile combat mod for Luanti, featuring realistic parabolic ballistic trajectories, tiered arrows, 3D quivers with inventory quickview, interactive target blocks, enchanting, and a flexible developer API.\n\n---\n\n### Key Features\n\n* **Realistic Ballistics & Trajectory**:\n  * Arrows follow parabolic arc physics with in-flight pitch rotation along their velocity vector.\n  * Water deceleration with buoyant air bubble trails and gradual sinking.\n  * Supersonic near-miss flyby audio cues for nearby players.\n  * Arrows stick to solid nodes (can be retrieved), entities (mobs), and players.\n  * Supported node breaking causes attached arrows to fall by gravity.\n  * Embedded player arrows seamlessly transfer to fallen corpses on death (`deathstats` integration).\n\n* **Dynamic Charging & Critical Hits**:\n  * Progressive string tension creaks and audible click upon reaching full draw.\n  * Visual draw states: uncharged, semi-charged, and fully charged.\n  * Quadratic charge easing curve: arrow velocity, distance, and damage scale quadratically with draw duration.\n  * Fully charged shots have a chance for a critical hit (double damage) with distinct red particle trails and audio.\n  * Tactical movement: forced player sneak and FOV zoom while holding a charged bow.\n  * Safe hotbar unload automatically refunds the arrow and uncharges the bow.\n\n* **Tiered Arrows**:\n  * 6 progressive tiers: **Wood** (2 HP), **Stone** (3 HP), **Bronze** (4 HP), **Steel** (5 HP), **Mese** (6 HP), and **Diamond** (8 HP).\n  * Escalating damage, shorter charge intervals, and distinct crafting recipes.\n\n* **3D Quivers & Inventory Quickview**:\n  * Dedicated arrow and quiver slots integrated into `i3`, `unified_inventory`, and `sfinv`.\n  * Passive quiver perks: Faster Arrows (+10% velocity, blue/purple particle trail) and Bonus Damage (+1 HP).\n  * HUD Quickview: temporary on-screen inventory overlay peeking into quiver contents when loading or shooting.\n  * 3D Quiver Model rendered on the player's back in 3rd-person view (`x_player_api`, `player_api`, `3d_armor`, `skinsdb`).\n  * Dynamic visual states for full and empty quivers.\n\n* **Interactive Target Block**:\n  * Placeable hay target block (`x_bows:target`) detecting arrow impacts across all 6 faces.\n  * Emits momentary Mesecons pulses for automated archery ranges, minigames, and automated contraptions.\n  * Cushions fall damage by -30 HP for safe high-altitude landings.\n\n* **Enchantment Integration (`x_enchanting`)**:\n  * Power (damage multiplier), Punch (enhanced knockback), Infinity (arrow preservation), and Unbreaking (durability boost).\n\n* **Extensible Developer API**:\n  * Clean, modular registration methods: `XBows:register_bow`, `XBows:register_arrow`, `XBows:register_quiver`, and `XBows:register_particle_effect`.\n",
+  "content_warnings": [],
+  "ai_disclosure": "NONE"
 }
